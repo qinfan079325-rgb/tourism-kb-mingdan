@@ -1,21 +1,21 @@
-# 未出团名单 / 已完团明细
+# 散客数据看板
 
-导管用公开名单站，两页：
+导管用公开数据看板（原 mingdan），两子页：
 
 | 页 | 说明 |
 |---|---|
-| [未出团名单](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/) | 出团日期 ≥ 今天；按出团日折叠 |
-| [已完团明细](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html) | 完团日期 ≥ 2026-07-01；按完团日折叠 |
+| [未出团](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/) | 出团日期 ≥ 今天；按出团日折叠 |
+| [已完团](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html) | 入库完团日期 ≥ 2026-07-01；按**出团日**折叠 → 导游 → 单组 |
 
-与公开收客看板 `tourism-kb-shouke` **完全分离**（独立仓库），不写入 shouke 首页。
+对外名称：**散客数据看板**。与公开收客看板 `tourism-kb-shouke` **完全分离**（独立仓库），不写入 shouke 首页。URL 路径仍为 `tourism-kb-mingdan`。
 
 ## 访问（公开、无口令）
 
 | 项 | 值 |
 |---|---|
 | 本地 | `/workspace/tourism-kb-model/web/mingdan/site/index.html` · `completed.html` |
-| GitHub Pages 未出团 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/ |
-| GitHub Pages 已完团 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html |
+| GitHub Pages 未出团子页 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/ |
+| GitHub Pages 已完团子页 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html |
 | 仓库 | https://github.com/qinfan079325-rgb/tourism-kb-mingdan |
 
 所有日期默认折叠，点天头展开。页顶可互相切换。
