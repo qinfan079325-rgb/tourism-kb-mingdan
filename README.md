@@ -1,6 +1,11 @@
-# 未出团名单
+# 未出团名单 / 已完团明细
 
-导管用的**未出团客人名单**看板：按出团日期分天折叠，含家庭组数、游客人数、名字、年龄、人群、户籍地（省+市）、初步分析。
+导管用公开名单站，两页：
+
+| 页 | 说明 |
+|---|---|
+| [未出团名单](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/) | 出团日期 ≥ 今天；按出团日折叠 |
+| [已完团明细](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html) | 完团日期 ≥ 2026-07-01；按完团日折叠 |
 
 与公开收客看板 `tourism-kb-shouke` **完全分离**（独立仓库），不写入 shouke 首页。
 
@@ -8,38 +13,46 @@
 
 | 项 | 值 |
 |---|---|
-| 本地文件 | `/workspace/tourism-kb-model/web/mingdan/site/index.html` |
-| GitHub Pages | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/ |
+| 本地 | `/workspace/tourism-kb-model/web/mingdan/site/index.html` · `completed.html` |
+| GitHub Pages 未出团 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/ |
+| GitHub Pages 已完团 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html |
 | 仓库 | https://github.com/qinfan079325-rgb/tourism-kb-mingdan |
 
-打开即可查看，**不设口令**。所有日期默认折叠，点天头展开。
+所有日期默认折叠，点天头展开。页顶可互相切换。
 
-## 字段说明
+## 未出团字段
 
-- **家庭组数 / 游客人数**：按天汇总，写在每天折叠标题上。
-- **名字**：钉钉「小组姓名」按换行拆人。
-- **年龄**：以出团日为基准，从身份证推算；护照不写年龄。
-- **人群**：青年(&lt;45) / 中年(45–59) / 老年(60–69) / 高龄(70+)，组级汇总并附单人/夫妻/家庭粗标签。
-- **户籍地**：**省+市**（如「山东省滨州市」）；直辖市只写市名；护照写「境外/护照」。含旧地级码兜底（如 3723→滨州）。
-- **初步分析**：钉钉原文，放在组卡**右侧**（手机上下堆叠）；脱敏完整身份证、手机号、银行卡号。
+- **家庭组数 / 游客人数 / KB合计**：按天汇总。
+- **名字 / 年龄 / 人群 / 户籍地 / 跟单价 / 需要查询 / 初步分析**（脱敏）。
+
+## 已完团字段（顺序）
+
+1. 团号  
+2. 导游  
+3. 单组游客信息（与未出团同结构：人数、人群、户籍、成员表、跟单价、需要查询、初步分析）  
+4. 最低消费金额  
+5. 预期消费金额（钉钉 `#VALUE!` 显示为空）  
+6. 翡翠金额  
+7. 翡翠人均  
+8. 组团社  
+
+日头另显示当日翡翠金额合计。
 
 页面**不展示**完整身份证号、电话号码字段。
 
 ## 数据范围
 
 - 源：`dingtalk_exports/` 下最新 `散客数据总表_*.xlsx` → sheet「小组级数据」
-- 筛选：`出团日期 >= 今天(Asia/Shanghai)` 且「小组姓名」非空
+- 未出团：`出团日期 >= 今天(Asia/Shanghai)` 且「小组姓名」非空
+- 已完团：`完团日期 >= 2026-07-01` 且「小组姓名」非空
 
 ## 每日更新（钉钉同步后自动）
 
-在 `sync_from_dingtalk.py --rebuild` 与公开看板 `build_site.py` / 推送 shouke **之后**执行（失败不阻断主看板）：
-
 ```bash
-# 重建未出团名单并推送 Pages（推荐）
 /workspace/tourism-kb-model/web/mingdan/deploy.sh || echo "MINGDAN deploy failed (non-blocking)"
 ```
 
-`sync_from_dingtalk.py --rebuild` 结束时也会**尽力**本地重建 `web/mingdan/site/index.html`；带 `--publish-mingdan` 时再调用 `deploy.sh` 推送。
+`sync_from_dingtalk.py --rebuild` 结束时也会**尽力**本地重建；带 `--publish-mingdan` 时再调用 `deploy.sh` 推送。
 
 **不要**把本站 HTML 拷进 `tourism-kb-shouke` 公开仓。
 
@@ -51,7 +64,7 @@ python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --xlsx /path/to
 python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --today 2026-10-26   # 测试
 ```
 
-产物：`web/mingdan/site/index.html`（单页自包含 CSS/JS）。
+产物：`web/mingdan/site/index.html` + `completed.html`（自包含 CSS/JS）。
 
 ## 一键重建并推送
 
