@@ -9,7 +9,9 @@
 
 对外名称：**散客数据看板**。与公开收客看板 `tourism-kb-shouke` **完全分离**（独立仓库），不写入 shouke 首页。URL 路径仍为 `tourism-kb-mingdan`。
 
-## 访问（公开、无口令）
+## 访问（需登录）
+
+打开页面需输入**用户名 + 密码**后方可查看名单正文；未出团 / 已完团两页共用登录态，页内可「退出」。
 
 | 项 | 值 |
 |---|---|
@@ -18,7 +20,7 @@
 | GitHub Pages 已完团子页 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html |
 | 仓库 | https://github.com/qinfan079325-rgb/tourism-kb-mingdan |
 
-所有日期默认折叠，点天头展开。页顶可互相切换。
+所有日期默认折叠，点天头展开。页顶可互相切换。账号由管理员单独发放（前端哈希门禁，非后端鉴权）。
 
 ## 未出团字段
 
