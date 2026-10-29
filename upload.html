@@ -272,18 +272,18 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
         <div class="fuzzy-lab">截图识别（护照 / 台胞证 / 12306火车票 / 航班）</div>
         <input type="file" id="fuzzyOcrFile" accept="image/*" multiple capture="environment" style="display:none" aria-hidden="true"/>
         <div class="fuzzy-ocr-drop" id="fuzzyOcrDrop" tabindex="0" role="button" aria-label="粘贴或拖入截图">
-          <span class="fuzzy-ocr-drop-t">点此聚焦后 Ctrl+V 粘贴截图，或点右侧「选图」</span>
+          <span class="fuzzy-ocr-drop-t">在本页任意处 Ctrl+V 粘贴截图即可识别；也可点「选图」</span>
           <span class="fuzzy-ocr-drop-s">粘贴识别完成后，再点「写入证件名单」；首次需下载中文模型，稍等即可</span>
         </div>
         <div class="fuzzy-ocr-pick-row"><button type="button" class="btn" id="fuzzyOcrPickBtn">选图</button><span class="fuzzy-ocr-pick-hint">电脑用粘贴更方便；选图备用</span></div>
         <div class="fuzzy-actions fuzzy-ocr-actions">
-          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrIdBtn" title="选图或写入客人名单" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onIdBtn&amp;&amp;MingdanUpload.onIdBtn()}catch(e){console.error(e)}return false;">写入证件名单</button>
-          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="选图或填去程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('outbound')}catch(e){console.error(e)}return false;">仅填去程</button>
-          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="选图或填返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('return')}catch(e){console.error(e)}return false;">仅填返程</button>
-          <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="选图或自动填交通" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('auto')}catch(e){console.error(e)}return false;">仅填交通（自动）</button>
+          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrIdBtn" title="把识别到的证件写入客人名单" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onIdBtn&amp;&amp;MingdanUpload.onIdBtn()}catch(e){console.error(e)}return false;">写入证件名单</button>
+          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="把识别到的交通写入去程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('outbound')}catch(e){console.error(e)}return false;">仅填去程</button>
+          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('return')}catch(e){console.error(e)}return false;">仅填返程</button>
+          <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="把识别到的交通自动写入去程或返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('auto')}catch(e){console.error(e)}return false;">仅填交通（自动）</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 00:31 Asia/Shanghai · 蓝色应在「写入证件名单」；切卡进度≠交通</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 00:32 Asia/Shanghai · 蓝色=写入名单（不弹相册）；先粘贴截图再点写入</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -329,7 +329,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:31 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:32 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2849,6 +2849,18 @@ const MingdanUpload = (function () {
     }
     const fuzzyText = $("fuzzyText");
     if (fuzzyText) fuzzyText.addEventListener("paste", onPasteImage);
+    // 电脑：整页 Ctrl+V 截图都能识别（不必先点虚线框）
+    document.addEventListener("paste", function (ev) {
+      const file = clipboardImage(ev);
+      if (!file) return;
+      // 若焦点在普通文本框且剪贴板同时有文字，不抢文字粘贴
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === "TEXTAREA" || ae.tagName === "INPUT") && ae.id !== "fuzzyOcrDrop") {
+        const cd = ev.clipboardData;
+        if (cd && cd.getData && cd.getData("text")) return;
+      }
+      onPasteImage(ev);
+    });
     const fuzzyFile = $("fuzzyFile");
     if (fuzzyFile) {
       fuzzyFile.addEventListener("change", function () {
