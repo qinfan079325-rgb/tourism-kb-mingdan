@@ -310,7 +310,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 02:11 Asia/Shanghai · 不自动保留草稿 · 点「保留草稿」→仅为草稿·待办 · 证件云识别 · 蓝=当前选中</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 02:17 Asia/Shanghai · 不自动保留草稿 · 点「保留草稿」→仅为草稿·待办 · 证件云识别 · 去程/返程优先 · 蓝=当前选中</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -357,7 +357,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 须点保留草稿 · 仅为草稿·待办 · 证件云识别 · 默认4天返程 · build 2026-10-30 02:11 Asia/Shanghai</div>
+  <div class="footer">需登录 · 须点保留草稿 · 仅为草稿·待办 · 证件云识别 · 去程/返程优先 · 默认4天返程 · build 2026-10-30 02:17 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1958,7 +1958,7 @@ const MingdanUpload = (function () {
   let lastOcrText = "";
   let lastOcrMeta = null; // { train, flight, ids, summary }
   let ocrBusy = false;
-  let ocrActionHi = "id"; // 'id' | 'outbound' | 'return' — 当前蓝高亮操作（无 auto）
+  let ocrActionHi = "id"; // 'id' | 'outbound' | 'return' — 当前蓝高亮；去程/返程优先于证件误判
   // 证件云 OCR（百度经 Cloudflare Worker）；构建时由 id-ocr.config.json 注入
   const ID_OCR_WORKER_URL = "https://tourism-kb-id-ocr.qinfan079325.workers.dev";
   const ID_OCR_TOKEN = "a544dc8e2fc392e59303f3b59968e91bec96da25c56198e5";
@@ -3015,7 +3015,11 @@ const MingdanUpload = (function () {
     });
   }
   function refreshOcrActionButtons(meta) {
-    // OCR 完成后按 kind 建议高亮；用户点去程/返程会立刻覆盖且保持
+    // 用户已点去程/返程：绝不被 OCR kind / 证件强信号盖回证件
+    if (ocrActionHi === "outbound" || ocrActionHi === "return") {
+      setOcrActionHighlight(ocrActionHi);
+      return;
+    }
     const kind = (meta && meta.kind) || "";
     if (kind === "train" || kind === "flight") {
       setOcrActionHighlight("outbound");
@@ -3548,9 +3552,15 @@ const MingdanUpload = (function () {
     }
     setOcrBusy(true);
     try {
-      refreshOcrActionButtons({ kind: "id" }); // 识别过程中高亮证件，避免误以为在跑交通
-      // 证件优先走云端专业 OCR；失败再回退 Tesseract（交通票仍靠本地）
-      if (idOcrConfigured()) {
+      const wantTransport = ocrActionHi === "outbound" || ocrActionHi === "return";
+      // 用户已选去程/返程：识别中保持该高亮，勿强制切回证件
+      if (!wantTransport) {
+        refreshOcrActionButtons({ kind: "id" });
+      } else {
+        setOcrActionHighlight(ocrActionHi);
+      }
+      // 证件优先走云端专业 OCR；用户明确要填交通时跳过云证件，免误判成证件写入
+      if (idOcrConfigured() && !wantTransport) {
         setOcrMsg("证件云识别中" + (label ? "（" + label + "）" : "") + "…", "");
         try {
           const cloud = await runCloudIdOcrOnSource(source);
@@ -3667,7 +3677,23 @@ const MingdanUpload = (function () {
         setOcrMsg("未识别到文字，请换更清晰的截图或手动填写", "err");
         return meta;
       }
-      if (meta.kind === "id" || meta.lookIdStrong) {
+      // 用户已选去程/返程：粘贴后自动按该侧写入，不因 lookIdStrong 跳证件
+      if (wantTransport) {
+        const side = ocrActionHi === "return" ? "return" : "outbound";
+        const sideLabel = side === "return" ? "返程" : "去程";
+        setOcrMsg(
+          "识别完成（已选" + sideLabel + "）。" +
+            (meta.summary ? " 发现：" + meta.summary + "。" : "") +
+            "正在写入" + sideLabel + "交通…",
+          "ok"
+        );
+        try {
+          applyOcrTransport(side);
+        } catch (eApply) {
+          console.error("[MingdanUpload.applyOcrTransport]", eApply);
+          setOcrMsg("自动写入" + sideLabel + "失败，请再点「仅填" + sideLabel + "」：" + ((eApply && eApply.message) || eApply), "err");
+        }
+      } else if (meta.kind === "id" || meta.lookIdStrong) {
         setOcrMsg("识别完成，判定为证件。" + (meta.summary ? " " + meta.summary + "。" : "") + "正在写入名单…", "ok");
         try {
           applyOcrIds();
@@ -3679,7 +3705,7 @@ const MingdanUpload = (function () {
         setOcrMsg(
           "识别完成，判定为" + (meta.kind === "train" ? "火车" : "航班") + "。" +
             (meta.summary ? " 发现：" + meta.summary + "。" : "") +
-            "正在写入交通…",
+            "正在写入去程…",
           "ok"
         );
         try {
@@ -3875,16 +3901,11 @@ const MingdanUpload = (function () {
           setOcrMsg("已选图 " + (i + 1) + "/" + files.length + "，开始识别…", "");
           await runOcrOnImage(f, f.name || "相册图片");
         }
-        // runOcrOnImage 已按 kind 自动写入；若用户点的是证件但被误判，强制再走证件
+        // 用户指定侧优先：证件强制写名单；去程/返程强制写对应交通（覆盖误判证件）
         if (thenApply === "id") applyOcrIds();
         else if (thenApply === "outbound" || thenApply === "return") {
-          if (!lastOcrMeta || (lastOcrMeta.kind !== "train" && lastOcrMeta.kind !== "flight")) {
-            applyOcrTransport(thenApply);
-          } else {
-            // OCR 已自动写入去程；用户指定返程时再强制写返程
-            if (thenApply === "return") applyOcrTransport("return");
-            else applyOcrTransport("outbound");
-          }
+          setOcrActionHighlight(thenApply);
+          applyOcrTransport(thenApply);
         }
       } catch (e) {
         console.error(e);
@@ -3947,8 +3968,59 @@ const MingdanUpload = (function () {
     return "";
   }
 
+  /** 用户点去程/返程时：重新解析票面，不受 lookIdStrong 把航班清零影响 */
+  function freshTransportParse(text) {
+    const raw = String(text || lastOcrText || "");
+    const train = parseTrainTicket(raw);
+    const flight = parseFlightTicket(raw);
+    const collapsed = collapseOcrNoise(raw);
+    const lookTrain = /12306|发车时间|总张数|车次|已支付|下单日期/.test(collapsed);
+    const lookAirport =
+      /(?:HKG|CKG|PEK|PKX|PVG|SHA|CAN|SZX|CTU|TFU|XIY|TPE|KHH|RMQ|MFM|机场|登机口|登机牌|→|->)/i.test(collapsed);
+    const lookKnownAirlineFlight =
+      /\b(?:CX|CA|MU|CZ|HU|3U|FM|HO|9C|ZH|SC|JD|TV|PN|MF|HX|KA|SQ)\s*-?\s*\d{2,4}\b/i.test(collapsed);
+    const lookFlight =
+      /(?:Terminal|Confirmed|Flight\b|登机|航班|行程卡|登机牌|Boarding\s*Pass|Depart(?:ure)?|Arriv(?:e|al))/i.test(collapsed) ||
+      (lookKnownAirlineFlight && lookAirport) ||
+      (!!(flight.from_code && flight.to_code) && lookKnownAirlineFlight);
+    let hasTrain = !!(train.train_no && (train.from || train.depart_date || train.line));
+    let hasFlight = !!(
+      flight.flight_no &&
+      !/^[GDCZKTY]\d+$/i.test(flight.flight_no) &&
+      (lookFlight || (flight.from_code && flight.to_code) || (flight.from && flight.to) || flight.line)
+    );
+    if (hasFlight && lookTrain && !lookFlight) hasFlight = false;
+    let line = "";
+    let kind = "";
+    if (hasTrain && (lookTrain || !hasFlight)) {
+      line = train.line || "";
+      kind = "train";
+    } else if (hasFlight) {
+      line = flight.line || "";
+      kind = "flight";
+    } else if (train.line && isTransportLine(train.line)) {
+      line = train.line;
+      kind = "train";
+    } else if (flight.line && isTransportLine(flight.line)) {
+      line = flight.line;
+      kind = "flight";
+    }
+    line = cleanTransportField(line);
+    return { train: train, flight: flight, line: line, kind: kind, hasTransport: !!line };
+  }
+
+  function isClearlyIdNoTransport(meta, text) {
+    const fresh = freshTransportParse(text || lastOcrText);
+    if (fresh.hasTransport) return false;
+    const m = meta || {};
+    if (m.kind === "id" || m.lookIdStrong) return true;
+    if (m.ids && m.ids.guests && m.ids.guests.length) return true;
+    return false;
+  }
+
   function applyOcrTransport(which) {
     // which: 'outbound' | 'return' — 只写对应字段，绝不串写另一侧
+    // 用户明确点了去程/返程：即使 OCR 有证件噪点 / lookIdStrong，也尽量填交通
     if (!lastOcrText && !lastOcrMeta) {
       setOcrMsg("请先粘贴或上传火车票/航班截图完成识别", "err");
       return;
@@ -3956,13 +4028,14 @@ const MingdanUpload = (function () {
     const meta = lastOcrMeta || analyzeOcrText(lastOcrText);
     const target = which === "return" ? "return" : "outbound";
     setOcrActionHighlight(target);
-    if (meta.kind === "id" || meta.lookIdStrong) {
-      setOcrMsg("当前识别为证件，不是车票/机票。请点「写入证件名单」。", "err");
-      return;
-    }
-    const line = cleanTransportField(transportLineFromMeta(meta));
+    const fresh = freshTransportParse(lastOcrText);
+    const line = fresh.line || cleanTransportField(transportLineFromMeta(meta));
     if (!line) {
-      setOcrMsg("未解析到车次/航班信息。请打开 OCR 原文核对，或换更清晰截图。", "err");
+      if (isClearlyIdNoTransport(meta, lastOcrText)) {
+        setOcrMsg("当前识别为证件且无车次/航班，无法填" + (target === "return" ? "返程" : "去程") + "。请点「写入证件名单」，或换车票/机票截图。", "err");
+      } else {
+        setOcrMsg("未解析到车次/航班信息。请打开 OCR 原文核对，或换更清晰截图。", "err");
+      }
       showOcrRaw(lastOcrText);
       return;
     }
@@ -3970,8 +4043,8 @@ const MingdanUpload = (function () {
     const key = target === "return" ? "return_transport" : "outbound_transport";
     writeField(key, line);
 
-    const train = meta.train || {};
-    const flight = meta.flight || {};
+    const train = fresh.train || meta.train || {};
+    const flight = fresh.flight || meta.flight || {};
     const pass = train.passenger || flight.passenger || "";
     const date = train.depart_date || flight.depart_date || "";
     const count = train.ticket_count || "";
