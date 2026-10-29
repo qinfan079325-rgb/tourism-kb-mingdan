@@ -297,13 +297,12 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
         </div>
         <div class="fuzzy-ocr-pick-row"><button type="button" class="btn" id="fuzzyOcrPickBtn">选图</button><span class="fuzzy-ocr-pick-hint">电脑用粘贴更方便；选图备用</span></div>
         <div class="fuzzy-actions fuzzy-ocr-actions">
-          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrIdBtn" title="把识别到的证件写入客人名单" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onIdBtn&amp;&amp;MingdanUpload.onIdBtn()}catch(e){console.error(e)}return false;">写入证件名单</button>
-          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="把识别到的交通写入去程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('outbound')}catch(e){console.error(e)}return false;">仅填去程</button>
-          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('return')}catch(e){console.error(e)}return false;">仅填返程</button>
-          <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="把识别到的交通自动写入去程或返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('auto')}catch(e){console.error(e)}return false;">仅填交通（自动）</button>
+          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrIdBtn" title="把识别到的证件写入客人名单">写入证件名单</button>
+          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="把识别到的交通写入去程">仅填去程</button>
+          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:53 Asia/Shanghai · 证件云识别(百度) · 客人名单分栏(姓名/类型/号码/电话) · 中文名优先 · 蓝=当前选中</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:58 Asia/Shanghai · 去程/返程分键 · 无自动交通 · 证件云识别 · 名单分栏 · 蓝=当前选中</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -349,7 +348,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 中文名优先 · build 2026-10-30 01:53 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 中文名优先 · build 2026-10-30 01:58 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1816,7 +1815,7 @@ const MingdanUpload = (function () {
   let lastOcrText = "";
   let lastOcrMeta = null; // { train, flight, ids, summary }
   let ocrBusy = false;
-  let ocrActionHi = "id"; // 'id' | 'outbound' | 'return' | 'auto' — 当前蓝高亮操作
+  let ocrActionHi = "id"; // 'id' | 'outbound' | 'return' — 当前蓝高亮操作（无 auto）
   // 证件云 OCR（百度经 Cloudflare Worker）；构建时由 id-ocr.config.json 注入
   const ID_OCR_WORKER_URL = "https://tourism-kb-id-ocr.qinfan079325.workers.dev";
   const ID_OCR_TOKEN = "a544dc8e2fc392e59303f3b59968e91bec96da25c56198e5";
@@ -2856,14 +2855,13 @@ const MingdanUpload = (function () {
   }
 
   function setOcrActionHighlight(mode) {
-    // mode: 'id' | 'outbound' | 'return' | 'auto'
-    const m = mode === "outbound" || mode === "return" || mode === "auto" ? mode : "id";
+    // mode: 'id' | 'outbound' | 'return'（已移除 auto）
+    const m = mode === "outbound" || mode === "return" ? mode : "id";
     ocrActionHi = m;
     const map = {
       id: $("fuzzyOcrIdBtn"),
       outbound: $("fuzzyOcrOutBtn"),
       return: $("fuzzyOcrRetBtn"),
-      auto: $("fuzzyOcrAutoBtn"),
     };
     Object.keys(map).forEach(function (k) {
       const btn = map[k];
@@ -2874,12 +2872,11 @@ const MingdanUpload = (function () {
     });
   }
   function refreshOcrActionButtons(meta) {
-    // OCR 完成后按 kind 建议高亮（用户点击会立刻覆盖）
+    // OCR 完成后按 kind 建议高亮；用户点去程/返程会立刻覆盖且保持
     const kind = (meta && meta.kind) || "";
     if (kind === "train" || kind === "flight") {
-      setOcrActionHighlight("auto");
+      setOcrActionHighlight("outbound");
     } else {
-      // id / empty / unknown → 证件
       setOcrActionHighlight("id");
     }
   }
@@ -3543,7 +3540,7 @@ const MingdanUpload = (function () {
           "ok"
         );
         try {
-          applyOcrTransport("auto");
+          applyOcrTransport("outbound");
         } catch (eApply) {
           console.error("[MingdanUpload.applyOcrTransport]", eApply);
           setOcrMsg("自动写入交通失败，请点「识别交通」按钮：" + ((eApply && eApply.message) || eApply), "err");
@@ -3711,17 +3708,18 @@ const MingdanUpload = (function () {
     applyOcrIds();
   }
   function onTransportBtn(which) {
-    setOcrActionHighlight(which);
+    const mode = which === "return" ? "return" : "outbound";
+    setOcrActionHighlight(mode);
     if (!lastOcrText) {
       setOcrMsg("请先把车票/机票截图 Ctrl+V 粘贴到上方虚线框（或点「选图」），等识别完成后再点填入。", "err");
       const drop = $("fuzzyOcrDrop");
       if (drop) drop.focus();
       return;
     }
-    applyOcrTransport(which);
+    applyOcrTransport(mode);
   }
   function pickOcrImage(thenApply) {
-    // thenApply: 'id' | 'outbound' | 'return' | 'auto' | null
+    // thenApply: 'id' | 'outbound' | 'return' | null
     const input = $("fuzzyOcrFile");
     if (!input) {
       setOcrMsg("页面缺少选图控件，请刷新", "err");
@@ -3740,9 +3738,13 @@ const MingdanUpload = (function () {
         }
         // runOcrOnImage 已按 kind 自动写入；若用户点的是证件但被误判，强制再走证件
         if (thenApply === "id") applyOcrIds();
-        else if (thenApply === "outbound" || thenApply === "return" || thenApply === "auto") {
+        else if (thenApply === "outbound" || thenApply === "return") {
           if (!lastOcrMeta || (lastOcrMeta.kind !== "train" && lastOcrMeta.kind !== "flight")) {
             applyOcrTransport(thenApply);
+          } else {
+            // OCR 已自动写入去程；用户指定返程时再强制写返程
+            if (thenApply === "return") applyOcrTransport("return");
+            else applyOcrTransport("outbound");
           }
         }
       } catch (e) {
@@ -3807,15 +3809,16 @@ const MingdanUpload = (function () {
   }
 
   function applyOcrTransport(which) {
-    // which: 'outbound' | 'return' | 'auto'
+    // which: 'outbound' | 'return' — 只写对应字段，绝不串写另一侧
     if (!lastOcrText && !lastOcrMeta) {
       setOcrMsg("请先粘贴或上传火车票/航班截图完成识别", "err");
       return;
     }
     const meta = lastOcrMeta || analyzeOcrText(lastOcrText);
-    setOcrActionHighlight(which === "auto" ? "auto" : which);
+    const target = which === "return" ? "return" : "outbound";
+    setOcrActionHighlight(target);
     if (meta.kind === "id" || meta.lookIdStrong) {
-      setOcrMsg("当前识别为证件，不是车票/机票。请点「识别证件 → 名单」。", "err");
+      setOcrMsg("当前识别为证件，不是车票/机票。请点「写入证件名单」。", "err");
       return;
     }
     const line = transportLineFromMeta(meta);
@@ -3825,10 +3828,6 @@ const MingdanUpload = (function () {
       return;
     }
     ensureDraftForOcr();
-    let target = which;
-    if (which === "auto") {
-      target = readField("outbound_transport").trim() ? "return" : "outbound";
-    }
     const key = target === "return" ? "return_transport" : "outbound_transport";
     writeField(key, line);
 
@@ -3985,8 +3984,6 @@ const MingdanUpload = (function () {
     if (outBtn) outBtn.addEventListener("click", function () { onTransportBtn("outbound"); });
     const retBtn = $("fuzzyOcrRetBtn");
     if (retBtn) retBtn.addEventListener("click", function () { onTransportBtn("return"); });
-    const autoBtn = $("fuzzyOcrAutoBtn");
-    if (autoBtn) autoBtn.addEventListener("click", function () { onTransportBtn("auto"); });
     // 虚线框点击：聚焦以便 Ctrl+V；选图走旁边按钮
     if (ocrDrop) {
       ocrDrop.addEventListener("click", function () { ocrDrop.focus(); });
