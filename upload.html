@@ -182,6 +182,14 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-st{font-size:12px;font-weight:650;border-radius:999px;padding:2px 9px}
 .fuzzy-st.st-pending_parse{background:#422006;color:#fbbf24}
 .fuzzy-st.st-pending_sales_confirm{background:#1e3a5f;color:#93c5fd}
+
+.fuzzy-draft.is-draft-todo{border-color:#b45309;background:#1c1410}
+.fuzzy-draft-badge{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;
+  background:#9a3412;color:#ffedd5;border:1px solid #f97316;letter-spacing:.02em}
+.fuzzy-st.st-draft_todo{background:#7c2d12;color:#fdba74}
+.fuzzy-keep{background:#9a3412;border-color:#ea580c;color:#ffedd5;font-weight:650}
+.fuzzy-keep:hover{filter:brightness(1.08)}
+
 .fuzzy-st.st-confirmed_await_yitu{background:#14532d;color:#86efac}
 .fuzzy-st.st-in_yitu{background:#064e3b;color:#6ee7b7}
 .fuzzy-st.st-pending_change_sync{background:#7c2d12;color:#fdba74}
@@ -280,9 +288,9 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
   <section id="fuzzyPanel" class="fuzzy-panel" aria-label="模糊订单上传">
     <div class="fuzzy-panel-h">
       <h2>上传 / 粘贴</h2>
-      <span class="fuzzy-hint">登录可见 · 草稿仅存本机浏览器</span>
+      <span class="fuzzy-hint">登录可见 · 须点「保留草稿」才存本机 · 标「仅为草稿·待办」</span>
     </div>
-    <p class="fuzzy-note">优先粘贴文字；证件/火车票/航班截图可粘贴或选图识别。确认前不改钉钉名单；易途录完前订单只留本页。组团社+出团日+代表人相同会提示可能重复。</p>
+    <p class="fuzzy-note">优先粘贴文字；证件/火车票/航班截图可粘贴或选图识别。解析/识别只进下方核对区，<b>不会自动保留草稿</b>；点「保留草稿」后列表显示「仅为草稿·待办」。确认前不改钉钉名单。组团社+出团日+代表人相同会提示可能重复。</p>
     <div class="fuzzy-form">
       <label class="fuzzy-lab" for="fuzzyText">订单文字</label>
       <textarea id="fuzzyText" rows="10" placeholder="粘贴例如：&#10;组团社：湖南友记&#10;【时间】：10月27日&#10;【团型天数】: 九武5天4晚&#10;【客人人数】：6大&#10;结算明细：结算：-1000*6+158*6乌江+70加车+200*3续住=-4382&#10;…&#10;也可直接把证件/车票截图粘贴到下方识别区。"></textarea>
@@ -302,7 +310,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 02:05 Asia/Shanghai · 交通须像航班/车次 · 无返程不乱填 · 默认4天返程 · 证件云识别 · 名单分栏 · 蓝=当前选中</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 02:11 Asia/Shanghai · 不自动保留草稿 · 点「保留草稿」→仅为草稿·待办 · 证件云识别 · 蓝=当前选中</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -337,6 +345,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
       <div class="fuzzy-confirm-row">
         <label class="fuzzy-check"><input type="checkbox" id="fuzzyConfirmCheck"/> 销售确认无误（出团日、人数等已核对）</label>
         <button type="button" class="btn" id="fuzzyRecalcKb">按明细重算 KB</button>
+        <button type="button" class="btn fuzzy-keep" id="fuzzyKeepDraftBtn" title="写入本机列表并标「仅为草稿·待办」，不自动进未出团">保留草稿</button>
         <button type="button" class="btn fuzzy-primary" id="fuzzyConfirmBtn" disabled>销售确认无误并保存</button>
         <button type="button" class="btn" id="fuzzyMarkYituBtn">标记易途已录入</button>
         <button type="button" class="btn" id="fuzzyChangeBtn">申请改单</button>
@@ -348,7 +357,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 默认4天返程 · 中文名优先 · build 2026-10-30 02:05 Asia/Shanghai</div>
+  <div class="footer">需登录 · 须点保留草稿 · 仅为草稿·待办 · 证件云识别 · 默认4天返程 · build 2026-10-30 02:11 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -491,6 +500,7 @@ const MingdanAuth = (function () {
 const MingdanUpload = (function () {
   const STORE_KEY = "mingdan_fuzzy_drafts_v1";
   const STATUS = {
+    draft_todo: "仅为草稿·待办",
     pending_parse: "待解析",
     pending_sales_confirm: "待销售确认",
     confirmed_await_yitu: "已确认待易途",
@@ -498,6 +508,7 @@ const MingdanUpload = (function () {
     pending_change_sync: "待同步易途",
     yitu_updated: "易途已更新",
   };
+  const DRAFT_LIKE = new Set(["draft_todo", "pending_parse", "pending_sales_confirm"]);
   const FIELD_KEYS = [
     ["line_name", "线路名称"],
     ["depart_date", "出团时间"],
@@ -545,6 +556,8 @@ const MingdanUpload = (function () {
   let memDrafts = null;
   let activeId = null;
   let changeMode = false;
+  // 当前核对区内容：仅内存，点「保留草稿」或销售确认才写入 localStorage
+  let workingDraft = null;
 
   function $(id) {
     return document.getElementById(id);
@@ -602,6 +615,37 @@ const MingdanUpload = (function () {
     } catch (e) {
       return false;
     }
+  }
+
+  function cloneDraft(d) {
+    try {
+      return JSON.parse(JSON.stringify(d));
+    } catch (e) {
+      return d;
+    }
+  }
+
+  function isDraftLike(status) {
+    return DRAFT_LIKE.has(status);
+  }
+
+  function getActiveDraft() {
+    if (workingDraft && workingDraft.id === activeId) return workingDraft;
+    if (!activeId) return null;
+    const d = loadDrafts().find((x) => x.id === activeId);
+    if (d) {
+      workingDraft = cloneDraft(d);
+      return workingDraft;
+    }
+    return null;
+  }
+
+  function upsertPersisted(draft) {
+    const list = loadDrafts();
+    const idx = list.findIndex((x) => x.id === draft.id);
+    if (idx >= 0) list[idx] = draft;
+    else list.unshift(draft);
+    return saveDrafts(list);
   }
 
   function kbFromDetail(detail) {
@@ -980,14 +1024,14 @@ const MingdanUpload = (function () {
 
     return {
       id: uid(),
-      status: "pending_sales_confirm",
-      status_label: STATUS.pending_sales_confirm,
+      status: "draft_todo",
+      status_label: STATUS.draft_todo,
       source: "text",
       raw_text: t,
       file_name: "",
       fields,
       needs_human_confirm: ["depart_date", "party_size"],
-      badge: "待易途确认",
+      badge: "仅为草稿·待办",
       sales_confirmed: false,
       change_history: [],
       created_at: nowISO(),
@@ -1074,7 +1118,7 @@ const MingdanUpload = (function () {
     const drafts = loadDrafts();
     if (!drafts.length) {
       box.innerHTML =
-        '<div class="fuzzy-empty">暂无本机草稿。解析后出现在这里；易途录完前不会进入未出团名单。</div>';
+        '<div class="fuzzy-empty">暂无本机草稿。解析/识别只留在下方核对区；点「保留草稿」才会出现在这里（仅为草稿·待办）。不进未出团。</div>';
       renderOverlay();
       return;
     }
@@ -1082,8 +1126,12 @@ const MingdanUpload = (function () {
       .map((d) => {
         const f = d.fields || {};
         const st = STATUS[d.status] || d.status_label || d.status;
-        return `<div class="fuzzy-draft ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
+        const draftBadge = isDraftLike(d.status)
+          ? '<span class="fuzzy-draft-badge" title="尚未销售确认，伙伴可见：仍是草稿待办">仅为草稿·待办</span>'
+          : "";
+        return `<div class="fuzzy-draft ${isDraftLike(d.status) ? "is-draft-todo" : ""} ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
           <div class="fuzzy-draft-h">
+            ${draftBadge}
             <span class="fuzzy-st st-${esc(d.status)}">${esc(st)}</span>
             <span class="fuzzy-who">${esc(f.guest_name || "未命名")} · ${esc(f.depart_date || "无出团日")} · ${esc(f.party_size || "")}</span>
             <span class="fuzzy-agency">${esc(f.agency || "")}</span>
@@ -1105,6 +1153,7 @@ const MingdanUpload = (function () {
         saveDrafts(loadDrafts().filter((x) => x.id !== id));
         if (activeId === id) {
           activeId = null;
+          workingDraft = null;
           changeMode = false;
           $("fuzzyReview").classList.add("hidden");
         }
@@ -1125,11 +1174,16 @@ const MingdanUpload = (function () {
     const changeBox = $("fuzzyChangeBox");
 
     const confirmed = !!d.sales_confirmed || d.status === "confirmed_await_yitu" || d.status === "in_yitu" || d.status === "pending_change_sync" || d.status === "yitu_updated";
-    const awaitingFirstConfirm = d.status === "pending_sales_confirm" || d.status === "pending_parse";
+    const awaitingFirstConfirm = isDraftLike(d.status);
+    const keepBtn = $("fuzzyKeepDraftBtn");
 
     if (chk) {
       chk.checked = !!d.sales_confirmed;
       chk.disabled = !awaitingFirstConfirm;
+    }
+    if (keepBtn) {
+      // 未销售确认前都可点「保留草稿」写入本机列表
+      keepBtn.style.display = awaitingFirstConfirm ? "" : "none";
     }
     if (cbtn) {
       if (awaitingFirstConfirm) {
@@ -1433,13 +1487,10 @@ const MingdanUpload = (function () {
   }
 
 
-  function openDraft(id) {
-    const d = loadDrafts().find((x) => x.id === id);
-    if (!d) {
-      setMsg("找不到该草稿（可能本机存储被清空）", "err");
-      return;
-    }
-    activeId = id;
+  function openReviewFromWorking() {
+    const d = workingDraft;
+    if (!d) return;
+    activeId = d.id;
     changeMode = false;
     const rev = $("fuzzyReview");
     if (!rev) return;
@@ -1460,12 +1511,26 @@ const MingdanUpload = (function () {
     syncGuestListHidden();
     const notes = $("fuzzyChangeNotes");
     if (notes) notes.value = "";
+    const persisted = loadDrafts().some((x) => x.id === d.id);
+    const draftHint = isDraftLike(d.status)
+      ? (persisted ? "仅为草稿·待办（已保留本机）" : "未保留 · 仅内存核对中，点「保留草稿」才写入本机列表")
+      : (STATUS[d.status] || d.status);
     $("fuzzyStatusLine").textContent =
-      `状态：${STATUS[d.status] || d.status} · 草稿 ${d.id} · 易途完成前不进未出团 · 已进未出团的改动等钉钉覆盖`;
+      `状态：${draftHint} · ${d.id} · 易途完成前不进未出团 · 已进未出团的改动等钉钉覆盖`;
     renderDupWarn(d);
     renderHistory(d);
     updateActionButtons(d);
     renderList();
+  }
+
+  function openDraft(id) {
+    const d = loadDrafts().find((x) => x.id === id);
+    if (!d) {
+      setMsg("找不到该草稿（可能本机存储被清空）", "err");
+      return;
+    }
+    workingDraft = cloneDraft(d);
+    openReviewFromWorking();
   }
 
   function readFieldsFromForm() {
@@ -1485,13 +1550,41 @@ const MingdanUpload = (function () {
 
   function onConfirmCheck() {
     const btn = $("fuzzyConfirmBtn");
-    const d = loadDrafts().find((x) => x.id === activeId);
+    const d = getActiveDraft();
     if (!btn || !d) return;
-    if (d.status !== "pending_sales_confirm" && d.status !== "pending_parse") {
+    if (!isDraftLike(d.status)) {
       btn.disabled = true;
       return;
     }
     btn.disabled = !$("fuzzyConfirmCheck").checked;
+  }
+
+
+  function keepDraft() {
+    const d = getActiveDraft();
+    if (!d) {
+      setMsg("请先解析订单或粘贴识别，再点「保留草稿」", "err");
+      return;
+    }
+    const fields = readFieldsFromForm();
+    d.fields = fields;
+    // 显式保留：标记为仅为草稿·待办（未销售确认）
+    if (isDraftLike(d.status) || !d.status) {
+      d.status = "draft_todo";
+      d.status_label = STATUS.draft_todo;
+    }
+    d.updated_at = nowISO();
+    d.updated_by = currentUser();
+    if (!Array.isArray(d.change_history)) d.change_history = [];
+    workingDraft = d;
+    const ok = upsertPersisted(cloneDraft(d));
+    setMsg(
+      ok
+        ? "已保留为本机「仅为草稿·待办」。伙伴可见此标记；未点销售确认前不算正式单，不进未出团。"
+        : "保留失败（本机存储满？）。请下载 JSON 备份。",
+      ok ? "ok" : "err"
+    );
+    openReviewFromWorking();
   }
 
   function confirmSave() {
@@ -1499,33 +1592,36 @@ const MingdanUpload = (function () {
       setMsg("请先勾选「销售确认无误」", "err");
       return;
     }
-    const list = loadDrafts();
-    const idx = list.findIndex((x) => x.id === activeId);
-    if (idx < 0) return;
+    const d = getActiveDraft();
+    if (!d) {
+      setMsg("请先解析或打开一条草稿", "err");
+      return;
+    }
     const fields = readFieldsFromForm();
     if (!(fields.depart_date || "").trim() || !(fields.party_size || "").trim()) {
       setMsg("出团时间、参团人数必须核对填写后再确认", "err");
       return;
     }
-    const dups = findDuplicates(fields, activeId);
+    const dups = findDuplicates(fields, d.id);
     if (dups.length && !confirm("本机已有相同组团社+出团日+代表人的草稿，仍要确认保存吗？")) {
       return;
     }
-    list[idx].fields = fields;
-    list[idx].sales_confirmed = true;
-    list[idx].status = "confirmed_await_yitu";
-    list[idx].status_label = STATUS.confirmed_await_yitu;
-    list[idx].confirmed_at = nowISO();
-    list[idx].confirmed_by = currentUser();
-    if (!Array.isArray(list[idx].change_history)) list[idx].change_history = [];
-    const ok = saveDrafts(list);
+    d.fields = fields;
+    d.sales_confirmed = true;
+    d.status = "confirmed_await_yitu";
+    d.status_label = STATUS.confirmed_await_yitu;
+    d.confirmed_at = nowISO();
+    d.confirmed_by = currentUser();
+    if (!Array.isArray(d.change_history)) d.change_history = [];
+    workingDraft = d;
+    const ok = upsertPersisted(cloneDraft(d));
     setMsg(
       ok
         ? "已保存为「已确认待易途」（仅本页/本机）。未出团钉钉名单未改动；易途录完后再同步。"
         : "已确认（内存）。本机存储失败，请尽快下载 JSON 备份。",
       ok ? "ok" : "err"
     );
-    openDraft(activeId);
+    openReviewFromWorking();
   }
 
   function markInYitu() {
@@ -1549,12 +1645,13 @@ const MingdanUpload = (function () {
       result_status: "in_yitu",
     });
     saveDrafts(list);
+    workingDraft = cloneDraft(list[idx]);
     setMsg("已标记「已进易途」。订单仍留本页；未出团等钉钉同步覆盖/出现。", "ok");
-    openDraft(activeId);
+    openReviewFromWorking();
   }
 
   function startChangeMode() {
-    const d = loadDrafts().find((x) => x.id === activeId);
+    const d = getActiveDraft();
     if (!d || !d.sales_confirmed) {
       setMsg("请先完成销售确认后再申请改单", "err");
       return;
@@ -1595,7 +1692,7 @@ const MingdanUpload = (function () {
     if (!alreadyInYitu) {
       // 未进易途：只更新本页草稿
       resultStatus = list[idx].status === "confirmed_await_yitu" ? "confirmed_await_yitu" : list[idx].status;
-      if (resultStatus === "pending_sales_confirm" || resultStatus === "pending_parse") {
+      if (resultStatus === "pending_sales_confirm" || resultStatus === "pending_parse" || resultStatus === "draft_todo") {
         resultStatus = "confirmed_await_yitu";
         list[idx].sales_confirmed = true;
       }
@@ -1622,8 +1719,9 @@ const MingdanUpload = (function () {
     });
     const ok = saveDrafts(list);
     changeMode = false;
+    workingDraft = cloneDraft(list[idx]);
     setMsg(ok ? msg : msg + "（本机存储失败，请下载 JSON）", ok ? "ok" : "err");
-    openDraft(activeId);
+    openReviewFromWorking();
   }
 
   function markYituUpdated() {
@@ -1645,16 +1743,19 @@ const MingdanUpload = (function () {
       result_status: "yitu_updated",
     });
     saveDrafts(list);
+    workingDraft = cloneDraft(list[idx]);
     setMsg("已标记「易途已更新」，变更记录已保留。", "ok");
-    openDraft(activeId);
+    openReviewFromWorking();
   }
 
   function exportActive() {
-    const d = loadDrafts().find((x) => x.id === activeId);
+    const d = getActiveDraft();
     if (!d) {
       setMsg("请先打开一条草稿", "err");
       return;
     }
+    // 导出前把表单最新值写入内存对象
+    d.fields = readFieldsFromForm();
     const copy = Object.assign({}, d, { fields: readFieldsFromForm() });
     const blob = new Blob([JSON.stringify(copy, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -1666,11 +1767,12 @@ const MingdanUpload = (function () {
   }
 
   function copyNotify() {
-    const d = loadDrafts().find((x) => x.id === activeId);
+    const d = getActiveDraft();
     if (!d) {
       setMsg("请先打开一条草稿", "err");
       return;
     }
+    d.fields = readFieldsFromForm();
     const f = readFieldsFromForm();
     const hist = Array.isArray(d.change_history) ? d.change_history : [];
     const lastChange = [...hist].reverse().find((h) => h.kind === "申请改单");
@@ -1720,8 +1822,8 @@ const MingdanUpload = (function () {
       let partial = false;
       if (text.trim()) {
         draft = parseText(text);
-        draft.status = "pending_sales_confirm";
-        draft.status_label = STATUS.pending_sales_confirm;
+        draft.status = "draft_todo";
+        draft.status_label = STATUS.draft_todo;
         if (fieldsLookEmpty(draft.fields)) {
           partial = true;
           // 绝不因「看起来空」丢掉原文：仍开核对，让销售补字段
@@ -1764,7 +1866,7 @@ const MingdanUpload = (function () {
             gendan_pure: "",
           },
           needs_human_confirm: ["depart_date", "party_size", "kb"],
-          badge: "待易途确认",
+          badge: "仅为草稿·待办",
           sales_confirmed: false,
           change_history: [],
           created_at: nowISO(),
@@ -1777,12 +1879,14 @@ const MingdanUpload = (function () {
       }
       // 无明确返程日且有出团日 → 默认 4 天（出团后第 4 天）
       if (draft && draft.fields) ensureDefaultReturnDate(draft.fields);
-      // 只有成功/部分解析出草稿后才清空输入；空识别也保留核对，但仍清空以免重复提交同一段
-      // 按需求：fieldsLookEmpty 时不因失败而「看起来没反应」——始终 openReview；清空仅在已生成草稿后
+      // 解析结果只进内存核对区，不自动写入本机草稿列表
+      if (draft.status !== "pending_parse") {
+        draft.status = "draft_todo";
+        draft.status_label = STATUS.draft_todo;
+      }
       const dups = findDuplicates(draft.fields, draft.id);
-      const list = loadDrafts();
-      list.unshift(draft);
-      const stored = saveDrafts(list);
+      workingDraft = draft;
+      activeId = draft.id;
       // fieldsLookEmpty：保留 textarea 方便改完再提交；有有效字段才清空
       if (!fieldsLookEmpty(draft.fields) || draft.status === "pending_parse") {
         if (textEl) textEl.value = "";
@@ -1791,33 +1895,19 @@ const MingdanUpload = (function () {
       let base;
       if (draft.status === "pending_parse") {
         base =
-          "已收文件，状态「待解析」。请下载 JSON / 复制通知发给助手；解析后销售再确认。草稿只在本页。";
+          "已收文件，状态「待解析」（仅内存）。需要留着请点「保留草稿」；或下载 JSON / 复制通知发给助手。";
       } else if (partial) {
         base =
-          "已生成部分草稿「待销售确认」。请在下方核对区补全字段；确认前不进未出团。";
-      } else if (stored) {
-        base =
-          "已解析为本机草稿「待销售确认」。请左右对照核对；确认后仍留本页待易途，不进未出团。";
+          "已解析到部分字段（仅内存，未自动保留）。请在下方补全；要留给伙伴看请点「保留草稿」→仅为草稿·待办。";
       } else {
-        base = "已解析（内存）。本机存储失败，请下载 JSON 备份。";
+        base =
+          "已解析到核对区（仅内存，未自动保留草稿）。核对后点「保留草稿」才会出现在列表并标「仅为草稿·待办」；或直接销售确认。";
       }
       if (dups.length) {
         base += ` ⚠️ 本机已有 ${dups.length} 条相同组团社+出团日+代表人，请确认是否重复。`;
       }
-      if (!partial) {
-        setMsg(
-          base,
-          stored || draft.status === "pending_parse"
-            ? dups.length
-              ? "err"
-              : "ok"
-            : "err"
-        );
-      } else {
-        // partial 已 setMsg；追加存储提示
-        setMsg(base + (stored ? "" : "（本机存储失败，请下载 JSON）"), "err");
-      }
-      openDraft(draft.id);
+      setMsg(base, partial || dups.length ? "err" : "ok");
+      openReviewFromWorking();
       const rev = $("fuzzyReview");
       if (rev) {
         rev.classList.remove("hidden");
@@ -3617,15 +3707,13 @@ const MingdanUpload = (function () {
   }
 
   function ensureDraftForOcr() {
-    if (activeId) {
-      const d = loadDrafts().find((x) => x.id === activeId);
-      if (d) return d;
-    }
-    // 开一份空草稿供 OCR 填入
+    const cur = getActiveDraft();
+    if (cur) return cur;
+    // 开一份空草稿供 OCR 填入（仅内存，不自动进本机列表）
     const draft = {
       id: uid(),
-      status: "pending_sales_confirm",
-      status_label: STATUS.pending_sales_confirm,
+      status: "draft_todo",
+      status_label: STATUS.draft_todo,
       source: "ocr",
       raw_text: lastOcrText || "",
       file_name: "",
@@ -3655,16 +3743,15 @@ const MingdanUpload = (function () {
         gendan_pure: "",
       },
       needs_human_confirm: ["depart_date", "party_size", "agency"],
-      badge: "待易途确认",
+      badge: "仅为草稿·待办",
       sales_confirmed: false,
       change_history: [],
       created_at: nowISO(),
       created_by: currentUser(),
     };
-    const list = loadDrafts();
-    list.unshift(draft);
-    saveDrafts(list);
-    openDraft(draft.id);
+    workingDraft = draft;
+    activeId = draft.id;
+    openReviewFromWorking();
     return draft;
   }
 
@@ -3692,26 +3779,25 @@ const MingdanUpload = (function () {
   }
 
   function persistActiveFromForm(extraRemark) {
-    if (!activeId) return;
-    const list = loadDrafts();
-    const idx = list.findIndex((x) => x.id === activeId);
-    if (idx < 0) return;
+    // 只更新内存中的 workingDraft，不自动写入 localStorage
+    const d = getActiveDraft();
+    if (!d) return;
     const fields = readFieldsFromForm();
-    list[idx].fields = fields;
+    d.fields = fields;
     if (lastOcrText) {
       const tag = "\n—— OCR ——\n" + lastOcrText;
-      if (!(list[idx].raw_text || "").includes(lastOcrText.slice(0, 40))) {
-        list[idx].raw_text = ((list[idx].raw_text || "") + tag).trim();
+      if (!(d.raw_text || "").includes(lastOcrText.slice(0, 40))) {
+        d.raw_text = ((d.raw_text || "") + tag).trim();
         const raw = $("fuzzyRaw");
-        if (raw) raw.textContent = list[idx].raw_text;
+        if (raw) raw.textContent = d.raw_text;
       }
     }
     if (extraRemark) {
-      list[idx].fields.remarks = ((list[idx].fields.remarks || "") + "\n" + extraRemark).trim();
-      writeField("remarks", list[idx].fields.remarks);
+      d.fields.remarks = ((d.fields.remarks || "") + "\n" + extraRemark).trim();
+      writeField("remarks", d.fields.remarks);
     }
-    saveDrafts(list);
-    renderList();
+    workingDraft = d;
+    // 不调用 saveDrafts / renderList —— 须点「保留草稿」才进列表
   }
 
   function mergeGuestList(existing, addText) {
@@ -3970,6 +4056,8 @@ const MingdanUpload = (function () {
     if (chk) chk.addEventListener("change", onConfirmCheck);
     const cbtn = $("fuzzyConfirmBtn");
     if (cbtn) cbtn.addEventListener("click", confirmSave);
+    const keepBtn = $("fuzzyKeepDraftBtn");
+    if (keepBtn) keepBtn.addEventListener("click", keepDraft);
     const ebtn = $("fuzzyExportBtn");
     if (ebtn) ebtn.addEventListener("click", exportActive);
     const nbtn = $("fuzzyNotifyBtn");
@@ -4056,7 +4144,7 @@ const MingdanUpload = (function () {
     renderList();
   }
 
-  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport, pickOcrImage, onIdBtn, onTransportBtn };
+  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, keepDraft, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport, pickOcrImage, onIdBtn, onTransportBtn };
   try {
     if (typeof window !== "undefined") window.MingdanUpload = api;
   } catch (e) {}
