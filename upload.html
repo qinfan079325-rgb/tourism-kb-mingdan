@@ -267,18 +267,19 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
       <input type="file" id="fuzzyFile" accept=".xlsx,.xls,.csv,image/*,.txt"/>
       <div class="fuzzy-ocr" id="fuzzyOcrBox" aria-label="截图识别">
         <div class="fuzzy-lab">截图识别（护照 / 台胞证 / 12306火车票 / 航班）</div>
+        <input type="file" id="fuzzyOcrFile" accept="image/*" multiple capture="environment" style="display:none" aria-hidden="true"/>
         <div class="fuzzy-ocr-drop" id="fuzzyOcrDrop" tabindex="0" role="button" aria-label="粘贴或拖入截图">
-          <span class="fuzzy-ocr-drop-t">点此聚焦后 Ctrl+V 粘贴截图，或把图片拖进来</span>
-          <span class="fuzzy-ocr-drop-s">识别后点下方按钮写入名单 / 去程 / 返程；首次需下载中文模型，稍等即可</span>
+          <span class="fuzzy-ocr-drop-t">点此处选图 / 手机相册，或 Ctrl+V 粘贴截图</span>
+          <span class="fuzzy-ocr-drop-s">也可直接点下方「写入证件名单」选图；首次需下载中文模型，稍等即可</span>
         </div>
         <div class="fuzzy-actions fuzzy-ocr-actions">
-          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrIdBtn" title="从最近一次 OCR 结果提取证件写入客人名单" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrIds)MingdanUpload.applyOcrIds()}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入证件失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">写入证件名单</button>
-          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="填入去程交通" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('outbound')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入去程失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">仅填去程</button>
-          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="填入返程交通" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('return')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入返程失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">仅填返程</button>
-          <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="去程空则填去程，否则填返程" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('auto')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入交通失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">仅填交通（自动）</button>
+          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrIdBtn" title="选图或写入客人名单" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onIdBtn&amp;&amp;MingdanUpload.onIdBtn()}catch(e){console.error(e)}return false;">写入证件名单</button>
+          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="选图或填去程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('outbound')}catch(e){console.error(e)}return false;">仅填去程</button>
+          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="选图或填返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('return')}catch(e){console.error(e)}return false;">仅填返程</button>
+          <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="选图或自动填交通" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('auto')}catch(e){console.error(e)}return false;">仅填交通（自动）</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 00:23 Asia/Shanghai · 蓝色应在「写入证件名单」；切卡进度≠交通</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 00:29 Asia/Shanghai · 蓝色应在「写入证件名单」；切卡进度≠交通</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -324,7 +325,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:23 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:29 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2603,6 +2604,45 @@ const MingdanUpload = (function () {
     return lines.join("\n");
   }
 
+
+  function onIdBtn() {
+    if (!lastOcrText) { setOcrMsg("请选择证件截图（手机可从相册选）…", ""); pickOcrImage("id"); }
+    else applyOcrIds();
+  }
+  function onTransportBtn(which) {
+    if (!lastOcrText) { setOcrMsg("请选择火车票/机票截图…", ""); pickOcrImage(which); }
+    else applyOcrTransport(which);
+  }
+  function pickOcrImage(thenApply) {
+    // thenApply: 'id' | 'outbound' | 'return' | 'auto' | null
+    const input = $("fuzzyOcrFile");
+    if (!input) {
+      setOcrMsg("页面缺少选图控件，请刷新", "err");
+      return;
+    }
+    input.value = "";
+    input.onchange = async function () {
+      const files = input.files ? Array.from(input.files) : [];
+      if (!files.length) return;
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
+          if (!(f.type || "").startsWith("image/")) continue;
+          setOcrMsg("已选图 " + (i + 1) + "/" + files.length + "，开始识别…", "");
+          await runOcrOnImage(f, f.name || "相册图片");
+        }
+        if (thenApply === "id") applyOcrIds();
+        else if (thenApply === "outbound" || thenApply === "return" || thenApply === "auto") {
+          applyOcrTransport(thenApply);
+        }
+      } catch (e) {
+        console.error(e);
+        setOcrMsg("选图识别失败：" + ((e && e.message) || e), "err");
+      }
+    };
+    input.click();
+  }
+
   function applyOcrIds() {
     if (!lastOcrText && !lastOcrMeta) {
       setOcrMsg("请先粘贴或上传证件截图完成识别", "err");
@@ -2801,20 +2841,44 @@ const MingdanUpload = (function () {
     }
     const idBtn = $("fuzzyOcrIdBtn");
     if (idBtn) idBtn.addEventListener("click", function () {
-      if (!lastOcrText) setOcrMsg("请先粘贴/拖入证件截图", "err");
-      else applyOcrIds();
+      if (!lastOcrText) {
+        setOcrMsg("请选择证件截图（手机可直接从相册选）…", "");
+        pickOcrImage("id");
+      } else applyOcrIds();
     });
     const outBtn = $("fuzzyOcrOutBtn");
-    if (outBtn) outBtn.addEventListener("click", function () { applyOcrTransport("outbound"); });
+    if (outBtn) outBtn.addEventListener("click", function () {
+      if (!lastOcrText) { setOcrMsg("请选择火车票/机票截图…", ""); pickOcrImage("outbound"); }
+      else applyOcrTransport("outbound");
+    });
     const retBtn = $("fuzzyOcrRetBtn");
-    if (retBtn) retBtn.addEventListener("click", function () { applyOcrTransport("return"); });
+    if (retBtn) retBtn.addEventListener("click", function () {
+      if (!lastOcrText) { setOcrMsg("请选择火车票/机票截图…", ""); pickOcrImage("return"); }
+      else applyOcrTransport("return");
+    });
     const autoBtn = $("fuzzyOcrAutoBtn");
-    if (autoBtn) autoBtn.addEventListener("click", function () { applyOcrTransport("auto"); });
+    if (autoBtn) autoBtn.addEventListener("click", function () {
+      if (!lastOcrText) { setOcrMsg("请选择火车票/机票截图…", ""); pickOcrImage("auto"); }
+      else applyOcrTransport("auto");
+    });
+    // 点虚线框：手机打开相册选图；电脑也可选文件
+    const ocrFile = $("fuzzyOcrFile");
+    if (ocrDrop) {
+      ocrDrop.addEventListener("click", function (ev) {
+        // 避免与内部文字抢；始终打开选图（手机友好）
+        if (ocrFile) {
+          ev.preventDefault();
+          pickOcrImage(null);
+        } else {
+          ocrDrop.focus();
+        }
+      });
+    }
 
     renderList();
   }
 
-  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport };
+  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport, pickOcrImage, onIdBtn, onTransportBtn };
   try {
     if (typeof window !== "undefined") window.MingdanUpload = api;
   } catch (e) {}
