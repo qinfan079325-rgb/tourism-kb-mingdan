@@ -273,7 +273,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
         <input type="file" id="fuzzyOcrFile" accept="image/*" multiple capture="environment" style="display:none" aria-hidden="true"/>
         <div class="fuzzy-ocr-drop" id="fuzzyOcrDrop" tabindex="0" role="button" aria-label="粘贴或拖入截图">
           <span class="fuzzy-ocr-drop-t">在本页任意处 Ctrl+V 粘贴截图即可识别；也可点「选图」</span>
-          <span class="fuzzy-ocr-drop-s">粘贴识别完成后，再点「写入证件名单」；首次需下载中文模型，稍等即可</span>
+          <span class="fuzzy-ocr-drop-s">证件走云识别（无需下模型）；火车票/航班仍用本地识别。写入前可再点按钮核对</span>
         </div>
         <div class="fuzzy-ocr-pick-row"><button type="button" class="btn" id="fuzzyOcrPickBtn">选图</button><span class="fuzzy-ocr-pick-hint">电脑用粘贴更方便；选图备用</span></div>
         <div class="fuzzy-actions fuzzy-ocr-actions">
@@ -283,7 +283,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="把识别到的交通自动写入去程或返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('auto')}catch(e){console.error(e)}return false;">仅填交通（自动）</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:23 Asia/Shanghai · 三连台胞证配对 · 中文名优先 · 蓝=当前选中；先粘贴再点写入</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:43 Asia/Shanghai · 证件云识别(百度) · 中文名优先 · 蓝=当前选中；交通仍本地OCR</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -329,7 +329,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 三连台胞证配对 · 中文名优先 · build 2026-10-30 01:23 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 中文名优先 · build 2026-10-30 01:43 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1518,6 +1518,9 @@ const MingdanUpload = (function () {
   let lastOcrMeta = null; // { train, flight, ids, summary }
   let ocrBusy = false;
   let ocrActionHi = "id"; // 'id' | 'outbound' | 'return' | 'auto' — 当前蓝高亮操作
+  // 证件云 OCR（百度经 Cloudflare Worker）；构建时由 id-ocr.config.json 注入
+  const ID_OCR_WORKER_URL = "https://tourism-kb-id-ocr.qinfan079325.workers.dev";
+  const ID_OCR_TOKEN = "a544dc8e2fc392e59303f3b59968e91bec96da25c56198e5";
 
   function loadTesseract() {
     if (typeof window !== "undefined" && window.Tesseract) {
@@ -2781,6 +2784,172 @@ const MingdanUpload = (function () {
     return outs;
   }
 
+
+  function idOcrConfigured() {
+    const u = String(ID_OCR_WORKER_URL || "").trim();
+    return !!(u && u.indexOf("__ID_OCR_") < 0 && /^https?:\/\//i.test(u));
+  }
+
+  function stripDataUrlBase64(dataUrl) {
+    const s = String(dataUrl || "");
+    const i = s.indexOf("base64,");
+    return i >= 0 ? s.slice(i + 7) : s.replace(/\s+/g, "");
+  }
+
+  function canvasToJpegBase64(canvas, quality) {
+    try {
+      const q = quality == null ? 0.9 : quality;
+      return stripDataUrlBase64(canvas.toDataURL("image/jpeg", q));
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function blobToDataURL(blob) {
+    return new Promise(function (resolve, reject) {
+      const fr = new FileReader();
+      fr.onload = function () { resolve(String(fr.result || "")); };
+      fr.onerror = function () { reject(fr.error || new Error("read_failed")); };
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  async function sourceToJpegBase64(source) {
+    if (!source) return "";
+    if (typeof HTMLCanvasElement !== "undefined" && source instanceof HTMLCanvasElement) {
+      return canvasToJpegBase64(source, 0.9);
+    }
+    if (typeof Blob !== "undefined" && source instanceof Blob) {
+      // Prefer canvas re-encode to jpeg for size; fallback dataURL
+      try {
+        const img = await loadImageElement(source);
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const maxSide = 2000;
+        let dw = w, dh = h;
+        if (Math.max(w, h) > maxSide) {
+          const sc = maxSide / Math.max(w, h);
+          dw = Math.round(w * sc);
+          dh = Math.round(h * sc);
+        }
+        const c = document.createElement("canvas");
+        c.width = dw;
+        c.height = dh;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, dw, dh);
+        ctx.drawImage(img, 0, 0, dw, dh);
+        return canvasToJpegBase64(c, 0.9);
+      } catch (e) {
+        const du = await blobToDataURL(source);
+        return stripDataUrlBase64(du);
+      }
+    }
+    // dataURL / img element
+    try {
+      const img = await loadImageElement(source);
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth || img.width;
+      c.height = img.naturalHeight || img.height;
+      c.getContext("2d").drawImage(img, 0, 0);
+      return canvasToJpegBase64(c, 0.9);
+    } catch (e2) {
+      return "";
+    }
+  }
+
+  async function postCloudIdOcr(imageBase64, docType) {
+    if (!idOcrConfigured() || !imageBase64) return null;
+    const headers = { "Content-Type": "application/json" };
+    const tok = String(ID_OCR_TOKEN || "").trim();
+    if (tok && tok.indexOf("__ID_OCR_") < 0) headers.Authorization = "Bearer " + tok;
+    const res = await fetch(String(ID_OCR_WORKER_URL).replace(/\/$/, "") + "/ocr/id", {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({ image_base64: imageBase64, doc_type: docType || "auto" }),
+    });
+    let data = null;
+    try { data = await res.json(); } catch (e) { data = { ok: false, error: "bad_json", status: res.status }; }
+    if (!data) data = { ok: false, error: "empty" };
+    data._http = res.status;
+    return data;
+  }
+
+  function cloudResultToIds(data) {
+    const guests = [];
+    const names = [];
+    const list = (data && data.guests) || [];
+    for (let i = 0; i < list.length; i++) {
+      const g = list[i] || {};
+      const nameZh = String(g.name_zh || "").trim();
+      const nameEn = String(g.name_en || "").trim();
+      const name = nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : nameEn;
+      const idType = String(g.id_type || "证件").trim();
+      const idNumber = String(g.id_number || "").trim();
+      if (!idNumber) continue;
+      const line = g.line || [name, idType, idNumber].filter(Boolean).join(" ");
+      guests.push({ name_zh: nameZh, name_en: nameZh ? "" : nameEn, id_type: idType, id_number: idNumber, line: line });
+      if (name) names.push(name);
+    }
+    const guest_list = (data && data.guest_list) || guests.map(function (g) { return g.line; }).join("\n");
+    return { guests: guests, guest_list: guest_list, names: names, provider: (data && data.provider) || "baidu", doc_type: (data && data.doc_type) || "" };
+  }
+
+  async function runCloudIdOcrOnSource(source) {
+    if (!idOcrConfigured()) return null;
+    const seen = {};
+    const allGuests = [];
+    const rawBits = [];
+    async function ingest(b64, tag) {
+      if (!b64 || b64.length < 100) return;
+      const data = await postCloudIdOcr(b64, "auto");
+      if (!data) return;
+      rawBits.push("[" + tag + " http=" + (data._http || "") + " ok=" + !!data.ok + (data.error ? " err=" + data.error : "") + "]");
+      if (!data.ok) return;
+      const ids = cloudResultToIds(data);
+      for (let i = 0; i < ids.guests.length; i++) {
+        const g = ids.guests[i];
+        const key = String(g.id_number || "").toUpperCase();
+        if (!key || seen[key]) continue;
+        seen[key] = true;
+        allGuests.push(g);
+      }
+      if (data.raw_fields) {
+        try { rawBits.push(JSON.stringify(data.raw_fields)); } catch (e) {}
+      }
+    }
+    // full image first
+    const fullB64 = await sourceToJpegBase64(source);
+    await ingest(fullB64, "full");
+    // then card crops if any
+    try {
+      const canvases = await prepareOcrCanvases(source);
+      const items = (canvases || []).filter(function (c) { return c && c.canvas && c.kind === "id"; });
+      for (let i = 0; i < items.length && i < 6; i++) {
+        const b64 = canvasToJpegBase64(items[i].canvas, 0.92);
+        await ingest(b64, "card" + (i + 1));
+      }
+    } catch (eCrop) {
+      console.warn("[MingdanUpload.cloudCrop]", eCrop);
+    }
+    if (!allGuests.length) {
+      return { ok: false, error: "no_document_recognized", raw: rawBits.join("\n") };
+    }
+    const guest_list = allGuests.map(function (g) { return g.line; }).join("\n");
+    const names = allGuests.map(function (g) {
+      return (g.name_zh && /[\u4e00-\u9fff]/.test(g.name_zh) ? g.name_zh : g.name_en || "").trim();
+    }).filter(Boolean);
+    return {
+      ok: true,
+      provider: "baidu",
+      guests: allGuests,
+      guest_list: guest_list,
+      names: names,
+      ids: { guests: allGuests, guest_list: guest_list, names: names },
+      raw: rawBits.join("\n"),
+    };
+  }
+
   async function runOcrOnImage(source, label) {
     if (ocrBusy) {
       setOcrMsg("正在识别中，请稍候…", "");
@@ -2789,6 +2958,37 @@ const MingdanUpload = (function () {
     setOcrBusy(true);
     try {
       refreshOcrActionButtons({ kind: "id" }); // 识别过程中高亮证件，避免误以为在跑交通
+      // 证件优先走云端专业 OCR；失败再回退 Tesseract（交通票仍靠本地）
+      if (idOcrConfigured()) {
+        setOcrMsg("证件云识别中" + (label ? "（" + label + "）" : "") + "…", "");
+        try {
+          const cloud = await runCloudIdOcrOnSource(source);
+          if (cloud && cloud.ok && cloud.guests && cloud.guests.length) {
+            lastOcrText = (cloud.guest_list || "") + "\n—— 云识别 ——\n" + (cloud.raw || "");
+            lastOcrMeta = {
+              train: null,
+              flight: null,
+              ids: cloud.ids,
+              kind: "id",
+              summary: "云证件 " + cloud.guests.length + " 人",
+              lookIdStrong: true,
+            };
+            showOcrRaw(lastOcrText);
+            refreshOcrActionButtons(lastOcrMeta);
+            setOcrMsg("云识别完成，证件 " + cloud.guests.length + " 人。正在写入名单…", "ok");
+            try { applyOcrIds(); } catch (eApply) {
+              console.error("[MingdanUpload.applyOcrIds]", eApply);
+              setOcrMsg("自动写入名单失败，请再点「写入证件名单」：" + ((eApply && eApply.message) || eApply), "err");
+            }
+            return lastOcrMeta;
+          }
+          if (cloud && cloud.raw) showOcrRaw(cloud.raw);
+          setOcrMsg("云识别未读出证件，改用本地识别（火车票/航班仍可用）…", "");
+        } catch (eCloud) {
+          console.warn("[MingdanUpload.cloudIdOcr]", eCloud);
+          setOcrMsg("云识别暂不可用，改用本地识别…", "");
+        }
+      }
       setOcrMsg("正在加载识别引擎" + (label ? "（" + label + "）" : "") + "…首次需下载中文模型，可能需几十秒", "");
       const Tesseract = await loadTesseract();
       setOcrMsg("预处理截图（放大/切卡）…", "");
@@ -3101,7 +3301,10 @@ const MingdanUpload = (function () {
     const meta = lastOcrMeta || analyzeOcrText(lastOcrText);
     setOcrActionHighlight("id");
     // 证件优先：即使先前误判成交通，也重新按证件解析
-    const ids = parseIdDoc(lastOcrText) || meta.ids || { guests: [], guest_list: "", names: [] };
+    // 云识别结果优先；否则再本地解析 OCR 原文
+    const ids = (meta.ids && meta.ids.guests && meta.ids.guests.length && meta.lookIdStrong)
+      ? meta.ids
+      : (parseIdDoc(lastOcrText) || meta.ids || { guests: [], guest_list: "", names: [] });
     if (!ids.guests.length) {
       setOcrMsg("未从 OCR 中解析到证件号。请核对下方 OCR 原文或手动填写客人名单。", "err");
       showOcrRaw(lastOcrText);
