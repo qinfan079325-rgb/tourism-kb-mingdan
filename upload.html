@@ -223,6 +223,8 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
   .fuzzy-side{grid-template-columns:1fr}
 }
 
+.fuzzy-ocr-ver{margin-top:6px;font-size:11px;color:#94a3b8}
+
 </style>
 </head>
 <body class="locked">
@@ -270,12 +272,13 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <span class="fuzzy-ocr-drop-s">识别后点下方按钮写入名单 / 去程 / 返程；首次需下载中文模型，稍等即可</span>
         </div>
         <div class="fuzzy-actions fuzzy-ocr-actions">
-          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrIdBtn" title="从最近一次 OCR 结果提取证件写入客人名单" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrIds)MingdanUpload.applyOcrIds()}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入证件失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别证件 → 名单</button>
-          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="填入去程交通" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('outbound')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入去程失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别交通 → 去程</button>
-          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="填入返程交通" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('return')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入返程失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别交通 → 返程</button>
-          <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="去程空则填去程，否则填返程" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('auto')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入交通失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别交通（自动）</button>
+          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrIdBtn" title="从最近一次 OCR 结果提取证件写入客人名单" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrIds)MingdanUpload.applyOcrIds()}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入证件失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">写入证件名单</button>
+          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="填入去程交通" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('outbound')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入去程失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">仅填去程</button>
+          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="填入返程交通" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('return')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入返程失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">仅填返程</button>
+          <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="去程空则填去程，否则填返程" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('auto')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入交通失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">仅填交通（自动）</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 00:23 Asia/Shanghai · 蓝色应在「写入证件名单」；切卡进度≠交通</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -321,7 +324,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:20 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:23 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -797,7 +800,21 @@ const MingdanUpload = (function () {
       const m = t.match(/结算\s*：\s*([-+\d.*×xXｋＫkK乌江加车续住房差\u4e00-\u9fff]+(?:=\s*-?\d+(?:\.\d+)?)?)/);
       if (m) settle = m[1].trim();
     }
-    const rebate = pick([/返款\s*：\s*([^\n]+)/], t);
+    let rebate = pick([/返款\s*：\s*([^\n]+)/], t);
+    // 返款行常粘「业务员：xx / 电话」→ 拆到第5/6条，返款只留算式
+    if (rebate) {
+      const staffM = rebate.match(/业务员\s*[：:]\s*([^\d\n，,；;]{1,12})/);
+      const phoneM = rebate.match(/(1\d{10})/);
+      if (staffM && !contact_name) {
+        contact_name = staffM[1].replace(/[（(].*$/, "").trim();
+      }
+      if (phoneM && !contact_phone) contact_phone = phoneM[1];
+      rebate = rebate
+        .replace(/业务员\s*[：:].*$/, "")
+        .replace(/1\d{10}/g, "")
+        .replace(/[，,；;\s]+$/g, "")
+        .trim();
+    }
     let remarks = pick([/备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*返款|$)/], t);
     remarks = (remarks || "").trim();
     const { kb, pure } = kbFromDetail(settle);
@@ -2750,6 +2767,7 @@ const MingdanUpload = (function () {
         setMsg("已按结算明细重算 KB（只计纯数字项）", "ok");
       });
 
+    refreshOcrActionButtons({ kind: "id" }); // boot：默认蓝在证件
     // 截图 OCR：粘贴 / 拖放 / 选图
     const ocrDrop = $("fuzzyOcrDrop");
     if (ocrDrop) {
