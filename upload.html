@@ -225,6 +225,9 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 
 .fuzzy-ocr-ver{margin-top:6px;font-size:11px;color:#94a3b8}
 
+.fuzzy-ocr-pick-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+.fuzzy-ocr-pick-hint{font-size:12px;color:var(--muted)}
+
 </style>
 </head>
 <body class="locked">
@@ -269,9 +272,10 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
         <div class="fuzzy-lab">截图识别（护照 / 台胞证 / 12306火车票 / 航班）</div>
         <input type="file" id="fuzzyOcrFile" accept="image/*" multiple capture="environment" style="display:none" aria-hidden="true"/>
         <div class="fuzzy-ocr-drop" id="fuzzyOcrDrop" tabindex="0" role="button" aria-label="粘贴或拖入截图">
-          <span class="fuzzy-ocr-drop-t">点此处选图 / 手机相册，或 Ctrl+V 粘贴截图</span>
-          <span class="fuzzy-ocr-drop-s">也可直接点下方「写入证件名单」选图；首次需下载中文模型，稍等即可</span>
+          <span class="fuzzy-ocr-drop-t">点此聚焦后 Ctrl+V 粘贴截图，或点右侧「选图」</span>
+          <span class="fuzzy-ocr-drop-s">粘贴识别完成后，再点「写入证件名单」；首次需下载中文模型，稍等即可</span>
         </div>
+        <div class="fuzzy-ocr-pick-row"><button type="button" class="btn" id="fuzzyOcrPickBtn">选图</button><span class="fuzzy-ocr-pick-hint">电脑用粘贴更方便；选图备用</span></div>
         <div class="fuzzy-actions fuzzy-ocr-actions">
           <button type="button" class="btn fuzzy-primary" id="fuzzyOcrIdBtn" title="选图或写入客人名单" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onIdBtn&amp;&amp;MingdanUpload.onIdBtn()}catch(e){console.error(e)}return false;">写入证件名单</button>
           <button type="button" class="btn" id="fuzzyOcrOutBtn" title="选图或填去程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('outbound')}catch(e){console.error(e)}return false;">仅填去程</button>
@@ -279,7 +283,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="选图或自动填交通" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('auto')}catch(e){console.error(e)}return false;">仅填交通（自动）</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 00:29 Asia/Shanghai · 蓝色应在「写入证件名单」；切卡进度≠交通</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 00:31 Asia/Shanghai · 蓝色应在「写入证件名单」；切卡进度≠交通</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -325,7 +329,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:29 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:31 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2606,12 +2610,22 @@ const MingdanUpload = (function () {
 
 
   function onIdBtn() {
-    if (!lastOcrText) { setOcrMsg("请选择证件截图（手机可从相册选）…", ""); pickOcrImage("id"); }
-    else applyOcrIds();
+    if (!lastOcrText) {
+      setOcrMsg("请先把证件截图 Ctrl+V 粘贴到上方虚线框（或点虚线框旁「选图」），等识别完成后再点写入。", "err");
+      const drop = $("fuzzyOcrDrop");
+      if (drop) drop.focus();
+      return;
+    }
+    applyOcrIds();
   }
   function onTransportBtn(which) {
-    if (!lastOcrText) { setOcrMsg("请选择火车票/机票截图…", ""); pickOcrImage(which); }
-    else applyOcrTransport(which);
+    if (!lastOcrText) {
+      setOcrMsg("请先把车票/机票截图 Ctrl+V 粘贴到上方虚线框（或点「选图」），等识别完成后再点填入。", "err");
+      const drop = $("fuzzyOcrDrop");
+      if (drop) drop.focus();
+      return;
+    }
+    applyOcrTransport(which);
   }
   function pickOcrImage(thenApply) {
     // thenApply: 'id' | 'outbound' | 'return' | 'auto' | null
@@ -2843,40 +2857,22 @@ const MingdanUpload = (function () {
       });
     }
     const idBtn = $("fuzzyOcrIdBtn");
-    if (idBtn) idBtn.addEventListener("click", function () {
-      if (!lastOcrText) {
-        setOcrMsg("请选择证件截图（手机可直接从相册选）…", "");
-        pickOcrImage("id");
-      } else applyOcrIds();
-    });
+    if (idBtn) idBtn.addEventListener("click", onIdBtn);
     const outBtn = $("fuzzyOcrOutBtn");
-    if (outBtn) outBtn.addEventListener("click", function () {
-      if (!lastOcrText) { setOcrMsg("请选择火车票/机票截图…", ""); pickOcrImage("outbound"); }
-      else applyOcrTransport("outbound");
-    });
+    if (outBtn) outBtn.addEventListener("click", function () { onTransportBtn("outbound"); });
     const retBtn = $("fuzzyOcrRetBtn");
-    if (retBtn) retBtn.addEventListener("click", function () {
-      if (!lastOcrText) { setOcrMsg("请选择火车票/机票截图…", ""); pickOcrImage("return"); }
-      else applyOcrTransport("return");
-    });
+    if (retBtn) retBtn.addEventListener("click", function () { onTransportBtn("return"); });
     const autoBtn = $("fuzzyOcrAutoBtn");
-    if (autoBtn) autoBtn.addEventListener("click", function () {
-      if (!lastOcrText) { setOcrMsg("请选择火车票/机票截图…", ""); pickOcrImage("auto"); }
-      else applyOcrTransport("auto");
-    });
-    // 点虚线框：手机打开相册选图；电脑也可选文件
-    const ocrFile = $("fuzzyOcrFile");
+    if (autoBtn) autoBtn.addEventListener("click", function () { onTransportBtn("auto"); });
+    // 虚线框点击：聚焦以便 Ctrl+V；选图走旁边按钮
     if (ocrDrop) {
-      ocrDrop.addEventListener("click", function (ev) {
-        // 避免与内部文字抢；始终打开选图（手机友好）
-        if (ocrFile) {
-          ev.preventDefault();
-          pickOcrImage(null);
-        } else {
-          ocrDrop.focus();
-        }
-      });
+      ocrDrop.addEventListener("click", function () { ocrDrop.focus(); });
     }
+    const pickBtn = $("fuzzyOcrPickBtn");
+    if (pickBtn) pickBtn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      pickOcrImage(null);
+    });
 
     renderList();
   }
