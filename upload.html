@@ -228,6 +228,26 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-ocr-pick-row{display:flex;align-items:center;gap:10px;margin-top:8px}
 .fuzzy-ocr-pick-hint{font-size:12px;color:var(--muted)}
 
+
+/* 客人名单：每人一行四框（姓名/证件类型/证件号/电话） */
+.fuzzy-field.guest-list-field{grid-column:1/-1}
+.guest-list-wrap{display:flex;flex-direction:column;gap:8px}
+.guest-list-head{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;font-size:11px;color:#94a3b8;padding:0 2px}
+.guest-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;align-items:center}
+.guest-row input,.guest-row select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:7px 8px;font-size:13px;font-family:inherit;box-sizing:border-box}
+.guest-row input:focus,.guest-row select:focus{border-color:var(--accent);outline:none}
+.guest-row .guest-del{border:1px solid var(--line);background:transparent;color:#f87171;border-radius:8px;height:34px;cursor:pointer;font-size:16px;line-height:1}
+.guest-row .guest-del:hover{border-color:#f87171;background:#7f1d1d22}
+.guest-list-actions{display:flex;gap:8px;align-items:center;margin-top:2px}
+.guest-list-hint{font-size:11px;color:#94a3b8}
+.guest-list-hidden{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
+@media(max-width:720px){
+  .guest-list-head{display:none}
+  .guest-row{grid-template-columns:1fr 1fr;gap:6px}
+  .guest-row .guest-del{grid-column:1/-1;justify-self:start;width:auto;padding:6px 12px}
+}
+
 </style>
 </head>
 <body class="locked">
@@ -283,7 +303,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="把识别到的交通自动写入去程或返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('auto')}catch(e){console.error(e)}return false;">仅填交通（自动）</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:50 Asia/Shanghai · 证件云识别(百度) · 整卡切分+字段校验 · 中文名优先 · 蓝=当前选中；交通仍本地OCR</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:53 Asia/Shanghai · 证件云识别(百度) · 客人名单分栏(姓名/类型/号码/电话) · 中文名优先 · 蓝=当前选中</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -329,7 +349,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 中文名优先 · build 2026-10-30 01:50 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 中文名优先 · build 2026-10-30 01:53 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1088,6 +1108,281 @@ const MingdanUpload = (function () {
     }
   }
 
+
+  const GUEST_ID_TYPES = ["台胞证", "护照", "身份证", "通行证", "返乡证", "港澳通行证", "证件"];
+
+  function guestDisplayName(g) {
+    if (!g) return "";
+    const zh = String(g.name_zh || g.name || "").trim();
+    if (zh && /[\u4e00-\u9fff]/.test(zh)) return zh.replace(/\s+/g, "");
+    return String(g.name_en || g.name || "").trim();
+  }
+
+  function serializeGuestObj(g) {
+    const name = guestDisplayName(g);
+    const idType = String((g && (g.id_type || g.type)) || "").trim();
+    const idNumber = String((g && (g.id_number || g.number)) || "").trim();
+    const phone = String((g && g.phone) || "").trim();
+    return [name, idType, idNumber, phone].filter(Boolean).join(" ");
+  }
+
+  function parseGuestLine(line) {
+    let s = String(line || "").trim();
+    if (!s) return null;
+    let phone = "";
+    const phoneM = s.match(/(?:^|[\s,，])(1\d{10})(?:[\s,，]|$)/);
+    if (phoneM) {
+      phone = phoneM[1];
+      s = (s.slice(0, phoneM.index) + " " + s.slice(phoneM.index + phoneM[0].length)).replace(/\s+/g, " ").trim();
+    }
+    let id_type = "";
+    let id_number = "";
+    const typeM = s.match(/(台胞证|护照|身份证|返乡证|港澳通行证|通行证|证件)/);
+    if (typeM) {
+      id_type = typeM[1];
+      const before = s.slice(0, typeM.index).trim();
+      let after = s.slice(typeM.index + typeM[0].length).trim();
+      const numM = after.match(/^([A-Za-z][A-Za-z0-9]{5,17}|\d{17}[\dXx]|\d{8})\b/);
+      if (numM) {
+        id_number = numM[1];
+        after = after.slice(numM[0].length).trim();
+      } else {
+        const numM2 = after.match(/\b([A-Za-z][A-Za-z0-9]{5,17}|\d{17}[\dXx]|\d{8})\b/);
+        if (numM2) {
+          id_number = numM2[1];
+          after = (after.slice(0, numM2.index) + " " + after.slice(numM2.index + numM2[0].length)).trim();
+        }
+      }
+      s = [before, after].filter(Boolean).join(" ").trim();
+    } else {
+      const numM = s.match(/\b([A-Za-z][A-Za-z0-9]{5,17}|\d{17}[\dXx]|\d{8})\b/);
+      if (numM) {
+        id_number = numM[1];
+        s = (s.slice(0, numM.index) + " " + s.slice(numM.index + numM[0].length)).replace(/\s+/g, " ").trim();
+        if (/^\d{8}$/.test(id_number)) id_type = "台胞证";
+        else if (/^\d{17}[\dXx]$/i.test(id_number)) id_type = "身份证";
+        else id_type = "护照";
+      }
+    }
+    const name = s.replace(/\s+/g, " ").trim();
+    if (!name && !id_number && !phone) return null;
+    return {
+      name: name,
+      name_zh: /[\u4e00-\u9fff]/.test(name) ? name.replace(/\s+/g, "") : "",
+      name_en: /[\u4e00-\u9fff]/.test(name) ? "" : name,
+      id_type: id_type || "证件",
+      id_number: id_number,
+      phone: phone,
+      line: serializeGuestObj({ name: name, id_type: id_type || "证件", id_number: id_number, phone: phone }),
+    };
+  }
+
+  function parseGuestListText(text) {
+    return String(text || "")
+      .split(/\n+/)
+      .map(parseGuestLine)
+      .filter(Boolean);
+  }
+
+  function guestTypeOptionsHtml(selected) {
+    const sel = String(selected || "").trim() || "证件";
+    const opts = GUEST_ID_TYPES.slice();
+    if (sel && opts.indexOf(sel) < 0) opts.unshift(sel);
+    return opts
+      .map(function (t) {
+        return '<option value="' + esc(t) + '"' + (t === sel ? " selected" : "") + ">" + esc(t) + "</option>";
+      })
+      .join("");
+  }
+
+  function guestRowHtml(g, idx) {
+    const name = guestDisplayName(g);
+    const idType = String((g && (g.id_type || g.type)) || "证件").trim() || "证件";
+    const idNumber = String((g && (g.id_number || g.number)) || "").trim();
+    const phone = String((g && g.phone) || "").trim();
+    return (
+      '<div class="guest-row" data-guest-idx="' +
+      idx +
+      '">' +
+      '<input type="text" class="guest-name" data-guest-field="name" placeholder="姓名" value="' +
+      esc(name) +
+      '" autocomplete="off"/>' +
+      '<select class="guest-id-type" data-guest-field="id_type" aria-label="证件类型">' +
+      guestTypeOptionsHtml(idType) +
+      "</select>" +
+      '<input type="text" class="guest-id-number" data-guest-field="id_number" placeholder="证件号码" value="' +
+      esc(idNumber) +
+      '" autocomplete="off" spellcheck="false"/>' +
+      '<input type="tel" class="guest-phone" data-guest-field="phone" placeholder="电话" value="' +
+      esc(phone) +
+      '" autocomplete="off"/>' +
+      '<button type="button" class="guest-del" title="删除此行" aria-label="删除此行">×</button>' +
+      "</div>"
+    );
+  }
+
+  function guestListFieldHtml(label, need, val) {
+    let guests = parseGuestListText(val);
+    if (!guests.length) guests = [{ name: "", id_type: "台胞证", id_number: "", phone: "" }];
+    const rows = guests.map(guestRowHtml).join("");
+    const hiddenVal = guests
+      .map(function (g) {
+        return serializeGuestObj(g);
+      })
+      .filter(Boolean)
+      .join("\n");
+    return (
+      '<label class="fuzzy-field guest-list-field ' +
+      (need ? "need" : "") +
+      '">' +
+      "<span>" +
+      esc(label) +
+      (need ? " <em>需核对</em>" : "") +
+      " <span class=\"guest-list-hint\">姓名 / 证件类型 / 证件号 / 电话 分栏填写</span></span>" +
+      '<div class="guest-list-wrap" id="guestListWrap">' +
+      '<div class="guest-list-head"><span>姓名</span><span>证件类型</span><span>证件号码</span><span>电话</span><span></span></div>' +
+      '<div class="guest-list-rows" id="guestListRows">' +
+      rows +
+      "</div>" +
+      '<div class="guest-list-actions"><button type="button" class="btn" id="guestListAddBtn">＋ 添加客人</button></div>' +
+      "</div>" +
+      '<textarea class="guest-list-hidden" data-k="guest_list" rows="1" aria-hidden="true" tabindex="-1">' +
+      esc(hiddenVal) +
+      "</textarea>" +
+      "</label>"
+    );
+  }
+
+  function readGuestsFromDom() {
+    const rows = document.querySelectorAll("#guestListRows .guest-row");
+    const out = [];
+    rows.forEach(function (row) {
+      const name = (row.querySelector('[data-guest-field="name"]') || {}).value || "";
+      const id_type = (row.querySelector('[data-guest-field="id_type"]') || {}).value || "";
+      const id_number = (row.querySelector('[data-guest-field="id_number"]') || {}).value || "";
+      const phone = (row.querySelector('[data-guest-field="phone"]') || {}).value || "";
+      const g = {
+        name: String(name).trim(),
+        name_zh: /[\u4e00-\u9fff]/.test(String(name)) ? String(name).trim().replace(/\s+/g, "") : "",
+        id_type: String(id_type).trim() || "证件",
+        id_number: String(id_number).trim(),
+        phone: String(phone).trim(),
+      };
+      g.line = serializeGuestObj(g);
+      if (g.name || g.id_number || g.phone) out.push(g);
+    });
+    return out;
+  }
+
+  function syncGuestListHidden() {
+    const ta = document.querySelector('#fuzzyFields textarea[data-k="guest_list"]');
+    if (!ta) return "";
+    const text = readGuestsFromDom()
+      .map(function (g) {
+        return g.line;
+      })
+      .filter(Boolean)
+      .join("\n");
+    ta.value = text;
+    return text;
+  }
+
+  function rebuildGuestRows(guests) {
+    const box = $("guestListRows");
+    if (!box) return;
+    let list = Array.isArray(guests) ? guests.slice() : [];
+    if (!list.length) list = [{ name: "", id_type: "台胞证", id_number: "", phone: "" }];
+    box.innerHTML = list.map(guestRowHtml).join("");
+    syncGuestListHidden();
+  }
+
+  function fillGuestRowsFromText(text) {
+    rebuildGuestRows(parseGuestListText(text));
+  }
+
+  function mergeGuestObjects(existingGuests, addGuests) {
+    const lines = [];
+    const seen = {};
+    function nameScore(g) {
+      const n = guestDisplayName(g);
+      if (/[\u4e00-\u9fff]{2,}/.test(n)) return 3;
+      if (/[A-Za-z]{2,}/.test(n)) return 2;
+      return n ? 1 : 0;
+    }
+    function add(g) {
+      if (!g) return;
+      const id = String(g.id_number || g.number || "").trim().toUpperCase();
+      const line = serializeGuestObj(g);
+      if (!line && !id) return;
+      const key = id || line;
+      if (seen[key] !== undefined) {
+        const prev = lines[seen[key]];
+        const merged = {
+          name: nameScore(g) > nameScore(prev) ? guestDisplayName(g) : guestDisplayName(prev),
+          name_zh: nameScore(g) > nameScore(prev) ? g.name_zh || "" : prev.name_zh || "",
+          id_type: g.id_type || g.type || prev.id_type || prev.type || "证件",
+          id_number: id || String(prev.id_number || prev.number || "").trim(),
+          phone: String(g.phone || "").trim() || String(prev.phone || "").trim(),
+        };
+        merged.line = serializeGuestObj(merged);
+        lines[seen[key]] = merged;
+        return;
+      }
+      const obj = {
+        name: guestDisplayName(g),
+        name_zh: g.name_zh || "",
+        id_type: g.id_type || g.type || "证件",
+        id_number: String(g.id_number || g.number || "").trim(),
+        phone: String(g.phone || "").trim(),
+      };
+      obj.line = serializeGuestObj(obj);
+      seen[key] = lines.length;
+      lines.push(obj);
+    }
+    (existingGuests || []).forEach(add);
+    (addGuests || []).forEach(add);
+    return lines;
+  }
+
+  function bindGuestListUi() {
+    const wrap = $("guestListWrap");
+    if (!wrap || wrap.dataset.bound === "1") return;
+    wrap.dataset.bound = "1";
+    wrap.addEventListener("input", function () {
+      syncGuestListHidden();
+    });
+    wrap.addEventListener("change", function () {
+      syncGuestListHidden();
+    });
+    wrap.addEventListener("click", function (ev) {
+      const t = ev.target;
+      if (!t) return;
+      if (t.id === "guestListAddBtn" || (t.closest && t.closest("#guestListAddBtn"))) {
+        ev.preventDefault();
+        const box = $("guestListRows");
+        if (!box) return;
+        box.insertAdjacentHTML("beforeend", guestRowHtml({ name: "", id_type: "台胞证", id_number: "", phone: "" }, box.children.length));
+        syncGuestListHidden();
+        const last = box.querySelector(".guest-row:last-child .guest-name");
+        if (last) last.focus();
+        return;
+      }
+      if (t.classList && t.classList.contains("guest-del")) {
+        ev.preventDefault();
+        const row = t.closest(".guest-row");
+        const box = $("guestListRows");
+        if (row && box) {
+          row.remove();
+          if (!box.querySelector(".guest-row")) {
+            box.insertAdjacentHTML("beforeend", guestRowHtml({ name: "", id_type: "台胞证", id_number: "", phone: "" }, 0));
+          }
+          syncGuestListHidden();
+        }
+      }
+    });
+  }
+
+
   function openDraft(id) {
     const d = loadDrafts().find((x) => x.id === id);
     if (!d) {
@@ -1105,11 +1400,14 @@ const MingdanUpload = (function () {
     $("fuzzyFields").innerHTML = FIELD_KEYS.map(([k, label]) => {
       const need = (d.needs_human_confirm || []).includes(k);
       const val = f[k] == null ? "" : String(f[k]);
+      if (k === "guest_list") return guestListFieldHtml(label, need, val);
       return `<label class="fuzzy-field ${need ? "need" : ""}">
         <span>${esc(label)}${need ? " <em>需核对</em>" : ""}</span>
-        <textarea data-k="${esc(k)}" rows="${k === "remarks" || k === "settlement_detail" || k === "guest_list" ? 3 : 1}">${esc(val)}</textarea>
+        <textarea data-k="${esc(k)}" rows="${k === "remarks" || k === "settlement_detail" ? 3 : 1}">${esc(val)}</textarea>
       </label>`;
     }).join("");
+    bindGuestListUi();
+    syncGuestListHidden();
     const notes = $("fuzzyChangeNotes");
     if (notes) notes.value = "";
     $("fuzzyStatusLine").textContent =
@@ -1121,6 +1419,7 @@ const MingdanUpload = (function () {
   }
 
   function readFieldsFromForm() {
+    syncGuestListHidden();
     const fields = {};
     $("fuzzyFields").querySelectorAll("textarea[data-k]").forEach((el) => {
       fields[el.getAttribute("data-k")] = el.value;
@@ -3323,12 +3622,21 @@ const MingdanUpload = (function () {
     const box = $("fuzzyFields");
     if (!box) return;
     const ta = box.querySelector('textarea[data-k="' + k + '"]');
-    if (ta) ta.value = v == null ? "" : String(v);
+    const text = v == null ? "" : String(v);
+    if (ta) ta.value = text;
+    if (k === "guest_list") {
+      if ($("guestListRows")) fillGuestRowsFromText(text);
+      else if (ta) ta.value = text;
+    }
   }
 
   function readField(k) {
     const box = $("fuzzyFields");
     if (!box) return "";
+    if (k === "guest_list") {
+      const synced = syncGuestListHidden();
+      if (synced !== undefined && $("guestListRows")) return synced;
+    }
     const ta = box.querySelector('textarea[data-k="' + k + '"]');
     return ta ? ta.value : "";
   }
@@ -3463,12 +3771,27 @@ const MingdanUpload = (function () {
       return;
     }
     ensureDraftForOcr();
-    const merged = mergeGuestList(readField("guest_list"), ids.guest_list);
-    writeField("guest_list", merged);
+    const existingGuests = $("guestListRows")
+      ? readGuestsFromDom()
+      : parseGuestListText(readField("guest_list"));
+    const addGuests = (ids.guests || []).map(function (g) {
+      return {
+        name: guestDisplayName(g),
+        name_zh: g.name_zh || "",
+        name_en: g.name_en || "",
+        id_type: g.id_type || g.type || "证件",
+        id_number: g.id_number || g.number || "",
+        phone: g.phone || "",
+      };
+    });
+    const mergedGuests = mergeGuestObjects(existingGuests, addGuests);
+    const mergedText = mergedGuests.map(function (g) { return g.line; }).filter(Boolean).join("\n");
+    writeField("guest_list", mergedText);
+    if ($("guestListRows")) rebuildGuestRows(mergedGuests);
     if (!readField("guest_name") && ids.names[0]) writeField("guest_name", ids.names[0]);
     if (!readField("party_size") && ids.guests.length) writeField("party_size", ids.guests.length + "大");
     persistActiveFromForm();
-    setOcrMsg("已写入客人名单 " + ids.guests.length + " 人（按证件号去重）。请再核对。", "ok");
+    setOcrMsg("已写入客人名单 " + mergedGuests.length + " 人（姓名/证件类型/证件号/电话分栏，按证件号去重）。请再核对。", "ok");
     const review = $("fuzzyReview");
     if (review) review.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
