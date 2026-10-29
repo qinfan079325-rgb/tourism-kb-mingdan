@@ -104,6 +104,19 @@ h1{font-size:1.35rem;margin:0 0 4px;font-weight:700}
 .empty{color:var(--muted);text-align:center;padding:28px 10px}
 .hidden{display:none!important}
 .footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
+
+/* —— 截图 OCR —— */
+.fuzzy-ocr{margin-top:12px;padding:10px 12px;border:1px dashed #334155;border-radius:10px;background:rgba(15,23,42,.45)}
+.fuzzy-ocr-drop{border:1px dashed #475569;border-radius:10px;padding:14px 12px;background:var(--bg);cursor:pointer;
+  display:flex;flex-direction:column;gap:4px;transition:border-color .15s,background .15s}
+.fuzzy-ocr-drop:focus,.fuzzy-ocr-drop.dragover{outline:none;border-color:var(--accent);background:#0f172a}
+.fuzzy-ocr-drop-t{font-size:13.5px;color:var(--text);font-weight:600}
+.fuzzy-ocr-drop-s{font-size:12px;color:var(--muted)}
+.fuzzy-ocr-actions{margin-top:8px}
+.fuzzy-ocr-raw-wrap{margin-top:8px;font-size:12.5px;color:var(--muted)}
+.fuzzy-ocr-raw-wrap summary{cursor:pointer;user-select:none;color:#93c5fd;font-weight:650}
+.fuzzy-ocr-raw{max-height:220px;margin-top:6px}
+.fuzzy-ocr-busy .fuzzy-ocr-drop{opacity:.7;pointer-events:none}
 @media(max-width:720px){
   .group-main{flex-direction:column}
   .group-mid{flex:1 1 auto;min-width:0}
@@ -199,6 +212,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-history-item:first-of-type{border-top:none}
 .fuzzy-history-meta{color:var(--muted);margin-bottom:2px}
 .fuzzy-history-notes{color:var(--text);white-space:pre-wrap}
+
 @media(max-width:720px){
   .fuzzy-fields{grid-template-columns:1fr}
   .fuzzy-side{grid-template-columns:1fr}
@@ -238,12 +252,29 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
       <h2>上传 / 粘贴</h2>
       <span class="fuzzy-hint">登录可见 · 草稿仅存本机浏览器</span>
     </div>
-    <p class="fuzzy-note">优先粘贴文字。确认前不改钉钉名单；易途录完前订单只留本页。组团社+出团日+代表人相同会提示可能重复。</p>
+    <p class="fuzzy-note">优先粘贴文字；证件/火车票/航班截图可粘贴或选图识别。确认前不改钉钉名单；易途录完前订单只留本页。组团社+出团日+代表人相同会提示可能重复。</p>
     <div class="fuzzy-form">
       <label class="fuzzy-lab" for="fuzzyText">订单文字</label>
-      <textarea id="fuzzyText" rows="10" placeholder="粘贴例如：&#10;组团社：湖南友记&#10;【时间】：10月27日&#10;【团型天数】: 九武5天4晚&#10;【客人人数】：6大&#10;结算明细：结算：-1000*6+158*6乌江+70加车+200*3续住=-4382&#10;…"></textarea>
-      <label class="fuzzy-lab" for="fuzzyFile">附件（可选）</label>
+      <textarea id="fuzzyText" rows="10" placeholder="粘贴例如：&#10;组团社：湖南友记&#10;【时间】：10月27日&#10;【团型天数】: 九武5天4晚&#10;【客人人数】：6大&#10;结算明细：结算：-1000*6+158*6乌江+70加车+200*3续住=-4382&#10;…&#10;也可直接把证件/车票截图粘贴到下方识别区。"></textarea>
+      <label class="fuzzy-lab" for="fuzzyFile">附件（可选 · 图片会自动 OCR）</label>
       <input type="file" id="fuzzyFile" accept=".xlsx,.xls,.csv,image/*,.txt"/>
+      <div class="fuzzy-ocr" id="fuzzyOcrBox" aria-label="截图识别">
+        <div class="fuzzy-lab">截图识别（护照 / 台胞证 / 12306火车票 / 航班）</div>
+        <div class="fuzzy-ocr-drop" id="fuzzyOcrDrop" tabindex="0" role="button" aria-label="粘贴或拖入截图">
+          <span class="fuzzy-ocr-drop-t">点此聚焦后 Ctrl+V 粘贴截图，或把图片拖进来</span>
+          <span class="fuzzy-ocr-drop-s">识别后点下方按钮写入名单 / 去程 / 返程；首次需下载中文模型，稍等即可</span>
+        </div>
+        <div class="fuzzy-actions fuzzy-ocr-actions">
+          <button type="button" class="btn" id="fuzzyOcrIdBtn" title="从最近一次 OCR 结果提取证件写入客人名单">识别证件 → 名单</button>
+          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="填入去程交通">识别交通 → 去程</button>
+          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="填入返程交通">识别交通 → 返程</button>
+          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrAutoBtn" title="去程空则填去程，否则填返程">识别交通（自动）</button>
+        </div>
+        <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
+          <summary>OCR 原文（可核对）</summary>
+          <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
+        </details>
+      </div>
       <div class="fuzzy-actions">
         <button type="button" class="btn fuzzy-primary" id="fuzzySubmit" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.submitParse)MingdanUpload.submitParse()}catch(e){console.error(e);var m=document.getElementById('fuzzyMsg');if(m){m.textContent='解析出错：'+(e&&e.message||e);m.className='fuzzy-msg err'}}return false;">提交解析</button>
         <button type="button" class="btn" id="fuzzyFillSample">填入样例</button>
@@ -284,7 +315,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-29 23:40 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-29 23:48 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1349,6 +1380,586 @@ const MingdanUpload = (function () {
         .join("");
   }
 
+
+  /* —— 截图 OCR（护照/台胞证 / 12306 / 航班）· 仅填本页字段，不写未出团 —— */
+  let tesseractPromise = null;
+  let lastOcrText = "";
+  let lastOcrMeta = null; // { train, flight, ids, summary }
+  let ocrBusy = false;
+
+  function loadTesseract() {
+    if (typeof window !== "undefined" && window.Tesseract) {
+      return Promise.resolve(window.Tesseract);
+    }
+    if (tesseractPromise) return tesseractPromise;
+    tesseractPromise = new Promise(function (resolve, reject) {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+      s.async = true;
+      s.onload = function () {
+        if (window.Tesseract) resolve(window.Tesseract);
+        else reject(new Error("Tesseract 未挂载"));
+      };
+      s.onerror = function () {
+        tesseractPromise = null;
+        reject(new Error("Tesseract CDN 加载失败，请检查网络后重试"));
+      };
+      document.head.appendChild(s);
+    });
+    return tesseractPromise;
+  }
+
+  function normalizeCnDate(s) {
+    if (!s) return "";
+    let m = String(s).match(/(\d{4})\s*[年\-\/.]\s*(\d{1,2})\s*[月\-\/.]\s*(\d{1,2})/);
+    if (m) return m[1] + "-" + String(m[2]).padStart(2, "0") + "-" + String(m[3]).padStart(2, "0");
+    m = String(s).match(/(\d{4})(\d{2})(\d{2})/);
+    if (m) return m[1] + "-" + m[2] + "-" + m[3];
+    return "";
+  }
+
+  function normalizeTime(s) {
+    const m = String(s || "").match(/(\d{1,2})\s*[:：]\s*(\d{2})/);
+    if (!m) return "";
+    return String(m[1]).padStart(2, "0") + ":" + m[2];
+  }
+
+  /** Tesseract 常在汉字间插空格；折叠后便于正则 */
+  function collapseOcrNoise(raw) {
+    let t = String(raw || "").replace(/\r/g, "\n");
+    // 汉字之间的空白去掉
+    t = t.replace(/([\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])/g, "$1");
+    // 字母数字与汉字之间多余空格：G 3581 → 保留车次紧凑；先压「字 母数字」常见噪声
+    t = t.replace(/\b([GDCZKTY])\s+(\d{1,5})\b/gi, "$1$2");
+    t = t.replace(/([A-Z]{2})\s+(\d{2,4})\b/g, "$1$2");
+    // OCR 把破折号认成「一」：站名东一重庆 → 东-重庆
+    t = t.replace(/([东南西北站])\s*一\s*([\u4e00-\u9fff])/g, "$1-$2");
+    t = t.replace(/([\u4e00-\u9fff]{2,6})\s*[—–―−－~～]\s*([\u4e00-\u9fff]{2,6})/g, "$1-$2");
+    // 冒号全角
+    t = t.replace(/[：﹕]/g, ":");
+    return t;
+  }
+
+  /** 证件：台胞证 8 位 / 护照 字母+数字 / 身份证 18 位；输出 guest_list 行 */
+  function parseIdDoc(ocrText) {
+    const text = collapseOcrNoise(ocrText);
+    const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    const flat = text.replace(/\s+/g, " ");
+    const found = [];
+    const seen = {};
+
+    function push(name, typ, num) {
+      const id = String(num || "").trim().toUpperCase();
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      const nm = String(name || "").replace(/\s+/g, "").trim();
+      found.push({
+        name: nm,
+        type: typ,
+        number: id,
+        line: (nm ? nm + " " : "") + typ + " " + id,
+      });
+    }
+
+    function nearbyName(idx, hay) {
+      // 向前找 2–4 个汉字姓名
+      const before = hay.slice(Math.max(0, idx - 24), idx);
+      const m = before.match(/([\u4e00-\u9fff]{2,4})\s*$/);
+      if (m && !/证件|护照|台胞|身份|号码|姓名|旅客|乘客/.test(m[1])) return m[1];
+      return "";
+    }
+
+    // 身份证 18 位
+    const id18 = /([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])/g;
+    let m;
+    while ((m = id18.exec(flat))) {
+      push(nearbyName(m.index, flat), "身份证", m[1].toUpperCase());
+    }
+
+    // 台胞证：常见 8 位数字（避免把订单号/车次误判：需靠近「台胞/通行证」或姓名）
+    const twRe = /(?:台胞(?:证|通行证)?|大陆通行证|通行证)[^\d]{0,16}?([\u4e00-\u9fff]{2,4})?[^\d]{0,8}(\d{8})\b/gi;
+    while ((m = twRe.exec(flat))) {
+      push(m[1] || nearbyName(m.index, flat), "台胞证", m[2]);
+    }
+    // 行内：姓名 + 8 位
+    for (const line of lines) {
+      const lm = line.match(/([\u4e00-\u9fff]{2,4})\s*[：:\-]?\s*(\d{8})\b/);
+      if (lm) push(lm[1], "台胞证", lm[2]);
+      const lm2 = line.match(/([\u4e00-\u9fff]{2,4})\s+(\d{8})\b/);
+      if (lm2) push(lm2[1], "台胞证", lm2[2]);
+    }
+    // 孤立 8 位：仅当全文含「台胞」时收录
+    if (/台胞|通行证/.test(flat)) {
+      const lone = /\b(\d{8})\b/g;
+      while ((m = lone.exec(flat))) {
+        if (/^E\d{8}$/i.test("E" + m[1])) continue;
+        push(nearbyName(m.index, flat), "台胞证", m[1]);
+      }
+    }
+
+    // 护照：字母开头 + 7–9 位，或 G/E/P/S/D + 8 数字
+    const passRe =
+      /(?:护照|Passport)[^\nA-Za-z0-9]{0,16}([A-Za-z][A-Za-z0-9]{6,9})\b|(?:\b)([A-Z][0-9]{7,8})\b/gi;
+    while ((m = passRe.exec(flat))) {
+      const num = (m[1] || m[2] || "").toUpperCase();
+      if (!num) continue;
+      // 排除车次/订单号形态
+      if (/^[GDCZKTY]\d{1,5}$/i.test(num)) continue;
+      if (/^E\d{9,}$/i.test(num)) continue;
+      const typHint = /台胞|通行证/.test(flat.slice(Math.max(0, m.index - 10), m.index + 10))
+        ? "台胞证"
+        : "护照";
+      // 纯 8 数字已被台胞逻辑处理；这里字母开头才算护照
+      if (/^[A-Z]/.test(num) && /\d/.test(num)) push(nearbyName(m.index, flat), "护照", num);
+    }
+    // 行：姓名 + 护照号；或 护照号 + 姓名
+    for (const line of lines) {
+      const pm = line.match(/([\u4e00-\u9fff]{2,4}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+[：:\-]?\s*([A-Z][A-Z0-9]{6,9})\b/i);
+      if (pm && /\d/.test(pm[2]) && !/^[GDCZKTY]\d+$/i.test(pm[2])) {
+        push(pm[1].replace(/\s+/g, ""), "护照", pm[2].toUpperCase());
+      }
+      const pm2 = line.match(/\b([A-Z][A-Z0-9]{6,9})\s+([\u4e00-\u9fff]{2,4})\b/i);
+      if (pm2 && /\d/.test(pm2[1]) && !/^[GDCZKTY]\d+$/i.test(pm2[1])) {
+        push(pm2[2], "护照", pm2[1].toUpperCase());
+      }
+      const idn = line.match(/([\u4e00-\u9fff]{2,4})\s+([1-9]\d{16}[\dXx])/);
+      if (idn) push(idn[1], "身份证", idn[2].toUpperCase());
+    }
+
+    return {
+      guests: found,
+      guest_list: found.map((g) => g.line).join("\n"),
+      names: found.map((g) => g.name).filter(Boolean),
+    };
+  }
+
+  /** 12306 火车票截图 */
+  function parseTrainTicket(ocrText) {
+    const text = collapseOcrNoise(ocrText);
+    const flat = text.replace(/[—–―−－]/g, "-").replace(/\s+/g, " ");
+    const out = {
+      train_no: "",
+      from: "",
+      to: "",
+      depart_date: "",
+      depart_time: "",
+      ticket_count: "",
+      passenger: "",
+      order_date: "",
+      order_no: "",
+      line: "",
+    };
+
+    let m = flat.match(/\b([GDCZKTY]\d{1,5})\b/i);
+    if (m) out.train_no = m[1].toUpperCase();
+
+    // 站名须带 东/西/南/北/站（OCR 西→丁/酉 常见）；避免吞掉后面的「订单号」
+    function fixStation(s) {
+      return String(s || "")
+        .replace(/站$/, "")
+        .replace(/丁$/, "西")
+        .replace(/酉$/, "西");
+    }
+    m =
+      flat.match(
+        /([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))\s*[-~～至到]\s*([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))/
+      ) ||
+      flat.match(
+        /\b[GDCZKTY]\d{1,5}\s+([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))\s*[-~～至到]?\s*([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))/i
+      );
+    if (m) {
+      out.from = fixStation(m[1]);
+      out.to = fixStation(m[2]);
+    }
+
+    // 发车时间 2026-10-31 周六 09:30开
+    m = flat.match(
+      /(?:发车时间|开车时间)?\s*(\d{4}\s*[年\-\/.]\s*\d{1,2}\s*[月\-\/.]\s*\d{1,2}).{0,12}?(\d{1,2}\s*[:：]\s*\d{2})\s*开?/
+    );
+    if (m) {
+      out.depart_date = normalizeCnDate(m[1]);
+      out.depart_time = normalizeTime(m[2]);
+    } else {
+      m = flat.match(/(\d{4}-\d{2}-\d{2}).{0,16}?(\d{1,2}[:：]\d{2})\s*开?/);
+      if (m) {
+        out.depart_date = m[1];
+        out.depart_time = normalizeTime(m[2]);
+      }
+    }
+
+    // 下单日期
+    m = flat.match(/下单日期\s*:?\s*(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日|\d{4}-\d{2}-\d{2})/);
+    if (m) out.order_date = normalizeCnDate(m[1]);
+
+    // 订单号
+    m = flat.match(/订单号\s*:?\s*([A-Z]?\d{6,14})/i);
+    if (m) out.order_no = m[1].toUpperCase();
+
+    // 总张数 4张 何燕芳 等4人（姓名不含「等」）
+    m = flat.match(/总张数\s*:?\s*(\d+)\s*张\s*([\u4e00-\u9fff]{2,4}?)(?:\s*等|\s*\d|\s*$)/);
+    if (m) {
+      out.ticket_count = m[1];
+      out.passenger = m[2];
+    } else {
+      m = flat.match(/(\d+)\s*张\s*([\u4e00-\u9fff]{2,4}?)(?:\s*等\s*\d*\s*人?|(?=\s|$))/);
+      if (m) {
+        out.ticket_count = m[1];
+        out.passenger = m[2];
+      }
+    }
+    if (out.passenger) out.passenger = out.passenger.replace(/等$/, "");
+
+    const parts = [];
+    if (out.train_no) parts.push(out.train_no);
+    if (out.from && out.to) parts.push(out.from + "-" + out.to);
+    else if (out.from) parts.push(out.from);
+    if (out.depart_date) parts.push(out.depart_date);
+    if (out.depart_time) parts.push(out.depart_time);
+    out.line = parts.join(" ");
+    return out;
+  }
+
+  /** 航班行程截图 */
+  function parseFlightTicket(ocrText) {
+    const text = collapseOcrNoise(ocrText);
+    const flat = text.replace(/\s+/g, " ");
+    const out = {
+      flight_no: "",
+      from: "",
+      to: "",
+      depart_date: "",
+      depart_time: "",
+      arrive_time: "",
+      passenger: "",
+      line: "",
+    };
+
+    let m = flat.match(
+      /\b((?:CA|MU|CZ|HU|3U|FM|SC|ZH|MF|9C|HO|TV|PN|G5|JD|KN|NS|BK|EU|GY|A6|UQ|CN)\s*\d{2,4})\b/i
+    );
+    if (!m) m = flat.match(/(?:航班(?:号)?|Flight)\s*[:：]?\s*([A-Z0-9]{2}\s*\d{2,4})/i);
+    if (m) out.flight_no = m[1].replace(/\s+/g, "").toUpperCase();
+
+    m =
+      flat.match(
+        /([\u4e00-\u9fff]{2,10}(?:国际)?机场?|[\u4e00-\u9fff]{2,6})\s*[-~～—至到→]\s*([\u4e00-\u9fff]{2,10}(?:国际)?机场?|[\u4e00-\u9fff]{2,6})/
+      ) ||
+      flat.match(/([A-Z]{3})\s*[-~～至到→]\s*([A-Z]{3})/);
+    if (m) {
+      out.from = m[1].replace(/国际机场|机场/g, "");
+      out.to = m[2].replace(/国际机场|机场/g, "");
+    }
+
+    m = flat.match(/(\d{4}[年\-\/.]\d{1,2}[月\-\/.]\d{1,2}|\d{1,2}[月/\-.]\d{1,2})/);
+    if (m) {
+      out.depart_date = normalizeCnDate(m[1]) || yearDate(m[1]);
+    }
+
+    const times = [...flat.matchAll(/(\d{1,2}\s*[:：]\s*\d{2})/g)].map((x) => normalizeTime(x[1]));
+    if (times[0]) out.depart_time = times[0];
+    if (times[1]) out.arrive_time = times[1];
+
+    m = flat.match(/(?:旅客|乘客|姓名)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Z][A-Z\s]{1,20})/i);
+    if (m) out.passenger = m[1].replace(/\s+/g, " ").trim();
+
+    const parts = [];
+    if (out.flight_no) parts.push(out.flight_no);
+    if (out.from && out.to) parts.push(out.from + "-" + out.to);
+    if (out.depart_date) parts.push(out.depart_date);
+    if (out.depart_time && out.arrive_time) parts.push(out.depart_time + "-" + out.arrive_time);
+    else if (out.depart_time) parts.push(out.depart_time);
+    out.line = parts.join(" ");
+    return out;
+  }
+
+  function showOcrRaw(text) {
+    const pre = $("fuzzyOcrRaw");
+    const wrap = $("fuzzyOcrRawWrap");
+    if (pre) pre.textContent = text || "（空）";
+    if (wrap) wrap.open = true;
+  }
+
+  function setOcrBusy(on) {
+    ocrBusy = !!on;
+    const box = $("fuzzyOcrBox");
+    if (box) box.classList.toggle("fuzzy-ocr-busy", ocrBusy);
+  }
+
+  function analyzeOcrText(text) {
+    const train = parseTrainTicket(text);
+    const flight = parseFlightTicket(text);
+    const ids = parseIdDoc(text);
+    const hasTrain = !!(train.train_no && (train.from || train.depart_date));
+    const hasFlight = !!(flight.flight_no || (flight.from && flight.depart_time));
+    const hasId = !!(ids.guests && ids.guests.length);
+    let kind = "unknown";
+    if (hasTrain && /12306|发车时间|总张数|车次|已支付/.test(text)) kind = "train";
+    else if (hasTrain && !hasFlight) kind = "train";
+    else if (hasFlight && !hasTrain) kind = "flight";
+    else if (hasTrain && hasFlight) kind = train.train_no ? "train" : "flight";
+    else if (hasId) kind = "id";
+    const summary = [];
+    if (hasTrain) summary.push("火车 " + (train.line || train.train_no));
+    if (hasFlight) summary.push("航班 " + (flight.line || flight.flight_no));
+    if (hasId) summary.push("证件 " + ids.guests.length + " 人");
+    lastOcrMeta = { train, flight, ids, kind, summary: summary.join("；") };
+    return lastOcrMeta;
+  }
+
+  async function runOcrOnImage(source, label) {
+    if (ocrBusy) {
+      setMsg("正在识别中，请稍候…", "");
+      return null;
+    }
+    setOcrBusy(true);
+    try {
+      setMsg("正在加载识别引擎" + (label ? "（" + label + "）" : "") + "…首次需下载中文模型，可能需几十秒", "");
+      const Tesseract = await loadTesseract();
+      setMsg("识别中…", "");
+      const result = await Tesseract.recognize(source, "chi_sim+eng", {
+        logger: function (m) {
+          if (!m) return;
+          if (m.status === "recognizing text" && typeof m.progress === "number") {
+            setMsg("识别中…" + Math.round(m.progress * 100) + "%", "");
+          } else if (m.status === "loading language traineddata") {
+            setMsg("下载中文识别模型中…", "");
+          } else if (m.status === "initializing api" || m.status === "loading tesseract core") {
+            setMsg("初始化识别引擎…", "");
+          }
+        },
+      });
+      const text = ((result && result.data && result.data.text) || "").trim();
+      lastOcrText = text;
+      showOcrRaw(text);
+      const meta = analyzeOcrText(text);
+      if (!text) {
+        setMsg("未识别到文字，请换更清晰的截图或手动填写", "err");
+        return meta;
+      }
+      setMsg(
+        "识别完成。" +
+          (meta.summary ? " 发现：" + meta.summary + "。" : " 未自动分类，") +
+          "请点「识别证件」或「识别交通」写入字段；也可打开 OCR 原文核对。",
+        meta.summary ? "ok" : "err"
+      );
+      return meta;
+    } catch (e) {
+      console.error("[MingdanUpload.ocr]", e);
+      setMsg("识别失败：" + ((e && e.message) || e), "err");
+      return null;
+    } finally {
+      setOcrBusy(false);
+    }
+  }
+
+  function ensureDraftForOcr() {
+    if (activeId) {
+      const d = loadDrafts().find((x) => x.id === activeId);
+      if (d) return d;
+    }
+    // 开一份空草稿供 OCR 填入
+    const draft = {
+      id: uid(),
+      status: "pending_sales_confirm",
+      status_label: STATUS.pending_sales_confirm,
+      source: "ocr",
+      raw_text: lastOcrText || "",
+      file_name: "",
+      fields: {
+        line_name: "",
+        depart_date: "",
+        return_date: "",
+        agency: "",
+        contact_name: "",
+        contact_phone: "",
+        outbound_transport: "",
+        return_transport: "",
+        guest_name: "",
+        party_size: "",
+        book_date: todayISO(),
+        sign_date: todayISO(),
+        rooms: "",
+        full_amount: "",
+        deposit: "",
+        collect_on_tour: "",
+        settlement: "",
+        rebate: "",
+        kb: "",
+        settlement_detail: "",
+        guest_list: "",
+        remarks: "（来自截图识别，请补全其余字段）",
+        gendan_pure: "",
+      },
+      needs_human_confirm: ["depart_date", "party_size", "agency"],
+      badge: "待易途确认",
+      sales_confirmed: false,
+      change_history: [],
+      created_at: nowISO(),
+      created_by: currentUser(),
+    };
+    const list = loadDrafts();
+    list.unshift(draft);
+    saveDrafts(list);
+    openDraft(draft.id);
+    return draft;
+  }
+
+  function writeField(k, v) {
+    const box = $("fuzzyFields");
+    if (!box) return;
+    const ta = box.querySelector('textarea[data-k="' + k + '"]');
+    if (ta) ta.value = v == null ? "" : String(v);
+  }
+
+  function readField(k) {
+    const box = $("fuzzyFields");
+    if (!box) return "";
+    const ta = box.querySelector('textarea[data-k="' + k + '"]');
+    return ta ? ta.value : "";
+  }
+
+  function persistActiveFromForm(extraRemark) {
+    if (!activeId) return;
+    const list = loadDrafts();
+    const idx = list.findIndex((x) => x.id === activeId);
+    if (idx < 0) return;
+    const fields = readFieldsFromForm();
+    list[idx].fields = fields;
+    if (lastOcrText) {
+      const tag = "\n—— OCR ——\n" + lastOcrText;
+      if (!(list[idx].raw_text || "").includes(lastOcrText.slice(0, 40))) {
+        list[idx].raw_text = ((list[idx].raw_text || "") + tag).trim();
+        const raw = $("fuzzyRaw");
+        if (raw) raw.textContent = list[idx].raw_text;
+      }
+    }
+    if (extraRemark) {
+      list[idx].fields.remarks = ((list[idx].fields.remarks || "") + "\n" + extraRemark).trim();
+      writeField("remarks", list[idx].fields.remarks);
+    }
+    saveDrafts(list);
+    renderList();
+  }
+
+  function mergeGuestList(existing, addText) {
+    const lines = [];
+    const seen = {};
+    function add(line) {
+      const s = String(line || "").trim();
+      if (!s) return;
+      const idm = s.match(/([A-Z0-9]{6,18})$/i) || s.match(/(\d{8}|\d{17}[\dXx])\b/);
+      const key = idm ? idm[1].toUpperCase() : s;
+      if (seen[key]) return;
+      seen[key] = true;
+      lines.push(s);
+    }
+    String(existing || "")
+      .split(/\n+/)
+      .forEach(add);
+    String(addText || "")
+      .split(/\n+/)
+      .forEach(add);
+    return lines.join("\n");
+  }
+
+  function applyOcrIds() {
+    if (!lastOcrText && !lastOcrMeta) {
+      setMsg("请先粘贴或上传证件截图完成识别", "err");
+      return;
+    }
+    const meta = lastOcrMeta || analyzeOcrText(lastOcrText);
+    const ids = meta.ids || parseIdDoc(lastOcrText);
+    if (!ids.guests.length) {
+      setMsg("未从 OCR 中解析到证件号。请核对 OCR 原文或手动填写客人名单。", "err");
+      showOcrRaw(lastOcrText);
+      return;
+    }
+    ensureDraftForOcr();
+    const merged = mergeGuestList(readField("guest_list"), ids.guest_list);
+    writeField("guest_list", merged);
+    if (!readField("guest_name") && ids.names[0]) writeField("guest_name", ids.names[0]);
+    if (!readField("party_size") && ids.guests.length) writeField("party_size", ids.guests.length + "大");
+    persistActiveFromForm();
+    setMsg("已写入客人名单 " + ids.guests.length + " 人（按证件号去重）。请再核对。", "ok");
+  }
+
+  function transportLineFromMeta(meta) {
+    if (!meta) return "";
+    const train = meta.train || {};
+    const flight = meta.flight || {};
+    if (meta.kind === "flight" && flight.line) return flight.line;
+    if (train.line) return train.line;
+    if (flight.line) return flight.line;
+    return "";
+  }
+
+  function applyOcrTransport(which) {
+    // which: 'outbound' | 'return' | 'auto'
+    if (!lastOcrText && !lastOcrMeta) {
+      setMsg("请先粘贴或上传火车票/航班截图完成识别", "err");
+      return;
+    }
+    const meta = lastOcrMeta || analyzeOcrText(lastOcrText);
+    const line = transportLineFromMeta(meta);
+    if (!line) {
+      setMsg("未解析到车次/航班信息。请打开 OCR 原文核对，或换更清晰截图。", "err");
+      showOcrRaw(lastOcrText);
+      return;
+    }
+    ensureDraftForOcr();
+    let target = which;
+    if (which === "auto") {
+      target = readField("outbound_transport").trim() ? "return" : "outbound";
+    }
+    const key = target === "return" ? "return_transport" : "outbound_transport";
+    writeField(key, line);
+
+    const train = meta.train || {};
+    const flight = meta.flight || {};
+    const pass = train.passenger || flight.passenger || "";
+    const date = train.depart_date || flight.depart_date || "";
+    const count = train.ticket_count || "";
+
+    if (target === "outbound") {
+      if (date && !readField("depart_date")) writeField("depart_date", date);
+      if (train.order_date && !readField("book_date")) writeField("book_date", train.order_date);
+    } else {
+      if (date && !readField("return_date")) writeField("return_date", date);
+    }
+    if (pass && !readField("guest_name")) writeField("guest_name", pass);
+    if (count && !readField("party_size")) writeField("party_size", count + "大");
+
+    persistActiveFromForm();
+    const label = target === "return" ? "返程交通" : "去程交通";
+    setMsg("已填入" + label + "：" + line + "。请核对人数/姓名等。", "ok");
+  }
+
+  function clipboardImage(ev) {
+    const cd = ev.clipboardData || (ev.originalEvent && ev.originalEvent.clipboardData);
+    if (!cd || !cd.items) return null;
+    for (let i = 0; i < cd.items.length; i++) {
+      const it = cd.items[i];
+      if (it.type && it.type.indexOf("image/") === 0) {
+        return it.getAsFile();
+      }
+    }
+    return null;
+  }
+
+  function onPasteImage(ev) {
+    const file = clipboardImage(ev);
+    if (!file) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    runOcrOnImage(file, file.name || "粘贴图片");
+  }
+
+  function onFileMaybeOcr(file) {
+    if (!file) return;
+    if (!(file.type || "").startsWith("image/")) return;
+    runOcrOnImage(file, file.name || "图片");
+  }
+
   function fillSample() {
     if ($("fuzzyText")) $("fuzzyText").value = SAMPLE_TEXT;
     setMsg("已填入湖南友记样例，点「提交解析」试跑", "ok");
@@ -1404,10 +2015,51 @@ const MingdanUpload = (function () {
         if (tp) tp.value = fields.gendan_pure;
         setMsg("已按结算明细重算 KB（只计纯数字项）", "ok");
       });
+
+    // 截图 OCR：粘贴 / 拖放 / 选图
+    const ocrDrop = $("fuzzyOcrDrop");
+    if (ocrDrop) {
+      ocrDrop.addEventListener("paste", onPasteImage);
+      ocrDrop.addEventListener("click", function () { ocrDrop.focus(); });
+      ocrDrop.addEventListener("dragover", function (ev) {
+        ev.preventDefault();
+        ocrDrop.classList.add("dragover");
+      });
+      ocrDrop.addEventListener("dragleave", function () {
+        ocrDrop.classList.remove("dragover");
+      });
+      ocrDrop.addEventListener("drop", function (ev) {
+        ev.preventDefault();
+        ocrDrop.classList.remove("dragover");
+        const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+        if (f) onFileMaybeOcr(f);
+      });
+    }
+    const fuzzyText = $("fuzzyText");
+    if (fuzzyText) fuzzyText.addEventListener("paste", onPasteImage);
+    const fuzzyFile = $("fuzzyFile");
+    if (fuzzyFile) {
+      fuzzyFile.addEventListener("change", function () {
+        const f = fuzzyFile.files && fuzzyFile.files[0];
+        onFileMaybeOcr(f);
+      });
+    }
+    const idBtn = $("fuzzyOcrIdBtn");
+    if (idBtn) idBtn.addEventListener("click", function () {
+      if (!lastOcrText) setMsg("请先粘贴/拖入证件截图", "err");
+      else applyOcrIds();
+    });
+    const outBtn = $("fuzzyOcrOutBtn");
+    if (outBtn) outBtn.addEventListener("click", function () { applyOcrTransport("outbound"); });
+    const retBtn = $("fuzzyOcrRetBtn");
+    if (retBtn) retBtn.addEventListener("click", function () { applyOcrTransport("return"); });
+    const autoBtn = $("fuzzyOcrAutoBtn");
+    if (autoBtn) autoBtn.addEventListener("click", function () { applyOcrTransport("auto"); });
+
     renderList();
   }
 
-  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT, STATUS };
+  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText };
   try {
     if (typeof window !== "undefined") window.MingdanUpload = api;
   } catch (e) {}
