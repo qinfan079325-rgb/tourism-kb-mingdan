@@ -8,10 +8,9 @@
 <title>散客数据看板 · 上传识别</title>
 <style>
 :root{
-  --bg:#0b1220; --card:#121a2b; --card2:#1a2438; --line:#2a3850;
-  --text:#e8eef7; --muted:#93a4bb; --accent:#3b82f6; --accent2:#22c55e;
+  --bg:#0f1419; --card:#1a2332; --card2:#243044; --line:#2d3a4f;
+  --text:#e8eef7; --muted:#9aabbf; --accent:#3b82f6; --accent2:#22c55e;
   --warn:#f59e0b; --danger:#ef4444; --chip:#334155;
-  --surface:#0f172a; --glow:rgba(59,130,246,.18); --radius:14px;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
@@ -20,35 +19,21 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 .wrap{width:100%;max-width:min(1680px,98vw);margin:0 auto;
-  padding:20px clamp(14px,2.2vw,40px) 64px}
-.banner{background:linear-gradient(105deg,#13233f 0%,#1a2740 55%,#12261f 100%);
-  color:#b6c4d8;border:1px solid rgba(59,130,246,.28);
-  border-radius:14px;padding:10px 16px;margin-bottom:14px;font-size:12.5px;line-height:1.45;
-  box-shadow:0 8px 24px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04)}
-.nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:6px;background:rgba(15,23,42,.55);
-  border:1px solid var(--line);border-radius:999px;width:fit-content;max-width:100%;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
-.nav a{background:transparent;border:1px solid transparent;border-radius:999px;padding:7px 16px;
-  font-size:13.5px;color:var(--muted);font-weight:600;transition:background .12s,color .12s,border-color .12s}
-.nav a:hover{color:var(--text);background:rgba(51,65,85,.45);text-decoration:none}
-.nav a.active{background:linear-gradient(180deg,#2563eb,#1d4ed8);border-color:#3b82f6;color:#fff;
-  font-weight:700;box-shadow:0 4px 14px rgba(37,99,235,.35)}
-.page-hero{margin:4px 0 18px;padding:4px 2px 2px}
-.page-hero h1{font-size:clamp(1.45rem,2.2vw,1.75rem);margin:0 0 6px;font-weight:800;letter-spacing:.01em;
-  background:linear-gradient(90deg,#f8fafc,#93c5fd);-webkit-background-clip:text;background-clip:text;
-  color:transparent}
-.page-hero .sub{color:var(--muted);font-size:13.5px;margin:0;max-width:72ch;line-height:1.5}
+  padding:18px clamp(14px,2.2vw,36px) 56px}
+.banner{background:linear-gradient(90deg,#1e293b,#172033);color:#94a3b8;border:1px solid var(--line);
+  border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:12.5px;line-height:1.4}
+.nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.nav a{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--muted)}
+.nav a.active{background:#1e3a5f;border-color:var(--accent);color:#93c5fd;font-weight:650}
 h1{font-size:1.35rem;margin:0 0 4px;font-weight:700}
 .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
 .toolbar input[type=search]{flex:1;min-width:160px;background:var(--card);border:1px solid var(--line);
   color:var(--text);border-radius:10px;padding:10px 12px;font-size:15px;outline:none}
 .toolbar input:focus{border-color:var(--accent)}
-.btn{background:linear-gradient(180deg,#243044,#1a2438);border:1px solid #3a4a63;color:var(--text);
-  border-radius:11px;padding:9px 14px;font-size:13.5px;cursor:pointer;font-weight:600;
-  transition:filter .12s,border-color .12s,transform .08s;box-shadow:0 1px 0 rgba(255,255,255,.04)}
-.btn:hover{filter:brightness(1.08);border-color:#5b6f8f}
-.btn:active{opacity:.9;transform:translateY(1px)}
+.btn{background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:10px;
+  padding:8px 12px;font-size:13px;cursor:pointer}
+.btn:active{opacity:.85}
 .stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px}
 .stat b{color:var(--accent2);font-size:16px}
@@ -122,16 +107,14 @@ h1{font-size:1.35rem;margin:0 0 4px;font-weight:700}
 .footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
 
 /* —— 截图 OCR —— */
-.fuzzy-ocr{margin-top:16px;padding:16px 16px 14px;border:1px solid rgba(56,189,248,.28);
-  border-radius:16px;background:linear-gradient(180deg,rgba(14,35,55,.75),rgba(15,23,42,.55));
-  box-shadow:0 10px 28px rgba(0,0,0,.18)}
-.fuzzy-ocr-drop{border:1.5px dashed #4b6788;border-radius:14px;padding:22px 16px;background:rgba(8,15,28,.72);cursor:pointer;
-  display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;
-  transition:border-color .15s,background .15s,box-shadow .15s}
-.fuzzy-ocr-drop:focus,.fuzzy-ocr-drop.dragover{outline:none;border-color:#38bdf8;background:#0b1729;
-  box-shadow:0 0 0 4px rgba(56,189,248,.14)}
-.fuzzy-ocr-drop-t{font-size:14.5px;color:#e2e8f0;font-weight:700}
-.fuzzy-ocr-drop-s{font-size:12.5px;color:#7dd3fc;font-weight:600;letter-spacing:.02em}
+.fuzzy-ocr{margin-top:14px;padding:12px 14px;border:1px solid #334155;border-radius:12px;
+  background:rgba(15,23,42,.5)}
+.fuzzy-ocr-drop{border:1px dashed #475569;border-radius:12px;padding:16px 14px;background:var(--bg);cursor:pointer;
+  display:flex;flex-direction:column;gap:4px;transition:border-color .15s,background .15s,box-shadow .15s}
+.fuzzy-ocr-drop:focus,.fuzzy-ocr-drop.dragover{outline:none;border-color:var(--accent);background:#0f172a;
+  box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.fuzzy-ocr-drop-t{font-size:13.5px;color:var(--text);font-weight:600}
+.fuzzy-ocr-drop-s{font-size:12px;color:var(--muted)}
 .fuzzy-ocr-actions{margin-top:8px;position:relative;z-index:5}
 .fuzzy-ocr-actions .btn{pointer-events:auto;position:relative;z-index:6;cursor:pointer}
 .fuzzy-ocr-busy .fuzzy-ocr-actions,.fuzzy-ocr-busy .fuzzy-ocr-actions .btn{pointer-events:auto!important;opacity:1}
@@ -177,47 +160,35 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 
 
 /* —— 模糊订单上传（未出团页加法；不改名单卡片样式） —— */
-.fuzzy-panel{background:linear-gradient(180deg,#152036,#121a2b);
-  border:1px solid rgba(71,85,105,.75);border-radius:18px;
-  padding:20px clamp(14px,1.6vw,24px);margin-bottom:18px;
-  box-shadow:0 14px 40px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04)}
-.fuzzy-panel-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:12px;
-  padding-bottom:10px;border-bottom:1px solid rgba(51,65,85,.65)}
-.fuzzy-panel-h h2{margin:0;font-size:1.18rem;letter-spacing:.01em;font-weight:800;color:#f1f5f9}
-.fuzzy-hint{color:#94a3b8;font-size:12.5px;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.22);
-  border-radius:999px;padding:3px 10px}
+.fuzzy-panel{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:18px clamp(14px,1.5vw,22px);margin-bottom:16px;
+  box-shadow:0 8px 28px rgba(0,0,0,.22)}
+.fuzzy-panel-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:6px}
+.fuzzy-panel-h h2{margin:0;font-size:1.12rem;letter-spacing:.01em}
+.fuzzy-hint{color:var(--muted);font-size:12px}
 .fuzzy-note{color:var(--muted);font-size:12.5px;margin:0 0 10px}
-.fuzzy-help{margin:0 0 14px;border:1px solid var(--line);border-radius:12px;background:rgba(15,23,42,.4)}
-.fuzzy-help>summary{cursor:pointer;user-select:none;padding:9px 12px;font-size:12.5px;color:#93c5fd;font-weight:700}
+.fuzzy-help{margin:0 0 12px;border:1px solid var(--line);border-radius:10px;background:rgba(15,23,42,.35)}
+.fuzzy-help>summary{cursor:pointer;user-select:none;padding:8px 12px;font-size:12.5px;color:#93c5fd;font-weight:650}
 .fuzzy-help[open]>summary{border-bottom:1px solid var(--line)}
 .fuzzy-help-body{padding:8px 12px 10px;color:var(--muted);font-size:12.5px;line-height:1.5}
-.fuzzy-lab{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:#e2e8f0;margin:14px 0 8px;
-  font-weight:750;letter-spacing:.02em}
-.fuzzy-lab::before{content:"";width:8px;height:8px;border-radius:999px;background:#3b82f6;
-  box-shadow:0 0 0 3px rgba(59,130,246,.22);flex-shrink:0}
-.fuzzy-lab.lab-ocr::before{background:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.22)}
-.fuzzy-lab.lab-file::before{background:#94a3b8;box-shadow:0 0 0 3px rgba(148,163,184,.18)}
-.fuzzy-form textarea{width:100%;background:rgba(8,15,28,.85);border:1px solid #334155;color:var(--text);
-  border-radius:14px;padding:14px 16px;font-size:14.5px;outline:none;resize:vertical;font-family:inherit;
-  min-height:140px;line-height:1.55;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
-.fuzzy-form textarea:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(59,130,246,.16)}
+.fuzzy-lab{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px;font-weight:600}
+.fuzzy-form textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:12px;padding:12px 14px;font-size:14px;outline:none;resize:vertical;font-family:inherit;
+  min-height:120px}
+.fuzzy-form textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
 .fuzzy-form input[type=file]{color:var(--muted);font-size:13px}
-.fuzzy-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;align-items:center}
-.fuzzy-primary{background:linear-gradient(180deg,#3b82f6,#1d4ed8);border-color:#60a5fa;color:#fff;font-weight:750;
-  box-shadow:0 6px 16px rgba(37,99,235,.28)}
+.fuzzy-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.fuzzy-primary{background:#1d4ed8;border-color:#2563eb;color:#fff;font-weight:650}
 .fuzzy-primary:hover{filter:brightness(1.08)}
 .fuzzy-msg{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:600;
   position:static;z-index:auto;background:#1e293b;border:1px solid #475569;color:#e2e8f0}
 .fuzzy-msg.ok{background:#14532d;border:1px solid #166534;color:#bbf7d0}
 .fuzzy-msg.err{background:#7f1d1d;border:1px solid #b91c1c;color:#fecaca}
 .fuzzy-msg.hidden{display:none!important}
-.fuzzy-draft-list{margin-top:16px;display:flex;flex-direction:column;gap:10px}
-.fuzzy-empty{color:var(--muted);font-size:13px;padding:12px 14px;border:1px dashed #334155;border-radius:12px;
-  background:rgba(15,23,42,.35)}
-.fuzzy-draft{background:linear-gradient(180deg,#152033,#0f172a);border:1px solid var(--line);border-radius:14px;
-  padding:13px 15px;transition:border-color .12s,box-shadow .12s}
-.fuzzy-draft:hover{border-color:#475569}
-.fuzzy-draft.active{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.28)}
+.fuzzy-draft-list{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.fuzzy-empty{color:var(--muted);font-size:13px;padding:8px 0}
+.fuzzy-draft{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.fuzzy-draft.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(59,130,246,.35)}
 .fuzzy-draft-h{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:8px}
 .fuzzy-st{font-size:12px;font-weight:650;border-radius:999px;padding:2px 9px}
 .fuzzy-st.st-pending_parse{background:#422006;color:#fbbf24}
@@ -238,19 +209,22 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-agency{color:var(--muted);font-size:12px}
 .fuzzy-draft-actions{display:flex;flex-wrap:wrap;gap:6px}
 .fuzzy-review{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}
+.fuzzy-review-bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;
+  margin-bottom:10px;padding:10px 12px;border-radius:12px;background:rgba(30,41,59,.55);border:1px solid var(--line)}
+.fuzzy-review-bar-title{font-size:13px;font-weight:700;color:#e2e8f0;min-width:0;flex:1}
+.fuzzy-review-bar-actions{display:flex;flex-wrap:wrap;gap:6px}
+.fuzzy-review.is-collapsed .fuzzy-review-body{display:none}
+.fuzzy-review.is-collapsed .fuzzy-review-bar{margin-bottom:0;border-color:#3b82f6;box-shadow:0 0 0 1px rgba(59,130,246,.25)}
+
 .fuzzy-status{font-size:13px;color:var(--muted);margin-bottom:10px}
 .fuzzy-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
 .fuzzy-field{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);
-  padding:8px 10px 10px;border-radius:0 10px 10px 0;background:rgba(15,23,42,.25);
-  border:1px solid #1e293b;border-left:3px solid #64748b;
+  padding:8px 10px 10px;border-radius:10px;background:transparent;border:1px solid transparent;
   transition:background .12s,border-color .12s}
 .fuzzy-field-lab{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;
   font-size:12.5px;font-weight:650;color:#cbd5e1;letter-spacing:.01em;line-height:1.3}
 .fuzzy-field-lab em{color:#fbbf24;font-style:normal;font-weight:750;font-size:11.5px}
-.fuzzy-field-lab .star{color:#fbbf24;font-weight:800;margin-right:2px}
-.fuzzy-field-legend{font-size:11.5px;color:#94a3b8;font-weight:500;margin:0 0 10px;line-height:1.4}
-.fuzzy-field-legend .star{color:#fbbf24;font-weight:800}
-/* 关键核对字段：★ + 更亮色条 */
+/* 关键核对字段：更大更亮 + 左侧色条，减轻视觉疲劳 */
 .fuzzy-field.key{background:rgba(30,41,59,.55);border:1px solid #334155;
   border-left:3px solid #3b82f6;padding:10px 12px 12px;border-radius:0 12px 12px 0;
   box-shadow:0 1px 0 rgba(148,163,184,.06)}
@@ -260,11 +234,6 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-field.key.transport{border-left-color:#38bdf8}
 .fuzzy-field.key.guest{border-left-color:#a78bfa}
 .fuzzy-field.key.date{border-left-color:#f472b6}
-.fuzzy-field.soft-line{border-left-color:#94a3b8}
-.fuzzy-field.soft-agency{border-left-color:#60a5fa}
-.fuzzy-field.soft-room{border-left-color:#2dd4bf}
-.fuzzy-field.soft-settle{border-left-color:#86efac}
-.fuzzy-field.soft-note{border-left-color:#cbd5e1}
 .fuzzy-field.need span em,.fuzzy-field.need .fuzzy-field-lab em{color:#fbbf24;font-style:normal;font-weight:750}
 .fuzzy-field textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
   border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;resize:vertical;font-weight:500}
@@ -272,20 +241,18 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-field textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
 .fuzzy-field.need textarea{border-color:#a16207}
 .fuzzy-field.key.need textarea{border-color:#d97706}
-.fuzzy-confirm-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px;
-  padding:14px;border:1px solid rgba(51,65,85,.8);border-radius:14px;
-  background:rgba(15,23,42,.45)}
+.fuzzy-confirm-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;
+  padding-top:12px;border-top:1px dashed rgba(45,58,79,.7)}
 .fuzzy-check{font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px}
 .fuzzy-overlay{background:#122018;border:1px dashed #166534;border-radius:12px;padding:10px 12px;margin-bottom:14px}
 .fuzzy-overlay-title{font-size:12px;color:#86efac;font-weight:650;margin-bottom:8px}
 .fuzzy-overlay-card{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:6px 0;border-top:1px solid rgba(22,101,52,.35);font-size:13px}
 .fuzzy-overlay-card:first-of-type{border-top:none}
 
-.fuzzy-side{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.35fr);gap:14px 18px;margin-top:10px}
-.fuzzy-side-raw,.fuzzy-side-fields{min-width:0;background:linear-gradient(180deg,rgba(18,28,46,.85),rgba(15,23,42,.55));
-  border:1px solid rgba(71,85,105,.7);border-radius:14px;padding:14px 15px;
-  box-shadow:0 8px 22px rgba(0,0,0,.16)}
-.fuzzy-side-h{font-size:13px;color:#93c5fd;font-weight:800;margin-bottom:8px;letter-spacing:.02em}
+.fuzzy-side{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.35fr);gap:14px 18px;margin-top:8px}
+.fuzzy-side-raw,.fuzzy-side-fields{min-width:0;background:rgba(15,23,42,.35);border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px}
+.fuzzy-side-h{font-size:12px;color:#93c5fd;font-weight:700;margin-bottom:8px;letter-spacing:.02em}
 .fuzzy-raw{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
   font-size:12.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;max-height:560px;overflow:auto;color:#cbd5e1}
 .fuzzy-dup{margin-top:10px;padding:8px 10px;border-radius:8px;font-size:13px;background:#7c2d12;border:1px solid #c2410c;color:#ffedd5}
@@ -311,9 +278,8 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
   .wrap{padding:14px 12px 40px}
 }
 
-.fuzzy-ocr-ver{margin-top:8px;font-size:11px;color:#64748b}
-.footer{margin-top:28px;color:#64748b;font-size:11.5px;text-align:center;padding-top:10px;
-  border-top:1px solid rgba(45,58,79,.55)}
+.fuzzy-ocr-ver{margin-top:6px;font-size:11px;color:#64748b}
+.footer{margin-top:24px;color:#64748b;font-size:11.5px;text-align:center}
 h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
 .sub{color:var(--muted);font-size:13px;margin-bottom:16px;max-width:70ch}
 
@@ -325,10 +291,10 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
 .fuzzy-field.guest-list-field{grid-column:1/-1}
 .fuzzy-field.span-2{grid-column:1/-1}
 .guest-list-wrap{display:flex;flex-direction:column;gap:8px}
-.guest-list-head{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;font-size:12.5px;font-weight:750;color:#f1f5f9;padding:7px 8px;background:linear-gradient(90deg,rgba(99,102,241,.28),rgba(51,65,85,.5));border-radius:10px;letter-spacing:.02em;border:1px solid rgba(129,140,248,.25)}
-.guest-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;align-items:center;padding:4px 2px}
-.guest-row input,.guest-row select{width:100%;background:rgba(8,15,28,.9);border:1px solid #334155;color:var(--text);
-  border-radius:9px;padding:8px 9px;font-size:13.5px;font-family:inherit;box-sizing:border-box}
+.guest-list-head{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;font-size:12.5px;font-weight:700;color:#e2e8f0;padding:4px 6px;background:rgba(51,65,85,.45);border-radius:8px;letter-spacing:.02em}
+.guest-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;align-items:center}
+.guest-row input,.guest-row select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:7px 8px;font-size:13px;font-family:inherit;box-sizing:border-box}
 .guest-row input:focus,.guest-row select:focus{border-color:var(--accent);outline:none}
 .guest-row .guest-del{border:1px solid var(--line);background:transparent;color:#f87171;border-radius:8px;height:34px;cursor:pointer;font-size:16px;line-height:1}
 .guest-row .guest-del:hover{border-color:#f87171;background:#7f1d1d22}
@@ -359,7 +325,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
   </div>
 </div>
 <div id="app" class="wrap">
-  <div class="banner">模糊订单 · 本页确认 · 改单通知助手同步易途 · 未出团以钉钉为准</div>
+  <div class="banner">模糊订单 · 草稿跟账号 · 销售确认后录易途 · 未出团以钉钉为准</div>
   <nav class="nav">
     <a href="index.html">未出团</a>
     <a href="completed.html">已完团</a>
@@ -367,15 +333,13 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <span class="auth-who" id="authWho"></span>
     <button type="button" class="btn-logout" id="btnLogout">退出</button>
   </nav>
-  <header class="page-hero">
-    <h1>模糊订单上传</h1>
-    <div class="sub">粘贴订单 → 解析核对 → 销售确认 → 待易途。KB 只计纯数字项。</div>
-  </header>
+  <h1>模糊订单上传</h1>
+  <div class="sub">上传/粘贴 → 解析核对 → 保留草稿（按账号同步·待办）→ 销售确认 → 录易途完成 → 再进未出团。KB 只计纯数字。</div>
 
   <section id="fuzzyPanel" class="fuzzy-panel" aria-label="模糊订单上传">
     <div class="fuzzy-panel-h">
       <h2>上传 / 粘贴</h2>
-      <span class="fuzzy-hint">须点「保留草稿」才存 · 列表标「仅为草稿·待办」</span>
+      <span class="fuzzy-hint">须点「保留草稿」才存账号 · 列表标「仅为草稿·待办」</span>
     </div>
     <details class="fuzzy-help">
       <summary>使用说明</summary>
@@ -384,10 +348,10 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div class="fuzzy-form">
       <label class="fuzzy-lab" for="fuzzyText">订单文字</label>
       <textarea id="fuzzyText" rows="10" placeholder="粘贴例如：&#10;组团社：湖南友记&#10;【时间】：10月27日&#10;【团型天数】: 九武5天4晚&#10;【客人人数】：6大&#10;结算明细：结算：-1000*6+158*6乌江+70加车+200*3续住=-4382&#10;…&#10;也可直接把证件/车票截图粘贴到下方识别区。"></textarea>
-      <label class="fuzzy-lab lab-file" for="fuzzyFile">附件（可选 · 图片会自动 OCR）</label>
+      <label class="fuzzy-lab" for="fuzzyFile">附件（可选 · 图片会自动 OCR）</label>
       <input type="file" id="fuzzyFile" accept=".xlsx,.xls,.csv,image/*,.txt"/>
       <div class="fuzzy-ocr" id="fuzzyOcrBox" aria-label="截图识别">
-        <div class="fuzzy-lab lab-ocr">截图识别</div>
+        <div class="fuzzy-lab">截图识别</div>
         <input type="file" id="fuzzyOcrFile" accept="image/*" multiple capture="environment" style="display:none" aria-hidden="true"/>
         <div class="fuzzy-ocr-drop" id="fuzzyOcrDrop" tabindex="0" role="button" aria-label="粘贴或拖入截图">
           <span class="fuzzy-ocr-drop-t">Ctrl+V / ⌘V 粘贴截图，或点「选图」</span>
@@ -400,7 +364,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 02:36 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 02:45 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -418,6 +382,14 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyMsg" class="fuzzy-msg hidden"></div>
     <div id="fuzzyDraftList" class="fuzzy-draft-list"></div>
     <div id="fuzzyReview" class="fuzzy-review hidden">
+      <div class="fuzzy-review-bar">
+        <div class="fuzzy-review-bar-title" id="fuzzyReviewBarTitle">核对区</div>
+        <div class="fuzzy-review-bar-actions">
+          <button type="button" class="btn" id="fuzzyReviewToggle" title="收起后可继续在上方录新单">收起核对</button>
+          <button type="button" class="btn fuzzy-primary" id="fuzzyNewOrderBtn" title="清空核对区并滚回上传，草稿仍在账号列表">开新单</button>
+        </div>
+      </div>
+      <div class="fuzzy-review-body">
       <div id="fuzzyStatusLine" class="fuzzy-status"></div>
       <div class="fuzzy-side">
         <div class="fuzzy-side-raw">
@@ -426,7 +398,6 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
         </div>
         <div class="fuzzy-side-fields">
           <div class="fuzzy-side-h">解析字段（可改）</div>
-          <div class="fuzzy-field-legend"><span class="star">★</span>=核对重点（日期 / 联系人 / 交通 / 客人 / 金额）· 色条=字段分区</div>
           <div id="fuzzyFields" class="fuzzy-fields"></div>
         </div>
       </div>
@@ -440,7 +411,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       <div class="fuzzy-confirm-row">
         <label class="fuzzy-check"><input type="checkbox" id="fuzzyConfirmCheck"/> 销售确认无误（出团日、人数等已核对）</label>
         <button type="button" class="btn" id="fuzzyRecalcKb">按明细重算 KB</button>
-        <button type="button" class="btn fuzzy-keep" id="fuzzyKeepDraftBtn" title="写入本机列表并标「仅为草稿·待办」，不自动进未出团">保留草稿</button>
+        <button type="button" class="btn fuzzy-keep" id="fuzzyKeepDraftBtn" title="写入当前账号云端草稿并标「仅为草稿·待办」，换设备可见">保留草稿</button>
         <button type="button" class="btn fuzzy-primary" id="fuzzyConfirmBtn" disabled>销售确认无误并保存</button>
         <button type="button" class="btn" id="fuzzyMarkYituBtn">标记易途已录入</button>
         <button type="button" class="btn" id="fuzzyChangeBtn">申请改单</button>
@@ -449,10 +420,11 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
         <button type="button" class="btn" id="fuzzyExportBtn">下载草稿 JSON</button>
         <button type="button" class="btn" id="fuzzyNotifyBtn">复制通知助手</button>
       </div>
+      </div>
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">登录 · 草稿手动保留 · build 2026-10-30 02:36 Asia/Shanghai · 通盘美化 · ★核对重点</div>
+  <div class="footer">登录 · 草稿跟账号 · 手动保留 · build 2026-10-30 02:45 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -591,9 +563,10 @@ const MingdanAuth = (function () {
 
 </script>
 <script>
-/* 模糊订单上传：独立页 upload.html。草稿仅本机；确认后仍留本页；改单流程见 STATUS。不写入未出团 DATA。 */
+/* 模糊订单上传：独立页 upload.html。草稿跟登录账号走（Cloudflare KV）；确认后仍留本页；改单流程见 STATUS。不写入未出团 DATA。 */
 const MingdanUpload = (function () {
-  const STORE_KEY = "mingdan_fuzzy_drafts_v1";
+  const LOCAL_STORE_KEY = "mingdan_fuzzy_drafts_v1"; // 仅一次性迁移本机旧草稿
+  const MIGRATE_PREFIX = "mingdan_fuzzy_drafts_migrated_v1:";
   const STATUS = {
     draft_todo: "仅为草稿·待办",
     pending_parse: "待解析",
@@ -629,12 +602,11 @@ const MingdanUpload = (function () {
     ["remarks", "备注"],
     ["gendan_pure", "跟单价(纯数字)"],
   ];
-  /** 核对重点字段：★ + 更亮色条（日期/联系/交通/客人/金额） */
+  /** 核对时要扫一眼的关键字段：更大标签 + 左侧色条 */
   const KEY_FIELDS = {
     depart_date: "date",
     return_date: "date",
-    book_date: "date",
-    sign_date: "date",
+    agency: "key",
     contact_name: "key",
     contact_phone: "key",
     outbound_transport: "transport",
@@ -643,20 +615,7 @@ const MingdanUpload = (function () {
     party_size: "guest",
     full_amount: "money",
     deposit: "money",
-    collect_on_tour: "money",
-    settlement: "money",
-    rebate: "money",
-    kb: "money",
     guest_list: "guest",
-  };
-  /** 非重点字段也有淡色左边框，便于分区 */
-  const SOFT_FIELDS = {
-    line_name: "soft-line",
-    agency: "soft-agency",
-    rooms: "soft-room",
-    settlement_detail: "soft-settle",
-    remarks: "soft-note",
-    gendan_pure: "soft-settle",
   };
 
   const SAMPLE_TEXT =
@@ -680,8 +639,10 @@ const MingdanUpload = (function () {
   let memDrafts = null;
   let activeId = null;
   let changeMode = false;
-  // 当前核对区内容：仅内存，点「保留草稿」或销售确认才写入 localStorage
+  // 当前核对区内容：仅内存，点「保留草稿」或销售确认才写入云端（按账号）
   let workingDraft = null;
+  let draftsReady = false;
+  let draftsSyncError = "";
 
   function $(id) {
     return document.getElementById(id);
@@ -720,24 +681,124 @@ const MingdanUpload = (function () {
     return a + "|" + d + "|" + g;
   }
 
-  function loadDrafts() {
-    if (memDrafts) return memDrafts.slice();
+  function draftsApiConfigured() {
+    const u = String(typeof ID_OCR_WORKER_URL !== "undefined" ? ID_OCR_WORKER_URL : "").trim();
+    return !!(u && u.indexOf("__ID_OCR_") < 0 && /^https?:\/\//i.test(u));
+  }
+
+  function draftsAuthHeaders() {
+    const headers = { "Content-Type": "application/json" };
+    const tok = String(typeof ID_OCR_TOKEN !== "undefined" ? ID_OCR_TOKEN : "").trim();
+    if (tok && tok.indexOf("__ID_OCR_") < 0) headers.Authorization = "Bearer " + tok;
+    return headers;
+  }
+
+  function draftsBaseUrl() {
+    return String(ID_OCR_WORKER_URL).replace(/\/$/, "") + "/drafts";
+  }
+
+  async function fetchDraftsCloud(account) {
+    const res = await fetch(draftsBaseUrl() + "?account=" + encodeURIComponent(account), {
+      method: "GET",
+      headers: draftsAuthHeaders(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      const err = (data && data.error) || ("http_" + res.status);
+      throw new Error(err);
+    }
+    return Array.isArray(data.drafts) ? data.drafts : [];
+  }
+
+  async function putDraftsCloud(account, list) {
+    const res = await fetch(draftsBaseUrl(), {
+      method: "PUT",
+      headers: draftsAuthHeaders(),
+      body: JSON.stringify({ account, drafts: list }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      const err = (data && data.error) || ("http_" + res.status);
+      throw new Error(err);
+    }
+    return true;
+  }
+
+  function readLocalLegacyDrafts() {
     try {
-      const list = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
-      memDrafts = Array.isArray(list) ? list : [];
-      return memDrafts.slice();
+      const list = JSON.parse(localStorage.getItem(LOCAL_STORE_KEY) || "[]");
+      return Array.isArray(list) ? list : [];
     } catch (e) {
-      memDrafts = [];
       return [];
     }
   }
-  function saveDrafts(list) {
-    memDrafts = list.slice();
+
+  function migrateFlagKey(user) {
+    return MIGRATE_PREFIX + user;
+  }
+
+  async function syncDraftsFromCloud() {
+    const user = currentUser();
+    draftsSyncError = "";
+    if (!user) {
+      memDrafts = [];
+      draftsReady = false;
+      draftsSyncError = "not_logged_in";
+      return { ok: false, error: "not_logged_in" };
+    }
+    if (!draftsApiConfigured()) {
+      memDrafts = [];
+      draftsReady = false;
+      draftsSyncError = "not_configured";
+      return { ok: false, error: "not_configured" };
+    }
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(list));
-      return true;
+      let list = await fetchDraftsCloud(user);
+      let migrated = false;
+      try {
+        const flag = localStorage.getItem(migrateFlagKey(user));
+        if ((!list || !list.length) && !flag) {
+          const local = readLocalLegacyDrafts();
+          if (local.length) {
+            await putDraftsCloud(user, local);
+            list = local;
+            migrated = true;
+          }
+          localStorage.setItem(migrateFlagKey(user), "1");
+        }
+      } catch (migErr) {
+        console.warn("[drafts migrate]", migErr);
+      }
+      memDrafts = Array.isArray(list) ? list.slice() : [];
+      draftsReady = true;
+      return { ok: true, migrated, count: memDrafts.length };
     } catch (e) {
-      return false;
+      draftsSyncError = String((e && e.message) || e || "network");
+      // 离线兜底：不把本机旧库当账号库，避免串账号；仅空列表 + 报错
+      if (!memDrafts) memDrafts = [];
+      draftsReady = false;
+      return { ok: false, error: draftsSyncError };
+    }
+  }
+
+  function loadDrafts() {
+    if (memDrafts) return memDrafts.slice();
+    memDrafts = [];
+    return [];
+  }
+
+  /** @returns {Promise<{ok:boolean,error?:string}>} */
+  async function saveDrafts(list) {
+    memDrafts = list.slice();
+    const user = currentUser();
+    if (!user) return { ok: false, error: "not_logged_in" };
+    if (!draftsApiConfigured()) return { ok: false, error: "not_configured" };
+    try {
+      await putDraftsCloud(user, list);
+      return { ok: true };
+    } catch (e) {
+      const err = String((e && e.message) || e || "network");
+      return { ok: false, error: err };
     }
   }
 
@@ -764,12 +825,67 @@ const MingdanUpload = (function () {
     return null;
   }
 
-  function upsertPersisted(draft) {
+  async function upsertPersisted(draft) {
     const list = loadDrafts();
     const idx = list.findIndex((x) => x.id === draft.id);
     if (idx >= 0) list[idx] = draft;
     else list.unshift(draft);
     return saveDrafts(list);
+  }
+
+  function saveErrorMsg(err) {
+    if (err === "not_logged_in") return "请先登录后再保存草稿";
+    if (err === "not_configured") return "云端草稿未配置，请联系助手";
+    if (err === "unauthorized") return "云端鉴权失败，请联系助手";
+    if (!err || err === "network" || /Failed to fetch|NetworkError|fetch/i.test(err)) {
+      return "网络异常，云端保存失败。请联网后重试，或下载 JSON 备份";
+    }
+    return "云端保存失败（" + err + "）。请重试或下载 JSON 备份";
+  }
+
+  function setReviewCollapsed(collapsed) {
+    const rev = $("fuzzyReview");
+    if (!rev) return;
+    if (collapsed) rev.classList.add("is-collapsed");
+    else rev.classList.remove("is-collapsed");
+    const btn = $("fuzzyReviewToggle");
+    if (btn) btn.textContent = collapsed ? "展开核对" : "收起核对";
+  }
+
+  function scrollToUpload() {
+    const panel = $("fuzzyPanel");
+    const ta = $("fuzzyText");
+    if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (ta) {
+      try { ta.focus({ preventScroll: true }); } catch (e) { try { ta.focus(); } catch (e2) {} }
+    }
+  }
+
+  /** 收起已打开草稿，清空核对区，回到上传区开新单 */
+  function startNewOrder() {
+    activeId = null;
+    workingDraft = null;
+    changeMode = false;
+    const rev = $("fuzzyReview");
+    if (rev) {
+      rev.classList.add("hidden");
+      rev.classList.remove("is-collapsed");
+    }
+    const chk = $("fuzzyConfirmCheck");
+    if (chk) { chk.checked = false; chk.disabled = false; }
+    const notes = $("fuzzyChangeNotes");
+    if (notes) notes.value = "";
+    renderList();
+    scrollToUpload();
+    setMsg("已开新单：在上方粘贴/识别即可；原草稿仍在账号列表里", "ok");
+  }
+
+  function updateReviewChrome(d) {
+    const bar = $("fuzzyReviewBarTitle");
+    if (!bar) return;
+    const f = (d && d.fields) || {};
+    const label = (f.guest_name || "未命名") + " · " + (f.depart_date || "无出团日") + " · " + (f.agency || "");
+    bar.textContent = "核对中：" + label;
   }
 
   function kbFromDetail(detail) {
@@ -1200,7 +1316,7 @@ const MingdanUpload = (function () {
     }
     box.classList.remove("hidden");
     box.innerHTML =
-      "⚠️ 可能重复：本机已有 " +
+      "⚠️ 可能重复：账号下已有 " +
       hits.length +
       " 条相同「组团社+出团日+代表人」：" +
       hits
@@ -1242,7 +1358,7 @@ const MingdanUpload = (function () {
     const drafts = loadDrafts();
     if (!drafts.length) {
       box.innerHTML =
-        '<div class="fuzzy-empty">暂无本机草稿。解析/识别只留在下方核对区；点「保留草稿」才会出现在这里（仅为草稿·待办）。不进未出团。</div>';
+        '<div class="fuzzy-empty">暂无账号草稿。解析/识别只留在下方核对区；点「保留草稿」才会出现在这里（仅为草稿·待办）。换设备登录可见；不进未出团。</div>';
       renderOverlay();
       return;
     }
@@ -1271,18 +1387,23 @@ const MingdanUpload = (function () {
       b.addEventListener("click", () => openDraft(b.getAttribute("data-id")))
     );
     box.querySelectorAll(".fuzzy-del").forEach((b) =>
-      b.addEventListener("click", () => {
+      b.addEventListener("click", async () => {
         const id = b.getAttribute("data-id");
-        if (!confirm("删除该本机草稿？不会影响钉钉同步的正式名单。")) return;
-        saveDrafts(loadDrafts().filter((x) => x.id !== id));
+        if (!confirm("删除该账号草稿？不会影响钉钉同步的正式名单。")) return;
+        const res = await saveDrafts(loadDrafts().filter((x) => x.id !== id));
+        if (!res.ok) {
+          setMsg(saveErrorMsg(res.error), "err");
+          return;
+        }
         if (activeId === id) {
           activeId = null;
           workingDraft = null;
           changeMode = false;
-          $("fuzzyReview").classList.add("hidden");
+          const rev = $("fuzzyReview");
+          if (rev) rev.classList.add("hidden");
         }
         renderList();
-        setMsg("已删除本机草稿", "ok");
+        setMsg("已删除账号草稿", "ok");
       })
     );
     renderOverlay();
@@ -1306,7 +1427,7 @@ const MingdanUpload = (function () {
       chk.disabled = !awaitingFirstConfirm;
     }
     if (keepBtn) {
-      // 未销售确认前都可点「保留草稿」写入本机列表
+      // 未销售确认前都可点「保留草稿」写入账号列表
       keepBtn.style.display = awaitingFirstConfirm ? "" : "none";
     }
     if (cbtn) {
@@ -1463,7 +1584,7 @@ const MingdanUpload = (function () {
       '<label class="fuzzy-field guest-list-field key guest ' +
       (need ? "need" : "") +
       '">' +
-      '<span class="fuzzy-field-lab"><span class="star">★</span>' +
+      '<span class="fuzzy-field-lab">' +
       esc(label) +
       (need ? " <em>需核对</em>" : "") +
       ' <span class="guest-list-hint">姓名 · 类型 · 证件号 · 电话</span></span>' +
@@ -1611,7 +1732,7 @@ const MingdanUpload = (function () {
   }
 
 
-  function openReviewFromWorking() {
+  function openReviewFromWorking(opts) {
     const d = workingDraft;
     if (!d) return;
     activeId = d.id;
@@ -1619,6 +1740,8 @@ const MingdanUpload = (function () {
     const rev = $("fuzzyReview");
     if (!rev) return;
     rev.classList.remove("hidden");
+    // 默认展开以便核对；opts.collapseAfter 时打开后收起，方便马上开新单
+    setReviewCollapsed(false);
     const f = d.fields || {};
     const raw = $("fuzzyRaw");
     if (raw) raw.textContent = d.raw_text || d.file_name || "（无原文）";
@@ -1628,11 +1751,9 @@ const MingdanUpload = (function () {
       if (k === "guest_list") return guestListFieldHtml(label, need, val);
       const wide = k === "settlement_detail" || k === "remarks" || k === "outbound_transport" || k === "return_transport";
       const keyKind = KEY_FIELDS[k];
-      const softKind = SOFT_FIELDS[k] || "";
-      const keyCls = keyKind ? ` key ${keyKind === "key" ? "" : keyKind}`.trimEnd() : (softKind ? " " + softKind : "");
-      const star = keyKind ? '<span class="star">★</span>' : "";
+      const keyCls = keyKind ? ` key ${keyKind === "key" ? "" : keyKind}`.trimEnd() : "";
       return `<label class="fuzzy-field${keyCls}${need ? " need" : ""}${wide ? " span-2" : ""}">
-        <span class="fuzzy-field-lab">${star}${esc(label)}${need ? " <em>需核对</em>" : ""}</span>
+        <span class="fuzzy-field-lab">${esc(label)}${need ? " <em>需核对</em>" : ""}</span>
         <textarea data-k="${esc(k)}" rows="${k === "remarks" || k === "settlement_detail" ? 3 : 1}">${esc(val)}</textarea>
       </label>`;
     }).join("");
@@ -1642,24 +1763,31 @@ const MingdanUpload = (function () {
     if (notes) notes.value = "";
     const persisted = loadDrafts().some((x) => x.id === d.id);
     const draftHint = isDraftLike(d.status)
-      ? (persisted ? "仅为草稿·待办（已保留本机）" : "未保留 · 仅内存核对中，点「保留草稿」才写入本机列表")
+      ? (persisted ? "仅为草稿·待办（已保留账号）" : "未保留 · 仅内存核对中，点「保留草稿」才写入账号")
       : (STATUS[d.status] || d.status);
     $("fuzzyStatusLine").textContent =
       `状态：${draftHint} · ${d.id}`;
+    updateReviewChrome(d);
     renderDupWarn(d);
     renderHistory(d);
     updateActionButtons(d);
     renderList();
+    if (opts && opts.collapseAfter) {
+      setReviewCollapsed(true);
+      scrollToUpload();
+    }
   }
 
   function openDraft(id) {
     const d = loadDrafts().find((x) => x.id === id);
     if (!d) {
-      setMsg("找不到该草稿（可能本机存储被清空）", "err");
+      setMsg("找不到该草稿（可能未同步到本账号）", "err");
       return;
     }
     workingDraft = cloneDraft(d);
-    openReviewFromWorking();
+    // 打开后收起核对区并滚回上传，方便立刻录新单；需要改时再点「展开核对」
+    openReviewFromWorking({ collapseAfter: true });
+    setMsg("已打开草稿并收起核对区。要改点「展开核对」；录新单直接在上方粘贴/识别，或点「开新单」", "ok");
   }
 
   function readFieldsFromForm() {
@@ -1689,15 +1817,18 @@ const MingdanUpload = (function () {
   }
 
 
-  function keepDraft() {
+  async function keepDraft() {
     const d = getActiveDraft();
     if (!d) {
       setMsg("请先解析订单或粘贴识别，再点「保留草稿」", "err");
       return;
     }
+    if (!currentUser()) {
+      setMsg("请先登录后再保留草稿", "err");
+      return;
+    }
     const fields = readFieldsFromForm();
     d.fields = fields;
-    // 显式保留：标记为仅为草稿·待办（未销售确认）
     if (isDraftLike(d.status) || !d.status) {
       d.status = "draft_todo";
       d.status_label = STATUS.draft_todo;
@@ -1706,17 +1837,17 @@ const MingdanUpload = (function () {
     d.updated_by = currentUser();
     if (!Array.isArray(d.change_history)) d.change_history = [];
     workingDraft = d;
-    const ok = upsertPersisted(cloneDraft(d));
+    const res = await upsertPersisted(cloneDraft(d));
     setMsg(
-      ok
-        ? "已保留为本机「仅为草稿·待办」。伙伴可见此标记；未点销售确认前不算正式单，不进未出团。"
-        : "保留失败（本机存储满？）。请下载 JSON 备份。",
-      ok ? "ok" : "err"
+      res.ok
+        ? "已保留为账号「仅为草稿·待办」。换设备登录可见；未确认前不进未出团。"
+        : saveErrorMsg(res.error),
+      res.ok ? "ok" : "err"
     );
     openReviewFromWorking();
   }
 
-  function confirmSave() {
+  async function confirmSave() {
     if (!$("fuzzyConfirmCheck").checked) {
       setMsg("请先勾选「销售确认无误」", "err");
       return;
@@ -1726,13 +1857,17 @@ const MingdanUpload = (function () {
       setMsg("请先解析或打开一条草稿", "err");
       return;
     }
+    if (!currentUser()) {
+      setMsg("请先登录后再确认保存", "err");
+      return;
+    }
     const fields = readFieldsFromForm();
     if (!(fields.depart_date || "").trim() || !(fields.party_size || "").trim()) {
       setMsg("出团时间、参团人数必须核对填写后再确认", "err");
       return;
     }
     const dups = findDuplicates(fields, d.id);
-    if (dups.length && !confirm("本机已有相同组团社+出团日+代表人的草稿，仍要确认保存吗？")) {
+    if (dups.length && !confirm("账号下已有相同组团社+出团日+代表人的草稿，仍要确认保存吗？")) {
       return;
     }
     d.fields = fields;
@@ -1743,17 +1878,17 @@ const MingdanUpload = (function () {
     d.confirmed_by = currentUser();
     if (!Array.isArray(d.change_history)) d.change_history = [];
     workingDraft = d;
-    const ok = upsertPersisted(cloneDraft(d));
+    const res = await upsertPersisted(cloneDraft(d));
     setMsg(
-      ok
-        ? "已保存为「已确认待易途」（仅本页/本机）。未出团钉钉名单未改动；易途录完后再同步。"
-        : "已确认（内存）。本机存储失败，请尽快下载 JSON 备份。",
-      ok ? "ok" : "err"
+      res.ok
+        ? "已保存为「已确认待易途」（跟账号）。未出团钉钉名单未改动；易途录完后再同步。"
+        : "已确认（内存）。" + saveErrorMsg(res.error),
+      res.ok ? "ok" : "err"
     );
     openReviewFromWorking();
   }
 
-  function markInYitu() {
+  async function markInYitu() {
     const list = loadDrafts();
     const idx = list.findIndex((x) => x.id === activeId);
     if (idx < 0) return;
@@ -1773,9 +1908,14 @@ const MingdanUpload = (function () {
       by: currentUser(),
       result_status: "in_yitu",
     });
-    saveDrafts(list);
+    const res = await saveDrafts(list);
     workingDraft = cloneDraft(list[idx]);
-    setMsg("已标记「已进易途」。订单仍留本页；未出团等钉钉同步覆盖/出现。", "ok");
+    setMsg(
+      res.ok
+        ? "已标记「已进易途」。订单仍留本页；未出团等钉钉同步覆盖/出现。"
+        : saveErrorMsg(res.error),
+      res.ok ? "ok" : "err"
+    );
     openReviewFromWorking();
   }
 
@@ -1794,7 +1934,7 @@ const MingdanUpload = (function () {
     setMsg("请填写改单说明，改好右侧字段后点「提交改单」", "ok");
   }
 
-  function submitChange() {
+  async function submitChange() {
     const d0 = loadDrafts().find((x) => x.id === activeId);
     if (!d0) return;
     const notesEl = $("fuzzyChangeNotes");
@@ -1846,14 +1986,14 @@ const MingdanUpload = (function () {
       fields_before: oldFields,
       fields_after: newFields,
     });
-    const ok = saveDrafts(list);
+    const res = await saveDrafts(list);
     changeMode = false;
     workingDraft = cloneDraft(list[idx]);
-    setMsg(ok ? msg : msg + "（本机存储失败，请下载 JSON）", ok ? "ok" : "err");
+    setMsg(res.ok ? msg : msg + "（" + saveErrorMsg(res.error) + "）", res.ok ? "ok" : "err");
     openReviewFromWorking();
   }
 
-  function markYituUpdated() {
+  async function markYituUpdated() {
     const list = loadDrafts();
     const idx = list.findIndex((x) => x.id === activeId);
     if (idx < 0) return;
@@ -1871,9 +2011,9 @@ const MingdanUpload = (function () {
       by: currentUser(),
       result_status: "yitu_updated",
     });
-    saveDrafts(list);
+    const res = await saveDrafts(list);
     workingDraft = cloneDraft(list[idx]);
-    setMsg("已标记「易途已更新」，变更记录已保留。", "ok");
+    setMsg(res.ok ? "已标记「易途已更新」，变更记录已保留。" : saveErrorMsg(res.error), res.ok ? "ok" : "err");
     openReviewFromWorking();
   }
 
@@ -2024,16 +2164,16 @@ const MingdanUpload = (function () {
       let base;
       if (draft.status === "pending_parse") {
         base =
-          "已收文件，状态「待解析」（仅内存）。需要留着请点「保留草稿」；或下载 JSON / 复制通知发给助手。";
+          "已收文件，状态「待解析」（仅内存）。需要留着请点「保留草稿」（跟账号）；或下载 JSON / 复制通知发给助手。";
       } else if (partial) {
         base =
-          "已解析到部分字段（仅内存，未自动保留）。请在下方补全；要留给伙伴看请点「保留草稿」→仅为草稿·待办。";
+          "已解析到部分字段（仅内存，未自动保留）。请在下方补全；要跨设备可见请点「保留草稿」→仅为草稿·待办。";
       } else {
         base =
-          "已解析到核对区（仅内存，未自动保留草稿）。核对后点「保留草稿」才会出现在列表并标「仅为草稿·待办」；或直接销售确认。";
+          "已解析到核对区（仅内存，未自动保留草稿）。核对后点「保留草稿」才会写入账号列表并标「仅为草稿·待办」；或直接销售确认。";
       }
       if (dups.length) {
-        base += ` ⚠️ 本机已有 ${dups.length} 条相同组团社+出团日+代表人，请确认是否重复。`;
+        base += ` ⚠️ 账号下已有 ${dups.length} 条相同组团社+出团日+代表人，请确认是否重复。`;
       }
       setMsg(base, partial || dups.length ? "err" : "ok");
       openReviewFromWorking();
@@ -4233,7 +4373,7 @@ const MingdanUpload = (function () {
     setMsg("已填入湖南友记样例，点「提交解析」试跑", "ok");
   }
 
-  function init() {
+  async function init() {
     console.log("[MingdanUpload] init");
     if (!$("fuzzyPanel")) {
       console.warn("[MingdanUpload] fuzzyPanel missing");
@@ -4343,10 +4483,37 @@ const MingdanUpload = (function () {
       pickOcrImage(null);
     });
 
+    const toggleBtn = $("fuzzyReviewToggle");
+    if (toggleBtn) {
+      toggleBtn.addEventListener("click", function () {
+        const rev = $("fuzzyReview");
+        if (!rev || rev.classList.contains("hidden")) return;
+        const collapsed = !rev.classList.contains("is-collapsed");
+        setReviewCollapsed(collapsed);
+        if (collapsed) scrollToUpload();
+      });
+    }
+    const newOrderBtn = $("fuzzyNewOrderBtn");
+    if (newOrderBtn) newOrderBtn.addEventListener("click", startNewOrder);
+
+    setMsg("正在加载账号草稿…", "ok");
+    const sync = await syncDraftsFromCloud();
+    if (!sync.ok) {
+      setMsg(
+        sync.error === "not_logged_in"
+          ? "请先登录"
+          : "账号草稿加载失败：" + saveErrorMsg(sync.error) + "。可稍后刷新；保留草稿需联网。",
+        "err"
+      );
+    } else if (sync.migrated) {
+      setMsg("已将本机旧草稿迁入当前账号（一次性），换设备登录可见。", "ok");
+    } else {
+      setMsg("账号草稿已同步（" + sync.count + " 条）", "ok");
+    }
     renderList();
   }
 
-  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, keepDraft, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport, pickOcrImage, onIdBtn, onTransportBtn };
+  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, keepDraft, startNewOrder, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport, pickOcrImage, onIdBtn, onTransportBtn };
   try {
     if (typeof window !== "undefined") window.MingdanUpload = api;
   } catch (e) {}
