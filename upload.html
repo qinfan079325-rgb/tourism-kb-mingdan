@@ -112,7 +112,13 @@ h1{font-size:1.35rem;margin:0 0 4px;font-weight:700}
 .fuzzy-ocr-drop:focus,.fuzzy-ocr-drop.dragover{outline:none;border-color:var(--accent);background:#0f172a}
 .fuzzy-ocr-drop-t{font-size:13.5px;color:var(--text);font-weight:600}
 .fuzzy-ocr-drop-s{font-size:12px;color:var(--muted)}
-.fuzzy-ocr-actions{margin-top:8px}
+.fuzzy-ocr-actions{margin-top:8px;position:relative;z-index:5}
+.fuzzy-ocr-actions .btn{pointer-events:auto;position:relative;z-index:6;cursor:pointer}
+.fuzzy-ocr-busy .fuzzy-ocr-actions,.fuzzy-ocr-busy .fuzzy-ocr-actions .btn{pointer-events:auto!important;opacity:1}
+.fuzzy-ocr-msg{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.45;background:rgba(15,23,42,.7);border:1px solid #334155;color:var(--text)}
+.fuzzy-ocr-msg.ok{border-color:#166534;color:#86efac;background:rgba(22,101,52,.25)}
+.fuzzy-ocr-msg.err{border-color:#991b1b;color:#fca5a5;background:rgba(127,29,29,.28)}
+.fuzzy-ocr-msg.hidden{display:none}
 .fuzzy-ocr-raw-wrap{margin-top:8px;font-size:12.5px;color:var(--muted)}
 .fuzzy-ocr-raw-wrap summary{cursor:pointer;user-select:none;color:#93c5fd;font-weight:650}
 .fuzzy-ocr-raw{max-height:220px;margin-top:6px}
@@ -164,8 +170,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .fuzzy-primary{background:#1d4ed8;border-color:#2563eb;color:#fff;font-weight:650}
 .fuzzy-msg{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:600;
-  position:sticky;top:8px;z-index:20;background:#1e293b;border:1px solid #475569;color:#e2e8f0;
-  box-shadow:0 4px 12px rgba(0,0,0,.35)}
+  position:static;z-index:auto;background:#1e293b;border:1px solid #475569;color:#e2e8f0}
 .fuzzy-msg.ok{background:#14532d;border:1px solid #166534;color:#bbf7d0}
 .fuzzy-msg.err{background:#7f1d1d;border:1px solid #b91c1c;color:#fecaca}
 .fuzzy-msg.hidden{display:none!important}
@@ -265,11 +270,12 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <span class="fuzzy-ocr-drop-s">识别后点下方按钮写入名单 / 去程 / 返程；首次需下载中文模型，稍等即可</span>
         </div>
         <div class="fuzzy-actions fuzzy-ocr-actions">
-          <button type="button" class="btn" id="fuzzyOcrIdBtn" title="从最近一次 OCR 结果提取证件写入客人名单">识别证件 → 名单</button>
-          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="填入去程交通">识别交通 → 去程</button>
-          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="填入返程交通">识别交通 → 返程</button>
-          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrAutoBtn" title="去程空则填去程，否则填返程">识别交通（自动）</button>
+          <button type="button" class="btn" id="fuzzyOcrIdBtn" title="从最近一次 OCR 结果提取证件写入客人名单" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrIds)MingdanUpload.applyOcrIds()}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入证件失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别证件 → 名单</button>
+          <button type="button" class="btn" id="fuzzyOcrOutBtn" title="填入去程交通" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('outbound')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入去程失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别交通 → 去程</button>
+          <button type="button" class="btn" id="fuzzyOcrRetBtn" title="填入返程交通" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('return')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入返程失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别交通 → 返程</button>
+          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrAutoBtn" title="去程空则填去程，否则填返程" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('auto')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入交通失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别交通（自动）</button>
         </div>
+        <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -315,7 +321,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-29 23:50 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-29 23:58 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -814,7 +820,7 @@ const MingdanUpload = (function () {
       const train = parseTrainTicket(t);
       const flight = parseFlightTicket(t);
       const lookTrain = /12306|发车时间|总张数|车次|已支付/.test(t);
-      const lookFlight = /Terminal|Confirmed|Flight|登机|航班/i.test(t) || /\b(?:CX|CA|MU|CZ|HU|3U)\s*\d{2,4}\b/i.test(t);
+      const lookFlight = /Terminal|Confirmed|Flight\b|登机|航班|行程卡/i.test(t) || /\b(?:CX|CA|MU|CZ|HU|3U|FM|HO|9C|ZH)\s*\d{2,4}\b/i.test(t);
       let transportLine = "";
       if (lookTrain && train.line) transportLine = train.line;
       else if (lookFlight && flight.line && !/^[GDCZKTY]\d+$/i.test(flight.flight_no || "")) transportLine = flight.line;
@@ -1563,17 +1569,43 @@ const MingdanUpload = (function () {
     const found = [];
     const seen = {};
 
+    function isYyyymmdd(num) {
+      const s = String(num || "");
+      if (!/^(19|20)\d{6}$/.test(s)) return false;
+      const y = +s.slice(0, 4), m = +s.slice(4, 6), d = +s.slice(6, 8);
+      return m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 1900 && y <= 2100;
+    }
+    function nearDateLabel(hay, idx) {
+      const win = hay.slice(Math.max(0, idx - 24), idx + 24);
+      return /出生|生日|Birth|有效|Validity|签发|Issue|期至|日期/i.test(win);
+    }
     function cleanPersonName(name) {
-      let nm = String(name || "").replace(/\s+/g, "").trim();
-      nm = nm.replace(/(?:身份证|护照|台胞证|通行证|证件号|姓名)$/g, "");
-      nm = nm.replace(/^(?:身份证|护照|台胞证|通行证|证件号|姓名)/g, "");
-      if (!nm || nm.length < 2 || nm.length > 8) return "";
-      if (/证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|订单/.test(nm)) return "";
-      return nm;
+      let nm = String(name || "").trim();
+      nm = nm.replace(/^[,，.\s]+|[,，.\s]+$/g, "");
+      nm = nm.replace(/(?:身份证|护照|台胞证|通行证|证件号|姓名|Name|Sex|Gender)$/gi, "");
+      nm = nm.replace(/^(?:身份证|护照|台胞证|通行证|证件号|姓名|Name|Sex|Gender)/gi, "");
+      nm = nm.replace(/,/g, " ").replace(/\s+/g, " ").trim();
+      if (!nm) return "";
+      const hasLatin = /[A-Za-z]/.test(nm);
+      const hasHan = /[\u4e00-\u9fff]/.test(nm);
+      if (hasLatin && !hasHan) {
+        // 英文名：WU CHIA-JUNG / SUN WEN-LAN
+        nm = nm.replace(/[^A-Za-z\-'\s]/g, " ").replace(/\s+/g, " ").trim().toUpperCase();
+        if (nm.length < 2 || nm.length > 40) return "";
+        if (/^(MALE|FEMALE|SEX|CARD|HOLDER|TRAVEL|MAINLAND|CHINA|PASSPORT|THIS|INTENDED|FOR|ITS|TO|THE|OF)$/i.test(nm)) return "";
+        return nm;
+      }
+      // 中文名：去空格后 2–8 字
+      const han = nm.replace(/\s+/g, "");
+      if (han.length < 2 || han.length > 8) return "";
+      if (/证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|订单|居民|来往|通行/.test(han)) return "";
+      return han;
     }
     function push(name, typ, num) {
       const id = String(num || "").trim().toUpperCase();
       if (!id) return;
+      // 排除出生/有效期形态的 8 位日期
+      if (/^\d{8}$/.test(id) && isYyyymmdd(id)) return;
       const nm = cleanPersonName(name);
       if (seen[id]) {
         if (nm) {
@@ -1596,12 +1628,16 @@ const MingdanUpload = (function () {
     }
 
     function nearbyName(idx, hay) {
-      // 向前找 2–4 个汉字姓名（版式顺序任意）
-      const before = hay.slice(Math.max(0, idx - 40), idx);
-      let m = before.match(/(?:姓名|Name)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Za-z][A-Za-z\s]{1,30})\s*$/i);
-      if (m) return m[1].replace(/\s+/g, "");
+      const before = hay.slice(Math.max(0, idx - 120), idx);
+      let m = before.match(/(?:姓名|Name)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Za-z][A-Za-z,\-\s]{1,40})\s*$/i);
+      if (m) return m[1];
+      // 英文逗号名可在大段英文说明之前：在 before 里全局找最后一次
+      const commaNames = before.match(/\b[A-Z]{1,20}\s*,\s*[A-Z][A-Z\-\s]{1,30}\b/gi);
+      if (commaNames && commaNames.length) return commaNames[commaNames.length - 1];
+      m = before.match(/\b([A-Z]{2,}(?:[\s\-]+[A-Z]{2,}){1,3})\s*$/);
+      if (m && !/CARD|HOLDER|TRAVEL|MAINLAND|CHINA|PASSPORT|INTENDED|THIS|FOR|ITS|THE|OF|TO/i.test(m[1])) return m[1];
       m = before.match(/([\u4e00-\u9fff]{2,4})\s*$/);
-      if (m && !/证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆/.test(m[1])) return m[1];
+      if (m && !/证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|居民|来往|通行/.test(m[1])) return m[1];
       return "";
     }
 
@@ -1615,23 +1651,30 @@ const MingdanUpload = (function () {
       push(nm, "身份证", m[1].toUpperCase());
     }
 
-    // 台胞证：常见 8 位数字（避免把订单号/车次误判：需靠近「台胞/通行证」或姓名）
-    const twRe = /(?:台胞(?:证|通行证)?|大陆通行证|通行证)[^\d]{0,16}?([\u4e00-\u9fff]{2,4})?[^\d]{0,8}(\d{8})\b/gi;
+    // 台胞证：常见 8 位数字（靠近「台胞/通行证」或英文名）
+    const twRe = /(?:台胞(?:证|通行证)?|大陆通行证|通行证|台湾居民来往大陆通行证)[^\d]{0,24}?([\u4e00-\u9fff]{2,4})?[^\d]{0,12}(\d{8})\b/gi;
     while ((m = twRe.exec(flat))) {
+      if (isYyyymmdd(m[2]) && nearDateLabel(flat, m.index)) continue;
+      if (isYyyymmdd(m[2])) continue;
       push(m[1] || nearbyName(m.index, flat), "台胞证", m[2]);
     }
-    // 行内：姓名 + 8 位
+    // 行内：中文名 / 英文名 + 8 位
     for (const line of lines) {
       const lm = line.match(/([\u4e00-\u9fff]{2,4})\s*[：:\-]?\s*(\d{8})\b/);
-      if (lm) push(lm[1], "台胞证", lm[2]);
+      if (lm && !isYyyymmdd(lm[2])) push(lm[1], "台胞证", lm[2]);
       const lm2 = line.match(/([\u4e00-\u9fff]{2,4})\s+(\d{8})\b/);
-      if (lm2) push(lm2[1], "台胞证", lm2[2]);
+      if (lm2 && !isYyyymmdd(lm2[2])) push(lm2[1], "台胞证", lm2[2]);
+      const lem = line.match(/\b([A-Z]{1,20}\s*,\s*[A-Z][A-Z\-\s]{1,30})\s*[：:\-]?\s*(\d{8})\b/i);
+      if (lem && !isYyyymmdd(lem[2])) push(lem[1], "台胞证", lem[2]);
     }
-    // 孤立 8 位：仅当全文含「台胞」时收录
-    if (/台胞|通行证/.test(flat)) {
+    // 孤立 8 位：仅当全文含「台胞/通行证」时收录；排除出生/有效期
+    if (/台胞|通行证|台湾居民来往/.test(flat)) {
       const lone = /\b(\d{8})\b/g;
       while ((m = lone.exec(flat))) {
-        if (/^E\d{8}$/i.test("E" + m[1])) continue;
+        if (isYyyymmdd(m[1])) continue;
+        if (nearDateLabel(flat, m.index)) continue;
+        // 仅当正文出现 E######## 订单号形态时跳过（勿对任意 8 位拼 E 再测）
+        if (new RegExp("\\bE" + m[1] + "\\b", "i").test(flat)) continue;
         push(nearbyName(m.index, flat), "台胞证", m[1]);
       }
     }
@@ -1642,20 +1685,17 @@ const MingdanUpload = (function () {
     while ((m = passRe.exec(flat))) {
       const num = (m[1] || m[2] || "").toUpperCase();
       if (!num) continue;
-      // 排除车次/订单号形态
       if (/^[GDCZKTY]\d{1,5}$/i.test(num)) continue;
       if (/^E\d{9,}$/i.test(num)) continue;
       const typHint = /台胞|通行证/.test(flat.slice(Math.max(0, m.index - 10), m.index + 10))
         ? "台胞证"
         : "护照";
-      // 纯 8 数字已被台胞逻辑处理；这里字母开头才算护照
-      if (/^[A-Z]/.test(num) && /\d/.test(num)) push(nearbyName(m.index, flat), "护照", num);
+      if (/^[A-Z]/.test(num) && /\d/.test(num)) push(nearbyName(m.index, flat), typHint === "台胞证" ? "台胞证" : "护照", num);
     }
-    // 行：姓名 + 护照号；或 护照号 + 姓名
     for (const line of lines) {
-      const pm = line.match(/([\u4e00-\u9fff]{2,4}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+[：:\-]?\s*([A-Z][A-Z0-9]{6,9})\b/i);
+      const pm = line.match(/([\u4e00-\u9fff]{2,4}|[A-Z][A-Za-z,\-\s]{1,30})\s+[：:\-]?\s*([A-Z][A-Z0-9]{6,9})\b/i);
       if (pm && /\d/.test(pm[2]) && !/^[GDCZKTY]\d+$/i.test(pm[2])) {
-        push(pm[1].replace(/\s+/g, ""), "护照", pm[2].toUpperCase());
+        push(pm[1], "护照", pm[2].toUpperCase());
       }
       const pm2 = line.match(/\b([A-Z][A-Z0-9]{6,9})\s+([\u4e00-\u9fff]{2,4})\b/i);
       if (pm2 && /\d/.test(pm2[1]) && !/^[GDCZKTY]\d+$/i.test(pm2[1])) {
@@ -1668,28 +1708,40 @@ const MingdanUpload = (function () {
       const idn2 =
         line.match(/([\u4e00-\u9fff]{2,4})\s*台胞证\s*(\d{8})\b/) ||
         line.match(/([\u4e00-\u9fff]{2,4})\s+(?:台胞证|通行证)\s*(\d{8})\b/);
-      if (idn2) push(idn2[1], "台胞证", idn2[2]);
+      if (idn2 && !isYyyymmdd(idn2[2])) push(idn2[1], "台胞证", idn2[2]);
       const idn3 =
         line.match(/([\u4e00-\u9fff]{2,4})\s*护照\s*([A-Z][A-Z0-9]{6,9})\b/i) ||
         line.match(/([\u4e00-\u9fff]{2,4})\s+护照\s*([A-Z][A-Z0-9]{6,9})\b/i);
       if (idn3) push(idn3[1], "护照", idn3[2].toUpperCase());
     }
 
-    // 「姓名：xx」与邻近证件号配对（不依赖字段顺序）
+    // 「姓名：xx」/ 纯英文名行 与邻近证件号配对（证件号可能在英文说明行之后）
     for (let i = 0; i < lines.length; i++) {
-      const nm = lines[i].match(/^(?:姓名|Name)\s*[:：]?\s*([\u4e00-\u9fff]{2,8}|[A-Za-z][A-Za-z\s]{1,30})$/i);
-      if (!nm) continue;
-      const name = nm[1].replace(/\s+/g, "");
-      const window = [lines[i + 1] || "", lines[i + 2] || "", lines[i - 1] || ""].join(" ");
-      let num =
-        (window.match(/([1-9]\d{16}[\dXx])/) ||
-          window.match(/\b(\d{8})\b/) ||
-          window.match(/\b([A-Z][A-Z0-9]{6,9})\b/i) ||
-          [])[1];
+      let nmMatch = lines[i].match(/^(?:姓名|Name)\s*[:：]?\s*(.+)$/i);
+      let nameRaw = nmMatch ? nmMatch[1] : "";
+      if (!nameRaw) {
+        const em = lines[i].match(/^([A-Z]{1,20}\s*,\s*[A-Z][A-Z\-\s]{1,30})$/i);
+        if (em) nameRaw = em[1];
+      }
+      const name = cleanPersonName(nameRaw);
+      if (!name) continue;
+      const window = lines.slice(Math.max(0, i - 2), Math.min(lines.length, i + 7)).join(" ");
+      let num = "";
+      // 优先 18 位身份证 / 非日期 8 位台胞证 / 含数字的护照号
+      const m18 = window.match(/([1-9]\d{16}[\dXx])/);
+      if (m18) num = m18[1];
+      if (!num) {
+        const all8 = window.match(/\b(\d{8})\b/g) || [];
+        num = all8.find((x) => !isYyyymmdd(x)) || "";
+      }
+      if (!num) {
+        const pm = window.match(/\b([A-Z](?=[A-Z0-9]*\d)[A-Z0-9]{6,9})\b/i);
+        if (pm && !/INTENDED|HOLDER|TRAVEL|MAINLAND|PASSPORT|CHINA|CARD/i.test(pm[1])) num = pm[1];
+      }
       if (!num) continue;
       let typ = "护照";
       if (/^\d{17}[\dXx]$/i.test(num)) typ = "身份证";
-      else if (/^\d{8}$/.test(num)) typ = "台胞证";
+      else if (/^\d{8}$/.test(num)) typ = /台胞|通行证|台湾居民/.test(flat) ? "台胞证" : "护照";
       push(name, typ, num);
     }
 
@@ -1928,18 +1980,27 @@ const MingdanUpload = (function () {
     const flight = parseFlightTicket(raw);
     const ids = parseIdDoc(raw);
     const lookTrain = /12306|发车时间|总张数|车次|已支付|下单日期/.test(raw);
-    const lookFlight = /Terminal|Confirmed|Flight|登机|航班|HKG|CKG|to\s+[A-Z]/i.test(raw) && /\b[A-Z]{2}\d{2,4}\b/.test(raw.replace(/\s+/g, ""));
-    const lookId = /护照|台胞|身份证|Passport|证件号/.test(raw);
+    // 勿用裸 to\s+[A-Z]：台胞证英文说明有 "TO TRAVEL TO THE MAINLAND"
+    const lookFlight =
+      /(?:Terminal|Confirmed|Flight\b|登机|航班|行程卡)/i.test(raw) ||
+      (/\b(?:CX|CA|MU|CZ|HU|3U|FM|HO|9C|ZH|SC|JD|TV)\s*\d{2,4}\b/i.test(raw) &&
+        /(?:HKG|CKG|PEK|PVG|SHA|CAN|CTU|XIY|TPE|KHH|RMQ|机场|→|->)/i.test(raw));
+    const lookIdStrong =
+      /台湾居民来往大陆通行证|台胞证|来往大陆通行证/.test(raw) ||
+      /(?:护照|Passport)\b/i.test(raw) ||
+      /身份证|居民身份证/.test(raw) ||
+      /P<[A-Z]{3}/.test(raw.replace(/\s+/g, "")); // MRZ 粗检
+    const lookId = lookIdStrong || /通行证|证件号|持证人/.test(raw);
     let hasTrain = !!(train.train_no && (train.from || train.depart_date));
-    // 航班号须像航司代码，且不是火车车次
     let hasFlight = !!(flight.flight_no && !/^[GDCZKTY]\d+$/i.test(flight.flight_no));
     if (hasFlight && lookTrain && !lookFlight) hasFlight = false;
-    if (hasTrain && lookTrain) {
-      // 12306 订单号 E######## 勿当护照
+    // 强证件信号：禁止因英文 to/航班噪点当成交通
+    if (lookIdStrong) {
+      hasFlight = false;
+      if (!lookTrain) hasTrain = false;
     }
     let hasId = !!(ids.guests && ids.guests.length);
     if (hasId && lookTrain && !lookId) {
-      // 过滤：仅订单号被当成证件
       const cleaned = ids.guests.filter((g) => {
         if (train.order_no && g.number === train.order_no) return false;
         if (/^E\d{8,}$/i.test(g.number) && train.order_no) return false;
@@ -1951,43 +2012,70 @@ const MingdanUpload = (function () {
       hasId = cleaned.length > 0;
     }
     let kind = "unknown";
-    if (lookTrain && hasTrain) kind = "train";
+    if (lookIdStrong) kind = "id";
+    else if (lookTrain && hasTrain) kind = "train";
     else if (lookFlight && hasFlight) kind = "flight";
     else if (hasTrain && !hasFlight) kind = "train";
     else if (hasFlight && !hasTrain) kind = "flight";
     else if (hasTrain && hasFlight) kind = lookTrain ? "train" : "flight";
     else if (hasId || lookId) kind = "id";
     const summary = [];
-    if (kind === "train" || (hasTrain && kind !== "flight")) {
+    if (kind === "train" || (hasTrain && kind !== "flight" && kind !== "id")) {
       if (hasTrain) summary.push("火车 " + (train.line || train.train_no));
     }
-    if (kind === "flight" || (hasFlight && kind !== "train")) {
+    if (kind === "flight" || (hasFlight && kind !== "train" && kind !== "id")) {
       if (hasFlight) summary.push("航班 " + (flight.line || flight.flight_no));
     }
-    if (hasId) summary.push("证件 " + ids.guests.length + " 人");
-    lastOcrMeta = { train, flight, ids, kind, summary: summary.join("；") };
+    if (hasId || kind === "id") {
+      if (hasId) summary.push("证件 " + ids.guests.length + " 人");
+      else summary.push("证件截图");
+    }
+    lastOcrMeta = { train, flight, ids, kind, summary: summary.join("；"), lookIdStrong };
     return lastOcrMeta;
+  }
+
+  function setOcrMsg(text, kind) {
+    const el = $("fuzzyOcrMsg");
+    if (el) {
+      el.textContent = text || "";
+      el.className = "fuzzy-ocr-msg" + (text ? (kind ? " " + kind : "") : " hidden");
+      try { el.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) {}
+    }
+    // OCR 反馈只写按钮下方，避免顶栏消息盖住按钮
+  }
+
+  function refreshOcrActionButtons(meta) {
+    const kind = (meta && meta.kind) || "";
+    const idBtn = $("fuzzyOcrIdBtn");
+    const autoBtn = $("fuzzyOcrAutoBtn");
+    if (idBtn) {
+      idBtn.classList.toggle("fuzzy-primary", kind === "id");
+      idBtn.disabled = false;
+    }
+    if (autoBtn) {
+      autoBtn.classList.toggle("fuzzy-primary", kind === "train" || kind === "flight");
+    }
   }
 
   async function runOcrOnImage(source, label) {
     if (ocrBusy) {
-      setMsg("正在识别中，请稍候…", "");
+      setOcrMsg("正在识别中，请稍候…", "");
       return null;
     }
     setOcrBusy(true);
     try {
-      setMsg("正在加载识别引擎" + (label ? "（" + label + "）" : "") + "…首次需下载中文模型，可能需几十秒", "");
+      setOcrMsg("正在加载识别引擎" + (label ? "（" + label + "）" : "") + "…首次需下载中文模型，可能需几十秒", "");
       const Tesseract = await loadTesseract();
-      setMsg("识别中…", "");
+      setOcrMsg("识别中…", "");
       const result = await Tesseract.recognize(source, "chi_sim+eng", {
         logger: function (m) {
           if (!m) return;
           if (m.status === "recognizing text" && typeof m.progress === "number") {
-            setMsg("识别中…" + Math.round(m.progress * 100) + "%", "");
+            setOcrMsg("识别中…" + Math.round(m.progress * 100) + "%", "");
           } else if (m.status === "loading language traineddata") {
-            setMsg("下载中文识别模型中…", "");
+            setOcrMsg("下载中文识别模型中…", "");
           } else if (m.status === "initializing api" || m.status === "loading tesseract core") {
-            setMsg("初始化识别引擎…", "");
+            setOcrMsg("初始化识别引擎…", "");
           }
         },
       });
@@ -1995,20 +2083,44 @@ const MingdanUpload = (function () {
       lastOcrText = text;
       showOcrRaw(text);
       const meta = analyzeOcrText(text);
+      refreshOcrActionButtons(meta);
       if (!text) {
-        setMsg("未识别到文字，请换更清晰的截图或手动填写", "err");
+        setOcrMsg("未识别到文字，请换更清晰的截图或手动填写", "err");
         return meta;
       }
-      setMsg(
-        "识别完成。" +
-          (meta.summary ? " 发现：" + meta.summary + "。" : " 未自动分类，") +
-          "请点「识别证件」或「识别交通」写入字段；也可打开 OCR 原文核对。",
-        meta.summary ? "ok" : "err"
-      );
+      if (meta.kind === "id") {
+        setOcrMsg("识别完成，判定为证件。" + (meta.summary ? " " + meta.summary + "。" : "") + "正在写入名单…", "ok");
+        try {
+          applyOcrIds();
+        } catch (eApply) {
+          console.error("[MingdanUpload.applyOcrIds]", eApply);
+          setOcrMsg("自动写入名单失败，请再点「识别证件 → 名单」：" + ((eApply && eApply.message) || eApply), "err");
+        }
+      } else if (meta.kind === "train" || meta.kind === "flight") {
+        setOcrMsg(
+          "识别完成，判定为" + (meta.kind === "train" ? "火车" : "航班") + "。" +
+            (meta.summary ? " 发现：" + meta.summary + "。" : "") +
+            "正在写入交通…",
+          "ok"
+        );
+        try {
+          applyOcrTransport("auto");
+        } catch (eApply) {
+          console.error("[MingdanUpload.applyOcrTransport]", eApply);
+          setOcrMsg("自动写入交通失败，请点「识别交通」按钮：" + ((eApply && eApply.message) || eApply), "err");
+        }
+      } else {
+        setOcrMsg(
+          "识别完成。" +
+            (meta.summary ? " 发现：" + meta.summary + "。" : " 未自动分类，") +
+            "请点「识别证件」或「识别交通」写入字段；也可打开 OCR 原文核对。",
+          meta.summary ? "ok" : "err"
+        );
+      }
       return meta;
     } catch (e) {
       console.error("[MingdanUpload.ocr]", e);
-      setMsg("识别失败：" + ((e && e.message) || e), "err");
+      setOcrMsg("识别失败：" + ((e && e.message) || e), "err");
       return null;
     } finally {
       setOcrBusy(false);
@@ -2127,13 +2239,15 @@ const MingdanUpload = (function () {
 
   function applyOcrIds() {
     if (!lastOcrText && !lastOcrMeta) {
-      setMsg("请先粘贴或上传证件截图完成识别", "err");
+      setOcrMsg("请先粘贴或上传证件截图完成识别", "err");
       return;
     }
     const meta = lastOcrMeta || analyzeOcrText(lastOcrText);
-    const ids = meta.ids || parseIdDoc(lastOcrText);
+    refreshOcrActionButtons(meta);
+    // 证件优先：即使先前误判成交通，也重新按证件解析
+    const ids = parseIdDoc(lastOcrText) || meta.ids || { guests: [], guest_list: "", names: [] };
     if (!ids.guests.length) {
-      setMsg("未从 OCR 中解析到证件号。请核对 OCR 原文或手动填写客人名单。", "err");
+      setOcrMsg("未从 OCR 中解析到证件号。请核对下方 OCR 原文或手动填写客人名单。", "err");
       showOcrRaw(lastOcrText);
       return;
     }
@@ -2143,7 +2257,9 @@ const MingdanUpload = (function () {
     if (!readField("guest_name") && ids.names[0]) writeField("guest_name", ids.names[0]);
     if (!readField("party_size") && ids.guests.length) writeField("party_size", ids.guests.length + "大");
     persistActiveFromForm();
-    setMsg("已写入客人名单 " + ids.guests.length + " 人（按证件号去重）。请再核对。", "ok");
+    setOcrMsg("已写入客人名单 " + ids.guests.length + " 人（按证件号去重）。请再核对。", "ok");
+    const review = $("fuzzyReview");
+    if (review) review.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function transportLineFromMeta(meta) {
@@ -2159,13 +2275,18 @@ const MingdanUpload = (function () {
   function applyOcrTransport(which) {
     // which: 'outbound' | 'return' | 'auto'
     if (!lastOcrText && !lastOcrMeta) {
-      setMsg("请先粘贴或上传火车票/航班截图完成识别", "err");
+      setOcrMsg("请先粘贴或上传火车票/航班截图完成识别", "err");
       return;
     }
     const meta = lastOcrMeta || analyzeOcrText(lastOcrText);
+    refreshOcrActionButtons(meta);
+    if (meta.kind === "id" || meta.lookIdStrong) {
+      setOcrMsg("当前识别为证件，不是车票/机票。请点「识别证件 → 名单」。", "err");
+      return;
+    }
     const line = transportLineFromMeta(meta);
     if (!line) {
-      setMsg("未解析到车次/航班信息。请打开 OCR 原文核对，或换更清晰截图。", "err");
+      setOcrMsg("未解析到车次/航班信息。请打开 OCR 原文核对，或换更清晰截图。", "err");
       showOcrRaw(lastOcrText);
       return;
     }
@@ -2198,7 +2319,7 @@ const MingdanUpload = (function () {
 
     persistActiveFromForm();
     const label = target === "return" ? "返程交通" : "去程交通";
-    setMsg("已填入" + label + "：" + line + "。请核对人数/姓名等。", "ok");
+    setOcrMsg("已填入" + label + "：" + line + "。请核对人数/姓名等。", "ok");
   }
 
   function clipboardImage(ev) {
@@ -2313,7 +2434,7 @@ const MingdanUpload = (function () {
     }
     const idBtn = $("fuzzyOcrIdBtn");
     if (idBtn) idBtn.addEventListener("click", function () {
-      if (!lastOcrText) setMsg("请先粘贴/拖入证件截图", "err");
+      if (!lastOcrText) setOcrMsg("请先粘贴/拖入证件截图", "err");
       else applyOcrIds();
     });
     const outBtn = $("fuzzyOcrOutBtn");
@@ -2326,7 +2447,7 @@ const MingdanUpload = (function () {
     renderList();
   }
 
-  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText };
+  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport };
   try {
     if (typeof window !== "undefined") window.MingdanUpload = api;
   } catch (e) {}
