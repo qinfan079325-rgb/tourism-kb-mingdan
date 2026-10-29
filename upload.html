@@ -302,7 +302,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:59 Asia/Shanghai · 去程/返程分键 · 无自动交通 · 默认4天返程 · 证件云识别 · 名单分栏 · 蓝=当前选中</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 02:05 Asia/Shanghai · 交通须像航班/车次 · 无返程不乱填 · 默认4天返程 · 证件云识别 · 名单分栏 · 蓝=当前选中</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -348,7 +348,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 默认4天返程 · 中文名优先 · build 2026-10-30 01:59 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 默认4天返程 · 中文名优先 · build 2026-10-30 02:05 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -690,6 +690,26 @@ const MingdanUpload = (function () {
     return f;
   }
 
+  /** 去程/返程交通只接受车次/航班类文本；拒客人人数、几大几小等 */
+  function isTransportLine(s) {
+    const v = String(s || "").trim();
+    if (!v) return false;
+    if (/客人人数|参团人数|几大|几小|合同金额|定金|代收金额|结算明细|返款|备注|客服|业务员|房间类型|团型天数|客人证件|姓名及联系|组团社/.test(v)) return false;
+    if (/^\d{1,3}\s*[大人位小](?:\s*\d{0,3}\s*[小人位])?$/.test(v)) return false;
+    if (/^【/.test(v) && /人数|客人|合同|定金|代收|结算|返款|备注|客服|房间/.test(v)) return false;
+    if (/\b(?:CX|CA|MU|CZ|HU|3U|FM|HO|9C|ZH|SC|MF|TV|PN|G5|JD|KN|HX|KA|SQ|TG|NH|JL|KE|OZ|QR|EK|AA|UA|DL|BA|AF|LH|GJ|RY|EU|GY|A6|UQ|CN|NX|BK|NS)\s*-?\s*\d{2,4}\b/i.test(v)) return true;
+    if (/\b[GDCZKTY]\d{1,5}\b/i.test(v)) return true;
+    if (/航班|机场|航站楼?|车次|高铁|动车|火车|火车站|发车|起飞|登机|值机|Terminal|Flight\b|Confirmed/i.test(v)) return true;
+    if (/[\u4e00-\u9fff]{2,12}\s*[-~～至到→]\s*[\u4e00-\u9fff]{2,12}/.test(v) && /\d{1,2}\s*[:：]\s*\d{2}/.test(v)) return true;
+    if (/\b[A-Z]{3}\s*[-~～至到→]\s*[A-Z]{3}\b/.test(v)) return true;
+    return false;
+  }
+
+  function cleanTransportField(s) {
+    const v = String(s || "").trim();
+    return isTransportLine(v) ? v : "";
+  }
+
   function parseText(raw) {
     const t = normalizeText(raw);
     // 字段按「标签/格式」识别，不依赖易途 1–22 顺序；截图/粘贴顺序任意均可
@@ -743,27 +763,29 @@ const MingdanUpload = (function () {
       ],
       t
     );
-    const outbound_transport = pick(
+    let outbound_transport = pick(
       [
-        /【\s*抵达日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n]+)/,
-        /【\s*去程[^】]*】\s*[：:]?\s*([^\n]+)/,
-        /去程交通\s*[：:]\s*([^\n]+)/,
-        /来程信息\s*[：:]\s*([^\n]+)/,
-        /抵达航班\s*[：:]\s*([^\n]+)/,
-        /去程\s*[：:]\s*([^\n]+)/,
+        /【\s*抵达日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n【]+)/,
+        /【\s*去程[^】]*】\s*[：:]?\s*([^\n【]+)/,
+        /去程交通\s*[：:]\s*([^\n【]+)/,
+        /来程信息\s*[：:]\s*([^\n【]+)/,
+        /抵达航班\s*[：:]\s*([^\n【]+)/,
+        /去程\s*[：:]\s*([^\n【]+)/,
       ],
       t
     );
-    const return_transport = pick(
+    let return_transport = pick(
       [
-        /【\s*返程日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n]+)/,
-        /【\s*返程[^】]*】\s*[：:]?\s*([^\n]+)/,
-        /返程交通\s*[：:]\s*([^\n]+)/,
-        /返程航班\s*[：:]\s*([^\n]+)/,
-        /回程\s*[：:]\s*([^\n]+)/,
+        /【\s*返程日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n【]+)/,
+        /【\s*返程[^】]*】\s*[：:]?\s*([^\n【]+)/,
+        /返程交通\s*[：:]\s*([^\n【]+)/,
+        /返程航班\s*[：:]\s*([^\n【]+)/,
+        /回程\s*[：:]\s*([^\n【]+)/,
       ],
       t
     );
+    outbound_transport = cleanTransportField(outbound_transport);
+    return_transport = cleanTransportField(return_transport);
     const party_size = pick(
       [
         /【\s*客人人数\s*[】\]]\s*：?\s*([^\n]+)/,
@@ -927,12 +949,13 @@ const MingdanUpload = (function () {
       else if (train.line && !flight.line) transportLine = train.line;
       else if (flight.line && !/^[GDCZKTY]\d+$/i.test(flight.flight_no || "")) transportLine = flight.line;
 
-      if (transportLine) {
+      // 无标签票面只补去程；返程须有【返程…】标签或用户点「仅填返程」，避免单张去程票串进返程
+      if (transportLine && isTransportLine(transportLine)) {
         if (!fields.outbound_transport) fields.outbound_transport = transportLine;
-        else if (!fields.return_transport && fields.outbound_transport !== transportLine) {
-          fields.return_transport = transportLine;
-        }
       }
+      // 最终闸门：无车次/航班特征的内容不得留在交通字段（如「【客人人数】: 6大」）
+      fields.outbound_transport = cleanTransportField(fields.outbound_transport);
+      fields.return_transport = cleanTransportField(fields.return_transport);
       const tDate = (train && train.depart_date) || (flight && flight.depart_date) || "";
       if (tDate && !fields.depart_date) fields.depart_date = tDate;
       if (train && train.order_date && !fields.book_date) fields.book_date = train.order_date;
@@ -3851,7 +3874,7 @@ const MingdanUpload = (function () {
       setOcrMsg("当前识别为证件，不是车票/机票。请点「写入证件名单」。", "err");
       return;
     }
-    const line = transportLineFromMeta(meta);
+    const line = cleanTransportField(transportLineFromMeta(meta));
     if (!line) {
       setOcrMsg("未解析到车次/航班信息。请打开 OCR 原文核对，或换更清晰截图。", "err");
       showOcrRaw(lastOcrText);
