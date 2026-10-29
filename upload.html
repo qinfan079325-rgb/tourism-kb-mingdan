@@ -150,9 +150,12 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-form input[type=file]{color:var(--muted);font-size:13px}
 .fuzzy-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .fuzzy-primary{background:#1d4ed8;border-color:#2563eb;color:#fff;font-weight:650}
-.fuzzy-msg{margin-top:10px;padding:8px 10px;border-radius:8px;font-size:13px}
+.fuzzy-msg{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:600;
+  position:sticky;top:8px;z-index:20;background:#1e293b;border:1px solid #475569;color:#e2e8f0;
+  box-shadow:0 4px 12px rgba(0,0,0,.35)}
 .fuzzy-msg.ok{background:#14532d;border:1px solid #166534;color:#bbf7d0}
 .fuzzy-msg.err{background:#7f1d1d;border:1px solid #b91c1c;color:#fecaca}
+.fuzzy-msg.hidden{display:none!important}
 .fuzzy-draft-list{margin-top:12px;display:flex;flex-direction:column;gap:8px}
 .fuzzy-empty{color:var(--muted);font-size:13px;padding:8px 0}
 .fuzzy-draft{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
@@ -242,7 +245,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
       <label class="fuzzy-lab" for="fuzzyFile">附件（可选）</label>
       <input type="file" id="fuzzyFile" accept=".xlsx,.xls,.csv,image/*,.txt"/>
       <div class="fuzzy-actions">
-        <button type="button" class="btn fuzzy-primary" id="fuzzySubmit">提交解析</button>
+        <button type="button" class="btn fuzzy-primary" id="fuzzySubmit" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.submitParse)MingdanUpload.submitParse()}catch(e){console.error(e);var m=document.getElementById('fuzzyMsg');if(m){m.textContent='解析出错：'+(e&&e.message||e);m.className='fuzzy-msg err'}}return false;">提交解析</button>
         <button type="button" class="btn" id="fuzzyFillSample">填入样例</button>
       </div>
     </div>
@@ -281,7 +284,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-29 23:32 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-29 23:40 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -413,7 +416,9 @@ const MingdanAuth = (function () {
     if (userEl) userEl.focus();
   }
 
-  return { require, logout, currentUser };
+  const api = { require, logout, currentUser };
+  try { if (typeof window !== "undefined") window.MingdanAuth = api; } catch (e) {}
+  return api;
 })();
 
 </script>
@@ -503,7 +508,8 @@ const MingdanUpload = (function () {
     return new Date().toISOString();
   }
   function currentUser() {
-    return (window.MingdanAuth && MingdanAuth.currentUser && MingdanAuth.currentUser()) || "";
+    var a = (typeof window !== "undefined" && window.MingdanAuth) || (typeof MingdanAuth !== "undefined" ? MingdanAuth : null);
+    return (a && a.currentUser && a.currentUser()) || "";
   }
   function dupKey(f) {
     const a = String((f && f.agency) || "").trim();
@@ -566,11 +572,18 @@ const MingdanUpload = (function () {
     let t = String(raw || "");
     t = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
     t = t.replace(/\u00a0/g, " ").replace(/[\u200b\u200c\u200d\ufeff]/g, "");
-    t = t.replace(/[：]/g, "：").replace(/[﹕]/g, "：");
-    t = t.replace(/：/g, "：");
-    t = t.replace(/([^\n])(结算明细[：:])/g, "$1\n$2");
-    t = t.replace(/([^\n])(返款[：:])/g, "$1\n$2");
-    t = t.replace(/([^\n])(备注[：:])/g, "$1\n$2");
+    // 全角/半角冒号、错配括号统一
+    t = t.replace(/[：﹕:]/g, "：");
+    t = t.replace(/【\s*/g, "【").replace(/\s*】/g, "】");
+    t = t.replace(/【([^】\]\n]{1,20})\]/g, "【$1】"); // 【label] → 【label】
+    t = t.replace(/\[([^\]\n]{1,20})】/g, "【$1】");
+    // 结算/返款/备注可能粘在同一行
+    t = t.replace(/([^\n])(结算明细\s*：)/g, "$1\n$2");
+    t = t.replace(/([^\n])(结算\s*：)/g, "$1\n$2");
+    t = t.replace(/([^\n])(返款\s*：)/g, "$1\n$2");
+    t = t.replace(/([^\n])(备注\s*：)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【定金】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【代收)/g, "$1\n$2");
     return t;
   }
 
@@ -648,17 +661,19 @@ const MingdanUpload = (function () {
     );
     const party_size = pick(
       [
-        /【\s*客人人数\s*】\s*[：:]?\s*([^\n]+)/,
-        /参团人数\s*[：:]\s*([^\n]+)/,
-        /客人人数\s*[：:]\s*([^\n]+)/,
+        /【\s*客人人数\s*[】\]]\s*：?\s*([^\n]+)/,
+        /【\s*人数\s*[】\]]\s*：?\s*([^\n]+)/,
+        /参团人数\s*：\s*([^\n]+)/,
+        /客人人数\s*：\s*([^\n]+)/,
+        /(?:^|\n)\s*人数\s*：\s*([^\n]+)/,
       ],
       t
     );
     let contact = pick(
       [
-        /客人姓名及联系方式\s*[\]】]?\s*[：:]?\s*([^\n]+)/,
-        /联系人\s*[：:]\s*([^\n]+)/,
-        /客人姓名\s*[：:]\s*([^\n]+)/,
+        /【?\s*客人姓名及联系方式\s*[】\]]?\s*：?\s*([^\n]+)/,
+        /联系人员?\s*：\s*([^\n]+)/,
+        /客人姓名\s*：\s*([^\n]+)/,
       ],
       t
     );
@@ -668,25 +683,36 @@ const MingdanUpload = (function () {
     const contact_phone = pm ? pm[1] : "";
     const full_amount = pick(
       [
-        /【\s*合同金额\s*】\s*[：:]?\s*([^\n]+)/,
+        /【\s*合同金额\s*[】\]]\s*：?\s*([^\n]+)/,
         /全款\s*[：:]\s*([^\n]+)/,
         /总团款\s*[：:]\s*([^\n]+)/,
       ],
       t
     );
     const deposit = pick(
-      [/【\s*定金\s*】\s*[：:]?\s*([^\n]+)/, /定金\s*[：:]\s*([^\n]+)/],
+      [/【\s*定金\s*[】\]]\s*：?\s*([^\n]+)/, /定金\s*：\s*([^\n]+)/],
       t
     );
     const collect_on_tour = pick(
-      [/【\s*代收金额\s*】\s*[：:]?\s*([^\n]+)/, /代收\s*[：:]\s*([^\n]+)/],
+      [/【\s*代收金额\s*[】\]]\s*：?\s*([^\n]+)/, /代收(?:金额)?\s*：\s*([^\n]+)/],
       t
     );
-    let settle = pick([/结算明细\s*[：:]\s*([^\n]+)/], t);
-    settle = settle.replace(/^结算\s*[：:]\s*/, "").trim();
-    if (!settle) settle = pick([/(?:^|\n)\s*结算\s*[：:]\s*([^\n]+)/], t);
-    const rebate = pick([/返款\s*[：:]\s*([^\n]+)/], t);
-    let remarks = pick([/备注\s*[：:]\s*([\s\S]+?)(?=\n\s*结算|\n\s*返款|$)/], t);
+    let settle = pick(
+      [
+        /结算明细\s*：\s*([^\n]+)/,
+        /结算明细\s*：\s*结算\s*：\s*([^\n]+)/,
+      ],
+      t
+    );
+    settle = settle.replace(/^结算\s*：\s*/, "").trim();
+    if (!settle) settle = pick([/(?:^|\n)\s*结算\s*：\s*([^\n]+)/], t);
+    // 同一行尾部「结算：…=-4382」兜底
+    if (!settle) {
+      const m = t.match(/结算\s*：\s*([-+\d.*×xXｋＫkK乌江加车续住房差\u4e00-\u9fff]+(?:=\s*-?\d+(?:\.\d+)?)?)/);
+      if (m) settle = m[1].trim();
+    }
+    const rebate = pick([/返款\s*：\s*([^\n]+)/], t);
+    let remarks = pick([/备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*返款|$)/], t);
     remarks = (remarks || "").trim();
     const { kb, pure } = kbFromDetail(settle);
     let settlement = "";
@@ -750,9 +776,17 @@ const MingdanUpload = (function () {
 
   function setMsg(text, kind) {
     const el = $("fuzzyMsg");
-    if (!el) return;
+    if (!el) {
+      console.warn("[MingdanUpload.setMsg]", text);
+      return;
+    }
     el.textContent = text || "";
     el.className = "fuzzy-msg" + (kind ? " " + kind : "") + (text ? "" : " hidden");
+    if (text) {
+      try {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } catch (e) {}
+    }
   }
 
   function renderDupWarn(d) {
@@ -1161,88 +1195,129 @@ const MingdanUpload = (function () {
   }
 
   function submitParse() {
-    const text = ($("fuzzyText") && $("fuzzyText").value) || "";
-    const fileInput = $("fuzzyFile");
-    const file = fileInput && fileInput.files && fileInput.files[0];
-    if (!text.trim() && !file) {
-      setMsg("请粘贴订单文字，或选择 Excel/截图文件", "err");
-      return;
-    }
-    let draft;
-    if (text.trim()) {
-      draft = parseText(text);
-      draft.status = "pending_sales_confirm";
-      draft.status_label = STATUS.pending_sales_confirm;
-      if (fieldsLookEmpty(draft.fields)) {
-        setMsg(
-          "未能识别出组团社/出团日/人数等字段。请确认粘贴的是计划确认单全文（含「组团社」「时间」「客人人数」「结算明细」等），或点「填入样例」试一次。",
-          "err"
-        );
+    console.log("[MingdanUpload] submitParse clicked");
+    try {
+      const textEl = $("fuzzyText");
+      const text = (textEl && textEl.value) || "";
+      const fileInput = $("fuzzyFile");
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (!text.trim() && !file) {
+        setMsg("请粘贴订单文字，或选择 Excel/截图文件", "err");
+        return false;
       }
-    } else {
-      draft = {
-        id: uid(),
-        status: "pending_parse",
-        status_label: STATUS.pending_parse,
-        source: "file",
-        raw_text: "",
-        file_name: file.name,
-        fields: {
-          line_name: "",
-          depart_date: "",
-          return_date: "",
-          agency: "",
-          contact_name: "",
-          contact_phone: "",
-          outbound_transport: "",
-          return_transport: "",
-          guest_name: "",
-          party_size: "",
-          book_date: todayISO(),
-          sign_date: todayISO(),
-          rooms: "",
-          full_amount: "",
-          deposit: "",
-          collect_on_tour: "",
-          settlement: "",
-          rebate: "",
-          kb: "",
-          settlement_detail: "",
-          guest_list: "",
-          remarks: `（附件待助手解析：${file.name}）`,
-          gendan_pure: "",
-        },
-        needs_human_confirm: ["depart_date", "party_size", "kb"],
-        badge: "待易途确认",
-        sales_confirmed: false,
-        change_history: [],
-        created_at: nowISO(),
-        created_by: currentUser(),
-      };
-    }
-    if (file && text.trim()) {
-      draft.file_name = file.name;
-      draft.fields.remarks = (draft.fields.remarks || "") + `\n（附文件：${file.name}）`;
-    }
-    const dups = findDuplicates(draft.fields, draft.id);
-    const list = loadDrafts();
-    list.unshift(draft);
-    const stored = saveDrafts(list);
-    if ($("fuzzyText")) $("fuzzyText").value = "";
-    if (fileInput) fileInput.value = "";
-    if (!fieldsLookEmpty(draft.fields) || draft.status === "pending_parse") {
-      let base =
-        draft.status === "pending_parse"
-          ? "已收文件，状态「待解析」。请下载 JSON / 复制通知发给助手；解析后销售再确认。草稿只在本页。"
-          : stored
-            ? "已解析为本机草稿「待销售确认」。请左右对照核对；确认后仍留本页待易途，不进未出团。"
-            : "已解析（内存）。本机存储失败，请下载 JSON 备份。";
+      let draft;
+      let partial = false;
+      if (text.trim()) {
+        draft = parseText(text);
+        draft.status = "pending_sales_confirm";
+        draft.status_label = STATUS.pending_sales_confirm;
+        if (fieldsLookEmpty(draft.fields)) {
+          partial = true;
+          // 绝不因「看起来空」丢掉原文：仍开核对，让销售补字段
+          setMsg(
+            "只识别到部分字段（或缺关键项）。原文已保留在下方核对区，请补全出团日/人数等后再确认。",
+            "err"
+          );
+        }
+      } else {
+        draft = {
+          id: uid(),
+          status: "pending_parse",
+          status_label: STATUS.pending_parse,
+          source: "file",
+          raw_text: "",
+          file_name: file.name,
+          fields: {
+            line_name: "",
+            depart_date: "",
+            return_date: "",
+            agency: "",
+            contact_name: "",
+            contact_phone: "",
+            outbound_transport: "",
+            return_transport: "",
+            guest_name: "",
+            party_size: "",
+            book_date: todayISO(),
+            sign_date: todayISO(),
+            rooms: "",
+            full_amount: "",
+            deposit: "",
+            collect_on_tour: "",
+            settlement: "",
+            rebate: "",
+            kb: "",
+            settlement_detail: "",
+            guest_list: "",
+            remarks: `（附件待助手解析：${file.name}）`,
+            gendan_pure: "",
+          },
+          needs_human_confirm: ["depart_date", "party_size", "kb"],
+          badge: "待易途确认",
+          sales_confirmed: false,
+          change_history: [],
+          created_at: nowISO(),
+          created_by: currentUser(),
+        };
+      }
+      if (file && text.trim()) {
+        draft.file_name = file.name;
+        draft.fields.remarks = (draft.fields.remarks || "") + `\n（附文件：${file.name}）`;
+      }
+      // 只有成功/部分解析出草稿后才清空输入；空识别也保留核对，但仍清空以免重复提交同一段
+      // 按需求：fieldsLookEmpty 时不因失败而「看起来没反应」——始终 openReview；清空仅在已生成草稿后
+      const dups = findDuplicates(draft.fields, draft.id);
+      const list = loadDrafts();
+      list.unshift(draft);
+      const stored = saveDrafts(list);
+      // fieldsLookEmpty：保留 textarea 方便改完再提交；有有效字段才清空
+      if (!fieldsLookEmpty(draft.fields) || draft.status === "pending_parse") {
+        if (textEl) textEl.value = "";
+        if (fileInput) fileInput.value = "";
+      }
+      let base;
+      if (draft.status === "pending_parse") {
+        base =
+          "已收文件，状态「待解析」。请下载 JSON / 复制通知发给助手；解析后销售再确认。草稿只在本页。";
+      } else if (partial) {
+        base =
+          "已生成部分草稿「待销售确认」。请在下方核对区补全字段；确认前不进未出团。";
+      } else if (stored) {
+        base =
+          "已解析为本机草稿「待销售确认」。请左右对照核对；确认后仍留本页待易途，不进未出团。";
+      } else {
+        base = "已解析（内存）。本机存储失败，请下载 JSON 备份。";
+      }
       if (dups.length) {
         base += ` ⚠️ 本机已有 ${dups.length} 条相同组团社+出团日+代表人，请确认是否重复。`;
       }
-      setMsg(base, stored || draft.status === "pending_parse" ? (dups.length ? "err" : "ok") : "err");
+      if (!partial) {
+        setMsg(
+          base,
+          stored || draft.status === "pending_parse"
+            ? dups.length
+              ? "err"
+              : "ok"
+            : "err"
+        );
+      } else {
+        // partial 已 setMsg；追加存储提示
+        setMsg(base + (stored ? "" : "（本机存储失败，请下载 JSON）"), "err");
+      }
+      openDraft(draft.id);
+      const rev = $("fuzzyReview");
+      if (rev) {
+        rev.classList.remove("hidden");
+        try {
+          rev.scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch (e) {}
+      }
+      return false;
+    } catch (e) {
+      console.error("[MingdanUpload.submitParse]", e);
+      setMsg("解析出错：" + ((e && e.message) || e) + "。原文未清空，可改完再试或点填入样例。", "err");
+      return false;
     }
-    openDraft(draft.id);
   }
 
   function renderOverlay() {
@@ -1280,13 +1355,26 @@ const MingdanUpload = (function () {
   }
 
   function init() {
-    if (!$("fuzzyPanel")) return;
+    console.log("[MingdanUpload] init");
+    if (!$("fuzzyPanel")) {
+      console.warn("[MingdanUpload] fuzzyPanel missing");
+      return;
+    }
     const submit = $("fuzzySubmit");
     if (!submit) {
       setMsg("页面缺少提交按钮，请刷新或联系助手", "err");
       return;
     }
-    submit.addEventListener("click", submitParse);
+    // 双重绑定：addEventListener + 保留 HTML onclick
+    submit.addEventListener("click", function (ev) {
+      try {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        submitParse();
+      } catch (e) {
+        console.error(e);
+        setMsg("解析出错：" + ((e && e.message) || e), "err");
+      }
+    });
     const chk = $("fuzzyConfirmCheck");
     if (chk) chk.addEventListener("change", onConfirmCheck);
     const cbtn = $("fuzzyConfirmBtn");
@@ -1319,13 +1407,30 @@ const MingdanUpload = (function () {
     renderList();
   }
 
-  return { init, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT, STATUS };
+  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT, STATUS };
+  try {
+    if (typeof window !== "undefined") window.MingdanUpload = api;
+  } catch (e) {}
+  return api;
 })();
 
 </script>
 <script>
 MingdanAuth.require(function () {
-  if (window.MingdanUpload) MingdanUpload.init();
+  // const 不会挂到 window；用全局词法绑定 + window 兜底
+  var mod = (typeof MingdanUpload !== "undefined" && MingdanUpload) || window.MingdanUpload;
+  if (mod && typeof mod.init === "function") {
+    try { mod.init(); }
+    catch (e) {
+      console.error("[MingdanUpload.init]", e);
+      var m = document.getElementById("fuzzyMsg");
+      if (m) { m.textContent = "上传模块初始化失败：" + (e && e.message || e); m.className = "fuzzy-msg err"; }
+    }
+  } else {
+    console.error("[MingdanUpload] module missing after auth");
+    var m2 = document.getElementById("fuzzyMsg");
+    if (m2) { m2.textContent = "上传模块未加载，请强制刷新页面"; m2.className = "fuzzy-msg err"; }
+  }
 });
 </script>
 </body>
