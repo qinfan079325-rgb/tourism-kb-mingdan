@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <meta name="robots" content="noindex,nofollow"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <title>散客数据看板 · 模糊订单上传</title>
 <style>
 :root{
@@ -161,6 +162,9 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-st.st-pending_parse{background:#422006;color:#fbbf24}
 .fuzzy-st.st-pending_sales_confirm{background:#1e3a5f;color:#93c5fd}
 .fuzzy-st.st-confirmed_await_yitu{background:#14532d;color:#86efac}
+.fuzzy-st.st-in_yitu{background:#064e3b;color:#6ee7b7}
+.fuzzy-st.st-pending_change_sync{background:#7c2d12;color:#fdba74}
+.fuzzy-st.st-yitu_updated{background:#312e81;color:#c7d2fe}
 .fuzzy-who{font-size:13px}
 .fuzzy-agency{color:var(--muted);font-size:12px}
 .fuzzy-draft-actions{display:flex;flex-wrap:wrap;gap:6px}
@@ -178,8 +182,23 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-overlay-title{font-size:12px;color:#86efac;font-weight:650;margin-bottom:8px}
 .fuzzy-overlay-card{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:6px 0;border-top:1px solid rgba(22,101,52,.35);font-size:13px}
 .fuzzy-overlay-card:first-of-type{border-top:none}
+
+.fuzzy-side{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:12px;margin-top:8px}
+.fuzzy-side-h{font-size:12px;color:var(--muted);font-weight:650;margin-bottom:6px}
+.fuzzy-raw{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:520px;overflow:auto;color:#cbd5e1}
+.fuzzy-dup{margin-top:10px;padding:8px 10px;border-radius:8px;font-size:13px;background:#7c2d12;border:1px solid #c2410c;color:#ffedd5}
+.fuzzy-change-box{margin-top:12px;padding:10px 12px;border:1px dashed #a16207;border-radius:10px;background:#1c1917}
+.fuzzy-change-hint{color:var(--muted);font-size:12px;margin:6px 0 0}
+.fuzzy-history{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.fuzzy-history-h{font-size:12px;font-weight:650;color:#93c5fd;margin-bottom:8px}
+.fuzzy-history-item{padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}
+.fuzzy-history-item:first-of-type{border-top:none}
+.fuzzy-history-meta{color:var(--muted);margin-bottom:2px}
+.fuzzy-history-notes{color:var(--text);white-space:pre-wrap}
 @media(max-width:720px){
   .fuzzy-fields{grid-template-columns:1fr}
+  .fuzzy-side{grid-template-columns:1fr}
 }
 
 </style>
@@ -200,7 +219,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
   </div>
 </div>
 <div id="app" class="wrap">
-  <div class="banner">散客数据看板 · 模糊订单上传 · 解析后须销售确认才保存 · 未确认不进钉钉正式名单。</div>
+  <div class="banner">散客数据看板 · 模糊订单 · 销售确认后仍留本页 · 改单须通知助手同步易途 · 未出团仅由钉钉同步更新。</div>
   <nav class="nav">
     <a href="index.html">未出团</a>
     <a href="completed.html">已完团</a>
@@ -209,14 +228,14 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     <button type="button" class="btn-logout" id="btnLogout">退出</button>
   </nav>
   <h1>模糊订单上传</h1>
-  <div class="sub">粘贴计划确认单 → 解析 22 项草稿 → 销售核对确认 → 本机标「已确认待易途」。KB 只计结算明细纯数字项（如 -1000*6 → 6000）。</div>
+  <div class="sub">粘贴计划确认单 → 解析 → <b>销售在本页点确认</b> → 待易途。改单：申请改单 → 待同步易途 → 易途已更新。KB 只计纯数字项。</div>
 
   <section id="fuzzyPanel" class="fuzzy-panel" aria-label="模糊订单上传">
     <div class="fuzzy-panel-h">
       <h2>上传 / 粘贴</h2>
       <span class="fuzzy-hint">登录可见 · 草稿仅存本机浏览器</span>
     </div>
-    <p class="fuzzy-note">优先粘贴文字（组团社、时间、人数、结算明细等）。也可选 Excel/截图：截图暂存「待解析」，下载 JSON 发给助手。确认前不会改钉钉名单。</p>
+    <p class="fuzzy-note">优先粘贴文字。确认前不改钉钉名单；易途录完前订单只留本页。组团社+出团日+代表人相同会提示可能重复。</p>
     <div class="fuzzy-form">
       <label class="fuzzy-lab" for="fuzzyText">订单文字</label>
       <textarea id="fuzzyText" rows="10" placeholder="粘贴例如：&#10;组团社：湖南友记&#10;【时间】：10月27日&#10;【团型天数】: 九武5天4晚&#10;【客人人数】：6大&#10;结算明细：结算：-1000*6+158*6乌江+70加车+200*3续住=-4382&#10;…"></textarea>
@@ -231,18 +250,38 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     <div id="fuzzyDraftList" class="fuzzy-draft-list"></div>
     <div id="fuzzyReview" class="fuzzy-review hidden">
       <div id="fuzzyStatusLine" class="fuzzy-status"></div>
-      <div id="fuzzyFields" class="fuzzy-fields"></div>
+      <div class="fuzzy-side">
+        <div class="fuzzy-side-raw">
+          <div class="fuzzy-side-h">原文（只读）</div>
+          <pre id="fuzzyRaw" class="fuzzy-raw"></pre>
+        </div>
+        <div class="fuzzy-side-fields">
+          <div class="fuzzy-side-h">解析字段（可改）</div>
+          <div id="fuzzyFields" class="fuzzy-fields"></div>
+        </div>
+      </div>
+      <div id="fuzzyDupWarn" class="fuzzy-dup hidden"></div>
+      <div id="fuzzyChangeBox" class="fuzzy-change-box hidden">
+        <label class="fuzzy-lab" for="fuzzyChangeNotes">改单说明（必填）</label>
+        <textarea id="fuzzyChangeNotes" rows="3" placeholder="写清要改的内容，例如：定金改为 800；人数改为 5大…"></textarea>
+        <p class="fuzzy-change-hint">未进易途：只更新本页草稿。已进易途：状态变「待同步易途」，请复制通知助手；助手改完易途后点「易途已更新」。已进未出团的等钉钉同步覆盖。</p>
+      </div>
+      <div id="fuzzyHistory" class="fuzzy-history hidden"></div>
       <div class="fuzzy-confirm-row">
         <label class="fuzzy-check"><input type="checkbox" id="fuzzyConfirmCheck"/> 销售确认无误（出团日、人数等已核对）</label>
         <button type="button" class="btn" id="fuzzyRecalcKb">按明细重算 KB</button>
         <button type="button" class="btn fuzzy-primary" id="fuzzyConfirmBtn" disabled>销售确认无误并保存</button>
+        <button type="button" class="btn" id="fuzzyMarkYituBtn">标记易途已录入</button>
+        <button type="button" class="btn" id="fuzzyChangeBtn">申请改单</button>
+        <button type="button" class="btn fuzzy-primary" id="fuzzySubmitChangeBtn">提交改单</button>
+        <button type="button" class="btn" id="fuzzyYituUpdatedBtn">易途已更新</button>
         <button type="button" class="btn" id="fuzzyExportBtn">下载草稿 JSON</button>
         <button type="button" class="btn" id="fuzzyNotifyBtn">复制通知助手</button>
       </div>
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录访问 · 模糊订单与未出团/已完团名单分离 · 不展示完整身份证/电话</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-29 23:32 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -379,13 +418,16 @@ const MingdanAuth = (function () {
 
 </script>
 <script>
-/* 模糊订单上传：独立页 upload.html。草稿仅本机；确认后仍留本页「待易途」，不写入未出团 DATA。 */
+/* 模糊订单上传：独立页 upload.html。草稿仅本机；确认后仍留本页；改单流程见 STATUS。不写入未出团 DATA。 */
 const MingdanUpload = (function () {
   const STORE_KEY = "mingdan_fuzzy_drafts_v1";
   const STATUS = {
     pending_parse: "待解析",
     pending_sales_confirm: "待销售确认",
     confirmed_await_yitu: "已确认待易途",
+    in_yitu: "已进易途",
+    pending_change_sync: "待同步易途",
+    yitu_updated: "易途已更新",
   };
   const FIELD_KEYS = [
     ["line_name", "线路名称"],
@@ -431,9 +473,9 @@ const MingdanUpload = (function () {
     "结算明细：结算：-1000*6+158*6乌江+70加车+200*3续住=-4382\n" +
     "返款：9480+4382=13862\n";
 
-  /** 内存镜像：localStorage 失败时仍能打开刚解析的草稿 */
   let memDrafts = null;
   let activeId = null;
+  let changeMode = false;
 
   function $(id) {
     return document.getElementById(id);
@@ -457,6 +499,19 @@ const MingdanUpload = (function () {
     const g = (t) => parts.find((p) => p.type === t).value;
     return `${g("year")}-${g("month")}-${g("day")}`;
   }
+  function nowISO() {
+    return new Date().toISOString();
+  }
+  function currentUser() {
+    return (window.MingdanAuth && MingdanAuth.currentUser && MingdanAuth.currentUser()) || "";
+  }
+  function dupKey(f) {
+    const a = String((f && f.agency) || "").trim();
+    const d = String((f && f.depart_date) || "").trim();
+    const g = String((f && (f.guest_name || f.contact_name)) || "").trim();
+    if (!a || !d || !g) return "";
+    return a + "|" + d + "|" + g;
+  }
 
   function loadDrafts() {
     if (memDrafts) return memDrafts.slice();
@@ -479,7 +534,6 @@ const MingdanUpload = (function () {
     }
   }
 
-  /** KB：跳过带汉字说明的项（乌江/加车/续住等） */
   function kbFromDetail(detail) {
     if (!detail || !String(detail).trim()) return { kb: "", pure: "" };
     let s = String(detail).trim().split("=")[0].trim();
@@ -513,9 +567,7 @@ const MingdanUpload = (function () {
     t = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
     t = t.replace(/\u00a0/g, " ").replace(/[\u200b\u200c\u200d\ufeff]/g, "");
     t = t.replace(/[：]/g, "：").replace(/[﹕]/g, "：");
-    // 统一全角/半角冒号后便于匹配
     t = t.replace(/：/g, "：");
-    // 常见微信粘贴：标签与内容挤在一行时，在「结算明细/返款」前补换行
     t = t.replace(/([^\n])(结算明细[：:])/g, "$1\n$2");
     t = t.replace(/([^\n])(返款[：:])/g, "$1\n$2");
     t = t.replace(/([^\n])(备注[：:])/g, "$1\n$2");
@@ -539,10 +591,7 @@ const MingdanUpload = (function () {
   function parseText(raw) {
     const t = normalizeText(raw);
     const agency = pick(
-      [
-        /组团社\s*[：:]\s*([^\n【]+)/,
-        /客户单位\s*[：:]\s*([^\n]+)/,
-      ],
+      [/组团社\s*[：:]\s*([^\n【]+)/, /客户单位\s*[：:]\s*([^\n]+)/],
       t
     );
     const departRaw = pick(
@@ -682,8 +731,9 @@ const MingdanUpload = (function () {
       needs_human_confirm: ["depart_date", "party_size"],
       badge: "待易途确认",
       sales_confirmed: false,
-      created_at: new Date().toISOString(),
-      created_by: (window.MingdanAuth && MingdanAuth.currentUser && MingdanAuth.currentUser()) || "",
+      change_history: [],
+      created_at: nowISO(),
+      created_by: currentUser(),
     };
   }
 
@@ -692,11 +742,64 @@ const MingdanUpload = (function () {
     return !(f.agency || f.depart_date || f.party_size || f.guest_name || f.settlement_detail);
   }
 
+  function findDuplicates(fields, excludeId) {
+    const key = dupKey(fields);
+    if (!key) return [];
+    return loadDrafts().filter((d) => d.id !== excludeId && dupKey(d.fields) === key);
+  }
+
   function setMsg(text, kind) {
     const el = $("fuzzyMsg");
     if (!el) return;
     el.textContent = text || "";
     el.className = "fuzzy-msg" + (kind ? " " + kind : "") + (text ? "" : " hidden");
+  }
+
+  function renderDupWarn(d) {
+    const box = $("fuzzyDupWarn");
+    if (!box) return;
+    const hits = findDuplicates(d.fields || {}, d.id);
+    if (!hits.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("hidden");
+    box.innerHTML =
+      "⚠️ 可能重复：本机已有 " +
+      hits.length +
+      " 条相同「组团社+出团日+代表人」：" +
+      hits
+        .map((h) => esc((STATUS[h.status] || h.status) + " · " + h.id))
+        .join("；");
+  }
+
+  function renderHistory(d) {
+    const box = $("fuzzyHistory");
+    if (!box) return;
+    const hist = Array.isArray(d.change_history) ? d.change_history : [];
+    if (!hist.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("hidden");
+    box.innerHTML =
+      '<div class="fuzzy-history-h">变更记录</div>' +
+      hist
+        .slice()
+        .reverse()
+        .map((h) => {
+          return (
+            `<div class="fuzzy-history-item">` +
+            `<div class="fuzzy-history-meta">${esc(h.at || "")} · ${esc(h.by || "")} · ${esc(h.kind || "改单")}` +
+            (h.result_status ? ` → ${esc(STATUS[h.result_status] || h.result_status)}` : "") +
+            `</div>` +
+            `<div class="fuzzy-history-notes">${esc(h.notes || "")}</div>` +
+            `</div>`
+          );
+        })
+        .join("");
   }
 
   function renderList() {
@@ -736,6 +839,7 @@ const MingdanUpload = (function () {
         saveDrafts(loadDrafts().filter((x) => x.id !== id));
         if (activeId === id) {
           activeId = null;
+          changeMode = false;
           $("fuzzyReview").classList.add("hidden");
         }
         renderList();
@@ -745,6 +849,49 @@ const MingdanUpload = (function () {
     renderOverlay();
   }
 
+  function updateActionButtons(d) {
+    const chk = $("fuzzyConfirmCheck");
+    const cbtn = $("fuzzyConfirmBtn");
+    const markYitu = $("fuzzyMarkYituBtn");
+    const changeBtn = $("fuzzyChangeBtn");
+    const submitChange = $("fuzzySubmitChangeBtn");
+    const yituUpdated = $("fuzzyYituUpdatedBtn");
+    const changeBox = $("fuzzyChangeBox");
+
+    const confirmed = !!d.sales_confirmed || d.status === "confirmed_await_yitu" || d.status === "in_yitu" || d.status === "pending_change_sync" || d.status === "yitu_updated";
+    const awaitingFirstConfirm = d.status === "pending_sales_confirm" || d.status === "pending_parse";
+
+    if (chk) {
+      chk.checked = !!d.sales_confirmed;
+      chk.disabled = !awaitingFirstConfirm;
+    }
+    if (cbtn) {
+      if (awaitingFirstConfirm) {
+        cbtn.style.display = "";
+        cbtn.disabled = !(chk && chk.checked);
+        cbtn.textContent = "销售确认无误并保存";
+      } else {
+        cbtn.style.display = "none";
+      }
+    }
+    if (markYitu) {
+      markYitu.style.display = d.status === "confirmed_await_yitu" ? "" : "none";
+    }
+    if (changeBtn) {
+      changeBtn.style.display = confirmed && !changeMode ? "" : "none";
+    }
+    if (submitChange) {
+      submitChange.style.display = changeMode ? "" : "none";
+    }
+    if (yituUpdated) {
+      yituUpdated.style.display = d.status === "pending_change_sync" && !changeMode ? "" : "none";
+    }
+    if (changeBox) {
+      if (changeMode) changeBox.classList.remove("hidden");
+      else changeBox.classList.add("hidden");
+    }
+  }
+
   function openDraft(id) {
     const d = loadDrafts().find((x) => x.id === id);
     if (!d) {
@@ -752,10 +899,13 @@ const MingdanUpload = (function () {
       return;
     }
     activeId = id;
+    changeMode = false;
     const rev = $("fuzzyReview");
     if (!rev) return;
     rev.classList.remove("hidden");
     const f = d.fields || {};
+    const raw = $("fuzzyRaw");
+    if (raw) raw.textContent = d.raw_text || d.file_name || "（无原文）";
     $("fuzzyFields").innerHTML = FIELD_KEYS.map(([k, label]) => {
       const need = (d.needs_human_confirm || []).includes(k);
       const val = f[k] == null ? "" : String(f[k]);
@@ -764,14 +914,13 @@ const MingdanUpload = (function () {
         <textarea data-k="${esc(k)}" rows="${k === "remarks" || k === "settlement_detail" || k === "guest_list" ? 3 : 1}">${esc(val)}</textarea>
       </label>`;
     }).join("");
-    $("fuzzyConfirmCheck").checked = !!d.sales_confirmed;
-    $("fuzzyConfirmBtn").disabled = d.status === "confirmed_await_yitu" ? true : !$("fuzzyConfirmCheck").checked;
-    if (d.status === "confirmed_await_yitu") {
-      $("fuzzyConfirmBtn").textContent = "已确认待易途（仍在本页）";
-    } else {
-      $("fuzzyConfirmBtn").textContent = "销售确认无误并保存";
-    }
-    $("fuzzyStatusLine").textContent = `状态：${STATUS[d.status] || d.status} · 草稿 ${d.id} · 易途完成前不进未出团`;
+    const notes = $("fuzzyChangeNotes");
+    if (notes) notes.value = "";
+    $("fuzzyStatusLine").textContent =
+      `状态：${STATUS[d.status] || d.status} · 草稿 ${d.id} · 易途完成前不进未出团 · 已进未出团的改动等钉钉覆盖`;
+    renderDupWarn(d);
+    renderHistory(d);
+    updateActionButtons(d);
     renderList();
   }
 
@@ -792,7 +941,8 @@ const MingdanUpload = (function () {
   function onConfirmCheck() {
     const btn = $("fuzzyConfirmBtn");
     const d = loadDrafts().find((x) => x.id === activeId);
-    if (!d || d.status === "confirmed_await_yitu") {
+    if (!btn || !d) return;
+    if (d.status !== "pending_sales_confirm" && d.status !== "pending_parse") {
       btn.disabled = true;
       return;
     }
@@ -812,13 +962,17 @@ const MingdanUpload = (function () {
       setMsg("出团时间、参团人数必须核对填写后再确认", "err");
       return;
     }
+    const dups = findDuplicates(fields, activeId);
+    if (dups.length && !confirm("本机已有相同组团社+出团日+代表人的草稿，仍要确认保存吗？")) {
+      return;
+    }
     list[idx].fields = fields;
     list[idx].sales_confirmed = true;
     list[idx].status = "confirmed_await_yitu";
     list[idx].status_label = STATUS.confirmed_await_yitu;
-    list[idx].confirmed_at = new Date().toISOString();
-    list[idx].confirmed_by =
-      (window.MingdanAuth && MingdanAuth.currentUser && MingdanAuth.currentUser()) || "";
+    list[idx].confirmed_at = nowISO();
+    list[idx].confirmed_by = currentUser();
+    if (!Array.isArray(list[idx].change_history)) list[idx].change_history = [];
     const ok = saveDrafts(list);
     setMsg(
       ok
@@ -829,20 +983,141 @@ const MingdanUpload = (function () {
     openDraft(activeId);
   }
 
+  function markInYitu() {
+    const list = loadDrafts();
+    const idx = list.findIndex((x) => x.id === activeId);
+    if (idx < 0) return;
+    if (list[idx].status !== "confirmed_await_yitu") {
+      setMsg("仅「已确认待易途」可标记为已进易途", "err");
+      return;
+    }
+    list[idx].status = "in_yitu";
+    list[idx].status_label = STATUS.in_yitu;
+    list[idx].yitu_entered_at = nowISO();
+    list[idx].yitu_entered_by = currentUser();
+    if (!Array.isArray(list[idx].change_history)) list[idx].change_history = [];
+    list[idx].change_history.push({
+      kind: "易途已录入",
+      notes: "标记订单已录入易途；正式未出团名单仍等钉钉同步。",
+      at: nowISO(),
+      by: currentUser(),
+      result_status: "in_yitu",
+    });
+    saveDrafts(list);
+    setMsg("已标记「已进易途」。订单仍留本页；未出团等钉钉同步覆盖/出现。", "ok");
+    openDraft(activeId);
+  }
+
+  function startChangeMode() {
+    const d = loadDrafts().find((x) => x.id === activeId);
+    if (!d || !d.sales_confirmed) {
+      setMsg("请先完成销售确认后再申请改单", "err");
+      return;
+    }
+    changeMode = true;
+    updateActionButtons(d);
+    const notes = $("fuzzyChangeNotes");
+    if (notes) {
+      notes.focus();
+    }
+    setMsg("请填写改单说明，改好右侧字段后点「提交改单」", "ok");
+  }
+
+  function submitChange() {
+    const d0 = loadDrafts().find((x) => x.id === activeId);
+    if (!d0) return;
+    const notesEl = $("fuzzyChangeNotes");
+    const notes = (notesEl && notesEl.value || "").trim();
+    if (!notes) {
+      setMsg("改单说明必填", "err");
+      return;
+    }
+    const list = loadDrafts();
+    const idx = list.findIndex((x) => x.id === activeId);
+    if (idx < 0) return;
+    const oldFields = Object.assign({}, list[idx].fields || {});
+    const newFields = readFieldsFromForm();
+    const alreadyInYitu =
+      list[idx].status === "in_yitu" ||
+      list[idx].status === "pending_change_sync" ||
+      list[idx].status === "yitu_updated";
+
+    list[idx].fields = newFields;
+    if (!Array.isArray(list[idx].change_history)) list[idx].change_history = [];
+
+    let resultStatus;
+    let msg;
+    if (!alreadyInYitu) {
+      // 未进易途：只更新本页草稿
+      resultStatus = list[idx].status === "confirmed_await_yitu" ? "confirmed_await_yitu" : list[idx].status;
+      if (resultStatus === "pending_sales_confirm" || resultStatus === "pending_parse") {
+        resultStatus = "confirmed_await_yitu";
+        list[idx].sales_confirmed = true;
+      }
+      list[idx].status = resultStatus;
+      list[idx].status_label = STATUS[resultStatus] || resultStatus;
+      msg =
+        "改单已写入本页草稿（尚未进易途，无需同步状态）。可继续录易途；复制通知可选。";
+    } else {
+      resultStatus = "pending_change_sync";
+      list[idx].status = "pending_change_sync";
+      list[idx].status_label = STATUS.pending_change_sync;
+      msg =
+        "改单已提交，状态「待同步易途」。请点「复制通知助手」或下载 JSON，助手改完易途后点「易途已更新」。已进未出团的等钉钉同步覆盖。";
+    }
+
+    list[idx].change_history.push({
+      kind: "申请改单",
+      notes,
+      at: nowISO(),
+      by: currentUser(),
+      result_status: resultStatus,
+      fields_before: oldFields,
+      fields_after: newFields,
+    });
+    const ok = saveDrafts(list);
+    changeMode = false;
+    setMsg(ok ? msg : msg + "（本机存储失败，请下载 JSON）", ok ? "ok" : "err");
+    openDraft(activeId);
+  }
+
+  function markYituUpdated() {
+    const list = loadDrafts();
+    const idx = list.findIndex((x) => x.id === activeId);
+    if (idx < 0) return;
+    if (list[idx].status !== "pending_change_sync") {
+      setMsg("仅「待同步易途」可标记为易途已更新", "err");
+      return;
+    }
+    list[idx].status = "yitu_updated";
+    list[idx].status_label = STATUS.yitu_updated;
+    if (!Array.isArray(list[idx].change_history)) list[idx].change_history = [];
+    list[idx].change_history.push({
+      kind: "易途已更新",
+      notes: "助手已按改单说明更新易途。已进未出团的以钉钉同步为准。",
+      at: nowISO(),
+      by: currentUser(),
+      result_status: "yitu_updated",
+    });
+    saveDrafts(list);
+    setMsg("已标记「易途已更新」，变更记录已保留。", "ok");
+    openDraft(activeId);
+  }
+
   function exportActive() {
     const d = loadDrafts().find((x) => x.id === activeId);
     if (!d) {
       setMsg("请先打开一条草稿", "err");
       return;
     }
-    d.fields = readFieldsFromForm();
-    const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+    const copy = Object.assign({}, d, { fields: readFieldsFromForm() });
+    const blob = new Blob([JSON.stringify(copy, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `fuzzy-order-${d.id}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-    setMsg("已下载草稿 JSON（含字段；请勿发到公开群）", "ok");
+    setMsg("已下载草稿 JSON（含字段与变更记录；请勿发到公开群）", "ok");
   }
 
   function copyNotify() {
@@ -852,8 +1127,10 @@ const MingdanUpload = (function () {
       return;
     }
     const f = readFieldsFromForm();
-    const text = [
-      "[模糊订单草稿通知]",
+    const hist = Array.isArray(d.change_history) ? d.change_history : [];
+    const lastChange = [...hist].reverse().find((h) => h.kind === "申请改单");
+    const lines = [
+      "[模糊订单通知]",
       `id=${d.id}`,
       `状态=${STATUS[d.status] || d.status}`,
       `出团=${f.depart_date || ""}`,
@@ -862,8 +1139,19 @@ const MingdanUpload = (function () {
       `组团社=${f.agency || ""}`,
       `KB=${f.kb || ""}`,
       `跟单价纯数字=${f.gendan_pure || ""}`,
-      "草稿仅在上传页；易途完成前勿写入未出团。请助手继续处理。",
-    ].join("\n");
+    ];
+    if (lastChange) {
+      lines.push(`最近改单说明=${lastChange.notes || ""}`);
+      lines.push(`改单时间=${lastChange.at || ""}`);
+    }
+    if (d.status === "pending_change_sync") {
+      lines.push("请助手按改单说明更新易途；完成后在订单页点「易途已更新」。");
+    } else if (d.status === "confirmed_await_yitu") {
+      lines.push("草稿已确认待易途；请助手录入易途。完成后点「标记易途已录入」。");
+    } else {
+      lines.push("草稿仅在上传页；请助手继续处理。");
+    }
+    const text = lines.join("\n");
     navigator.clipboard.writeText(text).then(
       () => setMsg("通知文案已复制，请粘贴到与助手的聊天", "ok"),
       () => {
@@ -890,7 +1178,6 @@ const MingdanUpload = (function () {
           "未能识别出组团社/出团日/人数等字段。请确认粘贴的是计划确认单全文（含「组团社」「时间」「客人人数」「结算明细」等），或点「填入样例」试一次。",
           "err"
         );
-        // 仍保存草稿方便对照原文
       }
     } else {
       draft = {
@@ -928,50 +1215,55 @@ const MingdanUpload = (function () {
         needs_human_confirm: ["depart_date", "party_size", "kb"],
         badge: "待易途确认",
         sales_confirmed: false,
-        created_at: new Date().toISOString(),
-        created_by: (window.MingdanAuth && MingdanAuth.currentUser && MingdanAuth.currentUser()) || "",
+        change_history: [],
+        created_at: nowISO(),
+        created_by: currentUser(),
       };
     }
     if (file && text.trim()) {
       draft.file_name = file.name;
       draft.fields.remarks = (draft.fields.remarks || "") + `\n（附文件：${file.name}）`;
     }
+    const dups = findDuplicates(draft.fields, draft.id);
     const list = loadDrafts();
     list.unshift(draft);
     const stored = saveDrafts(list);
     if ($("fuzzyText")) $("fuzzyText").value = "";
     if (fileInput) fileInput.value = "";
     if (!fieldsLookEmpty(draft.fields) || draft.status === "pending_parse") {
-      setMsg(
+      let base =
         draft.status === "pending_parse"
           ? "已收文件，状态「待解析」。请下载 JSON / 复制通知发给助手；解析后销售再确认。草稿只在本页。"
           : stored
-            ? "已解析为本机草稿「待销售确认」。请核对出团日与人数；确认后仍留本页待易途，不进未出团。"
-            : "已解析（内存）。本机存储失败，请下载 JSON 备份。",
-        stored || draft.status === "pending_parse" ? "ok" : "err"
-      );
+            ? "已解析为本机草稿「待销售确认」。请左右对照核对；确认后仍留本页待易途，不进未出团。"
+            : "已解析（内存）。本机存储失败，请下载 JSON 备份。";
+      if (dups.length) {
+        base += ` ⚠️ 本机已有 ${dups.length} 条相同组团社+出团日+代表人，请确认是否重复。`;
+      }
+      setMsg(base, stored || draft.status === "pending_parse" ? (dups.length ? "err" : "ok") : "err");
     }
     openDraft(draft.id);
   }
 
-  /** 已确认草稿：仅本上传页展示，绝不写入未出团 DATA */
   function renderOverlay() {
     const host = $("fuzzyOverlay");
     if (!host) return;
-    const confirmed = loadDrafts().filter((d) => d.status === "confirmed_await_yitu");
-    if (!confirmed.length) {
+    const watch = loadDrafts().filter((d) =>
+      ["confirmed_await_yitu", "in_yitu", "pending_change_sync", "yitu_updated"].includes(d.status)
+    );
+    if (!watch.length) {
       host.classList.add("hidden");
       host.innerHTML = "";
       return;
     }
     host.classList.remove("hidden");
     host.innerHTML =
-      `<div class="fuzzy-overlay-title">本页已确认 · 待易途（未写入未出团 / 钉钉正式数据）</div>` +
-      confirmed
+      `<div class="fuzzy-overlay-title">本页进行中（未写入未出团 / 钉钉正式数据）</div>` +
+      watch
         .map((d) => {
           const f = d.fields || {};
           return `<div class="fuzzy-overlay-card">
-            <span class="g-need">${esc(d.badge || "待易途确认")}</span>
+            <span class="fuzzy-st st-${esc(d.status)}">${esc(STATUS[d.status] || d.status)}</span>
             <span>${esc(f.depart_date || "")}</span>
             <b>${esc(f.guest_name || "")}</b>
             <span>${esc(f.party_size || "")}</span>
@@ -1005,6 +1297,14 @@ const MingdanUpload = (function () {
     if (nbtn) nbtn.addEventListener("click", copyNotify);
     const sample = $("fuzzyFillSample");
     if (sample) sample.addEventListener("click", fillSample);
+    const markYitu = $("fuzzyMarkYituBtn");
+    if (markYitu) markYitu.addEventListener("click", markInYitu);
+    const changeBtn = $("fuzzyChangeBtn");
+    if (changeBtn) changeBtn.addEventListener("click", startChangeMode);
+    const submitChangeBtn = $("fuzzySubmitChangeBtn");
+    if (submitChangeBtn) submitChangeBtn.addEventListener("click", submitChange);
+    const yituUpdatedBtn = $("fuzzyYituUpdatedBtn");
+    if (yituUpdatedBtn) yituUpdatedBtn.addEventListener("click", markYituUpdated);
     const recalc = $("fuzzyRecalcKb");
     if (recalc)
       recalc.addEventListener("click", () => {
@@ -1019,7 +1319,7 @@ const MingdanUpload = (function () {
     renderList();
   }
 
-  return { init, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT };
+  return { init, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT, STATUS };
 })();
 
 </script>
