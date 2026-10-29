@@ -219,12 +219,16 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-status{font-size:13px;color:var(--muted);margin-bottom:10px}
 .fuzzy-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
 .fuzzy-field{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);
-  padding:8px 10px 10px;border-radius:10px;background:transparent;border:1px solid transparent;
+  padding:8px 10px 10px;border-radius:0 10px 10px 0;background:rgba(15,23,42,.25);
+  border:1px solid #1e293b;border-left:3px solid #64748b;
   transition:background .12s,border-color .12s}
 .fuzzy-field-lab{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;
   font-size:12.5px;font-weight:650;color:#cbd5e1;letter-spacing:.01em;line-height:1.3}
 .fuzzy-field-lab em{color:#fbbf24;font-style:normal;font-weight:750;font-size:11.5px}
-/* 关键核对字段：更大更亮 + 左侧色条，减轻视觉疲劳 */
+.fuzzy-field-lab .star{color:#fbbf24;font-weight:800;margin-right:2px}
+.fuzzy-field-legend{font-size:11.5px;color:#94a3b8;font-weight:500;margin:0 0 10px;line-height:1.4}
+.fuzzy-field-legend .star{color:#fbbf24;font-weight:800}
+/* 关键核对字段：★ + 更亮色条 */
 .fuzzy-field.key{background:rgba(30,41,59,.55);border:1px solid #334155;
   border-left:3px solid #3b82f6;padding:10px 12px 12px;border-radius:0 12px 12px 0;
   box-shadow:0 1px 0 rgba(148,163,184,.06)}
@@ -234,6 +238,11 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-field.key.transport{border-left-color:#38bdf8}
 .fuzzy-field.key.guest{border-left-color:#a78bfa}
 .fuzzy-field.key.date{border-left-color:#f472b6}
+.fuzzy-field.soft-line{border-left-color:#94a3b8}
+.fuzzy-field.soft-agency{border-left-color:#60a5fa}
+.fuzzy-field.soft-room{border-left-color:#2dd4bf}
+.fuzzy-field.soft-settle{border-left-color:#86efac}
+.fuzzy-field.soft-note{border-left-color:#cbd5e1}
 .fuzzy-field.need span em,.fuzzy-field.need .fuzzy-field-lab em{color:#fbbf24;font-style:normal;font-weight:750}
 .fuzzy-field textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
   border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;resize:vertical;font-weight:500}
@@ -385,7 +394,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       <div class="fuzzy-review-bar">
         <div class="fuzzy-review-bar-title" id="fuzzyReviewBarTitle">核对区</div>
         <div class="fuzzy-review-bar-actions">
-          <button type="button" class="btn" id="fuzzyReviewToggle" title="收起后可继续在上方录新单">收起核对</button>
+          <button type="button" class="btn" id="fuzzyReviewToggle" title="保留草稿后收起时，点此一步展开核对" style="display:none">展开核对</button>
           <button type="button" class="btn fuzzy-primary" id="fuzzyNewOrderBtn" title="清空核对区并滚回上传，草稿仍在账号列表">开新单</button>
         </div>
       </div>
@@ -398,6 +407,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
         </div>
         <div class="fuzzy-side-fields">
           <div class="fuzzy-side-h">解析字段（可改）</div>
+          <div class="fuzzy-field-legend"><span class="star">★</span>=核对重点（日期 / 联系人 / 交通 / 客人 / 金额）· 色条=字段分区</div>
           <div id="fuzzyFields" class="fuzzy-fields"></div>
         </div>
       </div>
@@ -424,7 +434,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">登录 · 草稿跟账号 · 手动保留 · build 2026-10-30 02:47 Asia/Shanghai</div>
+  <div class="footer">登录 · 草稿跟账号 · 手动保留 · build 2026-10-30 03:02 Asia/Shanghai · ★核对重点 · v=20261030-030220</div>
 </div>
 
 <script>
@@ -602,11 +612,12 @@ const MingdanUpload = (function () {
     ["remarks", "备注"],
     ["gendan_pure", "跟单价(纯数字)"],
   ];
-  /** 核对时要扫一眼的关键字段：更大标签 + 左侧色条 */
+  /** 核对重点字段：★ + 更亮色条（日期/联系/交通/客人/金额） */
   const KEY_FIELDS = {
     depart_date: "date",
     return_date: "date",
-    agency: "key",
+    book_date: "date",
+    sign_date: "date",
     contact_name: "key",
     contact_phone: "key",
     outbound_transport: "transport",
@@ -615,7 +626,20 @@ const MingdanUpload = (function () {
     party_size: "guest",
     full_amount: "money",
     deposit: "money",
+    collect_on_tour: "money",
+    settlement: "money",
+    rebate: "money",
+    kb: "money",
     guest_list: "guest",
+  };
+  /** 非重点字段也有淡色左边框，便于分区 */
+  const SOFT_FIELDS = {
+    line_name: "soft-line",
+    agency: "soft-agency",
+    rooms: "soft-room",
+    settlement_detail: "soft-settle",
+    remarks: "soft-note",
+    gendan_pure: "soft-settle",
   };
 
   const SAMPLE_TEXT =
@@ -1588,7 +1612,7 @@ const MingdanUpload = (function () {
       '<label class="fuzzy-field guest-list-field key guest ' +
       (need ? "need" : "") +
       '">' +
-      '<span class="fuzzy-field-lab">' +
+      '<span class="fuzzy-field-lab"><span class="star">★</span>' +
       esc(label) +
       (need ? " <em>需核对</em>" : "") +
       ' <span class="guest-list-hint">姓名 · 类型 · 证件号 · 电话</span></span>' +
@@ -1755,9 +1779,11 @@ const MingdanUpload = (function () {
       if (k === "guest_list") return guestListFieldHtml(label, need, val);
       const wide = k === "settlement_detail" || k === "remarks" || k === "outbound_transport" || k === "return_transport";
       const keyKind = KEY_FIELDS[k];
-      const keyCls = keyKind ? ` key ${keyKind === "key" ? "" : keyKind}`.trimEnd() : "";
+      const softKind = SOFT_FIELDS[k] || "";
+      const keyCls = keyKind ? ` key ${keyKind === "key" ? "" : keyKind}`.trimEnd() : (softKind ? " " + softKind : "");
+      const star = keyKind ? '<span class="star">★</span>' : "";
       return `<label class="fuzzy-field${keyCls}${need ? " need" : ""}${wide ? " span-2" : ""}">
-        <span class="fuzzy-field-lab">${esc(label)}${need ? " <em>需核对</em>" : ""}</span>
+        <span class="fuzzy-field-lab">${star}${esc(label)}${need ? " <em>需核对</em>" : ""}</span>
         <textarea data-k="${esc(k)}" rows="${k === "remarks" || k === "settlement_detail" ? 3 : 1}">${esc(val)}</textarea>
       </label>`;
     }).join("");
@@ -1846,7 +1872,7 @@ const MingdanUpload = (function () {
     const res = await upsertPersisted(cloneDraft(d));
     setMsg(
       res.ok
-        ? "已保留为账号「仅为草稿·待办」。核对区已收起，可直接录新单；要改再点「展开核对」或列表「打开核对」。"
+        ? "已保留为账号「仅为草稿·待办」。核对区已收起，可直接录新单；要改再点列表「打开核对」（一步展开）或顶栏「展开核对」。"
         : saveErrorMsg(res.error),
       res.ok ? "ok" : "err"
     );
