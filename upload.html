@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <meta name="robots" content="noindex,nofollow"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
-<title>散客数据看板 · 模糊订单上传</title>
+<title>散客数据看板 · 上传识别</title>
 <style>
 :root{
   --bg:#0f1419; --card:#1a2332; --card2:#243044; --line:#2d3a4f;
@@ -283,7 +283,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="把识别到的交通自动写入去程或返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('auto')}catch(e){console.error(e)}return false;">仅填交通（自动）</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 00:53 Asia/Shanghai · 有中文名不写英文 · 证件优先防误判 · 蓝=当前选中；先粘贴再点写入</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:23 Asia/Shanghai · 三连台胞证配对 · 中文名优先 · 蓝=当前选中；先粘贴再点写入</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -329,7 +329,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 有中文名不写英文 · 证件优先防误判 · build 2026-10-30 00:53 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 三连台胞证配对 · 中文名优先 · build 2026-10-30 01:23 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1633,6 +1633,24 @@ const MingdanUpload = (function () {
     t = t.replace(/[：﹕]/g, ":");
     // 英文名 OCR：HOU'YEN / HOU5YEN / CHEN%A → 逗号或空格
     t = t.replace(/\b([A-Z]{2,20})['`’%35]([A-Z][A-Z\-]{1,30})\b/g, "$1, $2");
+    // 证号被空格拆开：022156 33 / 0704 2222（去空格后恰 8 位且非日期）
+    t = t.replace(/\b(\d{5,7})[ \t]+(\d{1,3})\b/g, function (full, a, b) {
+      const g = a + b;
+      if (g.length === 8 && !/^(19|20)\d{6}$/.test(g)) return g;
+      return full;
+    });
+    // 9 位非出生：303843368 → 30384336（台胞证 8 位；保留 19/20 开头的 9 位以免误伤）
+    t = t.replace(/\b(\d{8})\d\b/g, function (full, eight) {
+      if (/^(19|20)/.test(eight)) return full;
+      return eight;
+    });
+    // 台胞证号旁签发次数：30384335""01 / 02215633 "04 / 07042222 °03
+    t = t.replace(/(\d{8})\s*["“”'`'*°·.=]{0,4}\s*(0[1-9]|[1-9])(?!\d)/g, "$1 签发次数$2");
+    // 证件号码 OCR 粘连/错字
+    t = t.replace(/证\s*[件仲体忻]\s*[号码纺名]?\s*[码码友]?/g, "证件号码");
+    // 英文名逗号被认成分号/空
+    t = t.replace(/\b([A-Z]{2,20})\s*[;；]\s*([A-Z][A-Z\-]{1,30})\b/g, "$1, $2");
+    t = t.replace(/\b([A-Z]{2,20})\s*[W_]\s*([A-Z][A-Z\-]{1,30})\b/g, "$1, $2");
     return t;
   }
 
@@ -1653,12 +1671,13 @@ const MingdanUpload = (function () {
     function nearDateLabel(hay, idx) {
       const win = hay.slice(Math.max(0, idx - 28), idx + 28);
       // 勿用裸「签发/日期」：旁边常有「证件号码/签发次数」
-      return /出生|生日|Birth|有效期|Validity|签发日期|Issue\s*Date|Date\s*of\s*Birth|Expiry|期满|出生日期/i.test(win);
+      return /出生|生日|Birth|有效期|Validity|签发日期|Issue\s*Date|Date\s*of\s*Birth|Expiry|期满|出生日期|[男女]|性别|Sex|Gender/i.test(win);
     }
     function isIssueCount(num) {
       return /^(0[1-9]|[1-9])$/.test(String(num || ""));
     }
-    function cleanPersonName(name) {
+    function cleanPersonName(name, opts) {
+      opts = opts || {};
       let nm = String(name || "").trim();
       nm = nm.replace(/^[,，.\s_/\\|]+|[,，.\s_/\\|]+$/g, "");
       nm = nm.replace(/(?:身份证|护照|台胞证|通行证|证件号|姓名|Name|Sex|Gender|Surname|Given)$/gi, "");
@@ -1680,6 +1699,8 @@ const MingdanUpload = (function () {
         nm = parts.join(" ");
         if (parts.length < 2 && !/-/.test(nm)) return "";
         if (parts.every(function (p) { return p.replace(/-/g, "").length <= 2; })) return "";
+        if (parts[0].replace(/-/g, "").length <= 2) return ""; // AT TTL / SS HOU
+        if (/\b(TTL|AAA|SSS|NNN|THE|AND|FOR)\b/.test(nm)) return "";
         if (!/^[A-Z]{2,}(?:[\s,\-]+[A-Z]{2,})+$/.test(nm.replace(/,/g, " ").replace(/\s+/g, " ").trim()) && !/^[A-Z]{2,}-[A-Z]{2,}/.test(nm)) {
           // allow "SMITH JOHN MICHAEL" already; if fails pattern still try comma-normalized
           const norm = nm.replace(/,/g, " ").replace(/\s+/g, " ").trim();
@@ -1694,14 +1715,24 @@ const MingdanUpload = (function () {
       // 「姓名吴嘉容」OCR 粘连时去掉前导「姓名/名」
       han = han.replace(/^(?:姓名)+/, "");
       if (/^名[\u4e00-\u9fff]{2,3}$/.test(han)) han = han.slice(1);
-      if (han.length < 2 || han.length > 8) return "";
-      if (/号$|码$/.test(han)) return "";
-      if (/证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|订单|居民|来往|通行|签发|机关|管理|共和|福建|广东|次数|有效|出生|性别|还人|和人|市硬|医汪|中华|人民|出入|境管|台湾|丽人|理号/.test(han)) return "";
+      if (han.length === 4 && opts.nearEng) han = han.slice(1);
+      if (han.length < 2 || han.length > 6) return "";
+      if (/号$|码$|局$|证$|关$/.test(han)) return "";
+      if (/[证号机关局管出入境国]/.test(han) && han.length >= 2) return ""; // 标签碎片
+      if (/[了区]/.test(han)) return ""; // OCR 碎字
+      if (/[二三四五六七八九十]/.test(han) && !/^[\u4e00-\u9fff]{2,3}$/.test(han)) return "";
+      if (/^[一二三四五六七八九十百千万]/.test(han)) return "";
+      const labelRe = /证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|订单|居民|来往|通行|签发|机关|管理|共和|福建|广东|次数|有效|出生|性别|还人|和人|市硬|医汪|中华|人民|出入|境管|台湾|丽人|理号|发电|六本|县二|证忻|号友|仲名|全证|管理局|共和国|天和|国出|华人|和国|复发|民居|所证|和二|从关|次娄|各外|外二|红了|三友|韩华|大民|志和|共和/;
+      // 紧挨英文名时放宽「疝树/树页」等近形字拒绝，避免 尚树贞/林锦红 被误杀
+      // 树页/疝树 是「尚树贞」近形误识，不再一票否决
+      const harshRe = /秋末/;
+      if (labelRe.test(han)) return "";
+      if (!opts.nearEng && harshRe.test(han)) return "";
       return han;
     }
     function preferName(oldNm, newNm) {
-      const a = cleanPersonName(oldNm);
-      const b = cleanPersonName(newNm);
+      const a = cleanPersonName(oldNm, { nearEng: true });
+      const b = cleanPersonName(newNm, { nearEng: true });
       if (!b) return a;
       if (!a) return b;
       const aHan = /[\u4e00-\u9fff]/.test(a);
@@ -1714,6 +1745,10 @@ const MingdanUpload = (function () {
       const id = String(num || "").trim().toUpperCase().replace(/\s+/g, "");
       if (!id) return;
       if (/^\d{8}$/.test(id) && isYyyymmdd(id)) return;
+      // 台胞证页：19/20 开头的 8 位几乎都是出生日期 OCR，即使月日非法也丢弃
+      if (typ === "台胞证" && /^(19|20)\d{6}$/.test(id)) return;
+      if (/^0[1-9]20\d{4}$/.test(id)) return; // 04+202411 粘连
+      if (/^\d{2}20[2-3]\d{3}$/.test(id) && typ === "台胞证") return;
       if (/^\d{1,2}$/.test(id) && isIssueCount(id)) return;
       // 拒护照误吸：JAN1985 / 20250303 粘连字母
       if (/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\d{2,4}$/i.test(id)) return;
@@ -1746,37 +1781,50 @@ const MingdanUpload = (function () {
     }
 
     function nearbyName(idx, hay) {
-      const before = hay.slice(Math.max(0, idx - 160), idx);
-      const badHan = /证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|居民|来往|通行|签发|机关|管理|共和|福建|广东|次数|有效|出生|性别|号码|还人|和人|市硬|医汪|中华|人民|出入|境管|台湾|丽人|理号/;
-      // 有中文名则优先用中文，不填英文/拼音
-      function pickHan(win) {
-        const hans = String(win || "").match(/[\u4e00-\u9fff]{2,4}/g);
-        if (!hans) return "";
-        for (let i = hans.length - 1; i >= 0; i--) {
-          if (badHan.test(hans[i])) continue;
-          const c = cleanPersonName(hans[i]);
-          if (c) return c;
-        }
-        return "";
-      }
+      const before = hay.slice(Math.max(0, idx - (lookTw ? 120 : 200)), idx);
       let m = before.match(/(?:姓名|Name|Surname|Given\s*Names?)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Za-z][A-Za-z,\-\s]{1,40})\s*$/i);
       if (m) {
         const labeled = cleanPersonName(m[1]);
         if (labeled && /[\u4e00-\u9fff]/.test(labeled)) return labeled;
       }
-      const hanNear = pickHan(before);
-      if (hanNear) return hanNear;
+      // 台胞证：中文名紧挨英文名；取窗口内最后一处，避免串到上一张卡
+      {
+        const re1 = /([\u4e00-\u9fff]{2,4})\s*[_\-.\s·]*[A-Z]{2,20}\s*[,，]\s*[A-Z][A-Z\-\s]{0,40}/gi;
+        const re2 = /([\u4e00-\u9fff]{2,4})\s*[_\-.\s·]*[A-Z]{2,20}(?:[\s\-]+[A-Z]{2,20}){1,3}/gi;
+        let best = "";
+        let mm;
+        while ((mm = re1.exec(before))) {
+          const c = cleanPersonName(mm[1], { nearEng: true });
+          if (c) best = c;
+        }
+        if (!best) {
+          while ((mm = re2.exec(before))) {
+            const c = cleanPersonName(mm[1], { nearEng: true });
+            if (c) best = c;
+          }
+        }
+        if (best) return best;
+      }
+      if (!lookTw) {
+        const hans = before.match(/[\u4e00-\u9fff]{2,4}/g);
+        if (hans) {
+          for (let i = hans.length - 1; i >= 0; i--) {
+            const c = cleanPersonName(hans[i]);
+            if (c) return c;
+          }
+        }
+      }
       if (m) {
         const labeled = cleanPersonName(m[1]);
         if (labeled) return labeled;
       }
-      // 无中文时才用英文名：CHEN, CHIU-YEN / SUN WEN-LAN
-      const commaNames = before.match(/\b[A-Z]{2,20}\s*,\s*[A-Z][A-Z\-\s]{1,30}\b/gi);
+      // 无中文时才用英文名
+      const commaNames = before.match(/\b[A-Z]{2,20}\s*[,，]\s*[A-Z][A-Z\-\s]{1,30}\b/gi);
       if (commaNames && commaNames.length) return commaNames[commaNames.length - 1];
       const spaced = before.match(/\b([A-Z]{2,20}(?:[\s\-]+[A-Z]{2,20}){1,3})\b/g);
       if (spaced && spaced.length) {
         for (let i = spaced.length - 1; i >= 0; i--) {
-          if (!/CARD|HOLDER|TRAVEL|MAINLAND|CHINA|PASSPORT|INTENDED|THIS|FOR|ITS|THE|OF|TO|UNITED|STATES|AMERICA|NATIONALITY|TYPE|CODE|DATE|BIRTH|ISSUE|EXPIRY/i.test(spaced[i])) {
+          if (!/CARD|HOLDER|TRAVEL|MAINLAND|CHINA|PASSPORT|INTENDED|THIS|FOR|ITS|THE|OF|TO|UNITED|STATES|AMERICA|NATIONALITY|TYPE|CODE|DATE|BIRTH|ISSUE|EXPIRY|BAND\d/i.test(spaced[i])) {
             return spaced[i];
           }
         }
@@ -1910,7 +1958,7 @@ const MingdanUpload = (function () {
       let nmMatch = lines[i].match(/^(?:姓名|Name|Surname|Given\s*Names?)\s*[:：]?\s*(.+)$/i);
       let nameRaw = nmMatch ? nmMatch[1] : "";
       if (!nameRaw) {
-        const em = lines[i].match(/^([A-Z]{2,20}\s*,\s*[A-Z][A-Z\-\s]{1,30})$/i);
+        const em = lines[i].match(/^([A-Z]{2,20}\s*[,，]\s*[A-Z][A-Z\-\s]{1,30})$/i);
         if (em) nameRaw = em[1];
       }
       if (!nameRaw) {
@@ -1923,13 +1971,20 @@ const MingdanUpload = (function () {
       }
       const name = cleanPersonName(nameRaw);
       if (!name) continue;
-      const window = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 10)).join(" ");
+      const winEnd = Math.min(lines.length, i + (lookTw ? 6 : 10));
+      const window = lines.slice(Math.max(0, i - 1), winEnd).join(" ");
       let num = "";
       const m18 = window.match(/([1-9]\d{16}[\dXx])/);
       if (m18) num = m18[1];
       if (!num) {
-        const all8 = window.match(/\b(\d{8})\b/g) || [];
-        num = all8.find((x) => !isYyyymmdd(x)) || "";
+        // 名字行之后的证号优先（避免串到下一张卡）
+        const after = lines.slice(i, winEnd).join(" ");
+        const all8a = after.match(/\b(\d{8})\b/g) || [];
+        num = all8a.find((x) => !isYyyymmdd(x)) || "";
+        if (!num) {
+          const all8 = window.match(/\b(\d{8})\b/g) || [];
+          num = all8.find((x) => !isYyyymmdd(x)) || "";
+        }
       }
       if (!num) {
         const pm = window.match(/(?:Passport\s*(?:No\.?|Number|#)|护照号码?)\s*[:：]?\s*([A-Z0-9]{6,9})/i);
@@ -1951,12 +2006,99 @@ const MingdanUpload = (function () {
       push(name, typ, num);
     }
 
-    // 多卡：按英文名块再配一次最近的非日期 8 位（台胞证截图 OCR 噪点时）
+    // 多卡：按「标题/THIS CARD」切块，块内中文名优先配 8 位证号
     if (lookTw) {
+      const blocks = [];
+      const splitRe = /(?:台湾\s*居民\s*来\s*往\s*大\s*陆\s*通\s*行\s*证|来往大陆通行证|台胞证|THIS\s*CARD\s*IS\s*INTENDED)/gi;
+      let last = 0;
+      let sm;
+      const marks = [];
+      while ((sm = splitRe.exec(text))) marks.push(sm.index);
+      if (marks.length >= 2) {
+        for (let bi = 0; bi < marks.length; bi++) {
+          const start = marks[bi];
+          const end = bi + 1 < marks.length ? marks[bi + 1] : text.length;
+          blocks.push(text.slice(start, end));
+        }
+      } else {
+        blocks.push(text);
+      }
+      for (const blk of blocks) {
+        const bflat = collapseOcrNoise(blk).replace(/\s+/g, " ");
+        // 中文名：只取「紧挨英文名」的，避免证件标题碎片
+        let cn = "";
+        {
+          const re1 = /([\u4e00-\u9fff]{2,4})\s*[_\-.\s·]*[A-Z]{2,20}\s*[,，]\s*[A-Z]/gi;
+          let mm;
+          while ((mm = re1.exec(bflat))) {
+            const c = cleanPersonName(mm[1], { nearEng: true });
+            if (c) cn = c;
+          }
+          if (!cn) {
+            const re2 = /([\u4e00-\u9fff]{2,4})\s*[_\-.\s·]*[A-Z]{2,20}(?:[\s\-]+[A-Z]{2,20}){1,3}/gi;
+            while ((mm = re2.exec(bflat))) {
+              const c = cleanPersonName(mm[1], { nearEng: true });
+              if (c) cn = c;
+            }
+          }
+          if (!cn) {
+            // 林锦红 LINCHING-HUNG / 尚树贞 SHANGSHU-CHEN（英文粘连）
+            const re3 = /([\u4e00-\u9fff]{2,4})\s*[A-Z]{4,}(?:[\s,\-]*[A-Z]{2,})+/g;
+            while ((mm = re3.exec(bflat))) {
+              const c = cleanPersonName(mm[1], { nearEng: true });
+              if (c) cn = c;
+            }
+          }
+        }
+        // 证号候选：块内所有非日期 8 位，按全局出现次数选（多切条 OCR 投票）
+        const all8 = (bflat.match(/\b(\d{8})\b/g) || []).filter((x) => !isYyyymmdd(x));
+        let idNum = "";
+        const idLab = bflat.match(/(?:证件号码|证件号)\D{0,12}(\d{8})\b/);
+        if (idLab && !isYyyymmdd(idLab[1])) idNum = idLab[1];
+        if (!idNum && all8.length) {
+          const uniq = [];
+          for (const x of all8) if (uniq.indexOf(x) < 0) uniq.push(x);
+          function freq(n) {
+            const re = new RegExp(n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+            const m2 = flat.match(re);
+            return m2 ? m2.length : 0;
+          }
+          function scoreId(n) {
+            let s = freq(n);
+            // 「证件号码」标签后的号权重远高于纯数字白名单噪点
+            const labRe = new RegExp("证件号码\\D{0,12}" + n);
+            if (labRe.test(bflat) || labRe.test(flat)) s += 12;
+            // 紧挨签发次数 / ""04 更像真证号
+            if (new RegExp(n + "\\s*[\"“”'`'*°·.=]{0,4}\\s*0[1-9]").test(bflat)) s += 6;
+            if (new RegExp(n + "\\s*签发次数").test(bflat)) s += 4;
+            // 19/20 开头已在上游过滤；纯 000 开头降权
+            if (/^000/.test(n)) s -= 5;
+            return s;
+          }
+          uniq.sort(function (a, b) {
+            const sa = scoreId(a), sb = scoreId(b);
+            if (sb !== sa) return sb - sa;
+            return 0;
+          });
+          idNum = uniq[0];
+          // 同簇（汉明≤1）取分最高
+          for (let u = 1; u < uniq.length; u++) {
+            if (hamming8(idNum, uniq[u]) <= 1 && scoreId(uniq[u]) > scoreId(idNum)) idNum = uniq[u];
+          }
+        }
+        if (idNum) push(cn || "", "台胞证", idNum);
+      }
+      function hamming8(a, b) {
+        if (!a || !b || a.length !== b.length) return 99;
+        let d = 0;
+        for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+        return d;
+      }
+
       const engBlocks = [];
-      const engRe = /\b([A-Z]{2,20}\s*,\s*[A-Z][A-Z\-\s]{1,30}|[A-Z]{2,20}(?:[\s\-]+[A-Z]{2,20}){1,3})\b/g;
+      const engRe = /\b([A-Z]{2,20}\s*[,，]\s*[A-Z][A-Z\-\s]{1,30}|[A-Z]{2,20}(?:[\s\-]+[A-Z]{2,20}){1,3})\b/g;
       while ((m = engRe.exec(flat))) {
-        if (/CARD|HOLDER|TRAVEL|MAINLAND|CHINA|PASSPORT|INTENDED|THIS|FOR|ITS|THE|OF|TO|UNITED|STATES/i.test(m[1])) continue;
+        if (/CARD|HOLDER|TRAVEL|MAINLAND|CHINA|PASSPORT|INTENDED|THIS|FOR|ITS|THE|OF|TO|UNITED|STATES|BAND\d/i.test(m[1])) continue;
         engBlocks.push({ name: m[1], index: m.index });
       }
       const idPos = [];
@@ -1966,19 +2108,66 @@ const MingdanUpload = (function () {
         idPos.push({ num: m[1], index: m.index });
       }
       for (const idp of idPos) {
-        // 找 id 前最近的英文名，且距离 < 200
         let best = null;
         for (const eb of engBlocks) {
-          if (eb.index < idp.index && idp.index - eb.index < 220) best = eb;
+          if (eb.index < idp.index && idp.index - eb.index < 280) best = eb;
         }
-        // 同块内再找中文名（英文名之前）
         let cn = "";
         if (best) {
-          const seg = flat.slice(Math.max(0, best.index - 40), best.index);
+          const seg = flat.slice(Math.max(0, best.index - 48), best.index);
           const hm = seg.match(/([\u4e00-\u9fff]{2,4})\s*$/);
-          if (hm && !/证件|护照|台胞|居民|通行|大陆|签发|福建|广东|号码|姓名/.test(hm[1])) cn = hm[1];
+          if (hm && !/证件|护照|台胞|居民|通行|大陆|签发|福建|广东|号码|姓名|中华|人民|管理/.test(hm[1])) cn = hm[1];
         }
         push(cn || (best && best.name) || nearbyName(idp.index, flat), "台胞证", idp.num);
+      }
+    }
+
+    // 近似证号去重：OCR 常把末位认错（30384333/30384336），保留名字更好或出现次数更多的
+    function hamming(a, b) {
+      if (!a || !b || a.length !== b.length) return 99;
+      let d = 0;
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+      return d;
+    }
+    function idScore(g) {
+      let s = 0;
+      if (g.name && /[\u4e00-\u9fff]/.test(g.name)) s += 8;
+      else if (g.name) s += 1;
+      const re = new RegExp(g.number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+      const hits = flat.match(re);
+      const nHits = hits ? hits.length : 0;
+      s += Math.min(nHits, 4); // 频次有用但不压过标签
+      if (new RegExp("证件号码\\D{0,12}" + g.number).test(flat)) s += 16;
+      if (new RegExp(g.number + "\\s*[\"“”'`'*°·.=]{0,4}\\s*0[1-9]").test(flat)) s += 6;
+      if (new RegExp("(^|\\s)" + g.number + "(\\s|$)").test(flat)) s += 1;
+      return s;
+    }
+    if (lookTw && found.length > 1) {
+      const drop = {};
+      function freqOf(n) {
+        const re = new RegExp(String(n).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+        const hits = flat.match(re);
+        return hits ? hits.length : 0;
+      }
+      for (let i = 0; i < found.length; i++) {
+        if (drop[found[i].number] || !/^\d{8}$/.test(found[i].number)) continue;
+        for (let j = i + 1; j < found.length; j++) {
+          if (drop[found[j].number] || !/^\d{8}$/.test(found[j].number)) continue;
+          if (hamming(found[i].number, found[j].number) <= 1) {
+            const si = idScore(found[i]), sj = idScore(found[j]);
+            let win = i, lose = j;
+            if (sj > si) { win = j; lose = i; }
+            found[win].name = preferName(found[win].name, found[lose].name);
+            found[win].line = (found[win].name ? found[win].name + " " : "") + found[win].type + " " + found[win].number;
+            drop[found[lose].number] = true;
+          }
+        }
+      }
+      for (let i = found.length - 1; i >= 0; i--) {
+        if (drop[found[i].number]) {
+          delete seen[found[i].number];
+          found.splice(i, 1);
+        }
       }
     }
 
@@ -1989,28 +2178,46 @@ const MingdanUpload = (function () {
       const re = new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
       const idx = flat.search(re);
       if (idx < 0) return "";
-      const win = flat.slice(Math.max(0, idx - 180), Math.min(flat.length, idx + 48));
-      const badHan = /证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|居民|来往|通行|签发|机关|管理|共和|福建|广东|次数|有效|出生|性别|还人|和人|市硬|医汪|中华|人民|出入|境管|台湾|丽人|理号/;
-      const hans = win.match(/[\u4e00-\u9fff]{2,4}/g);
-      if (!hans) return "";
-      for (let i = hans.length - 1; i >= 0; i--) {
-        if (badHan.test(hans[i])) continue;
-        const c = cleanPersonName(hans[i]);
-        if (c) return c;
+      // 窗口收窄，避免串到上一张卡的中英文名
+      const win = flat.slice(Math.max(0, idx - 100), Math.min(flat.length, idx + 24));
+      let best = "";
+      const re1 = /([\u4e00-\u9fff]{2,4})\s*[_\-.\s·]*[A-Z]{2,20}\s*[,，]\s*[A-Z]/gi;
+      let mm;
+      while ((mm = re1.exec(win))) {
+        const c = cleanPersonName(mm[1], { nearEng: true });
+        if (c) best = c;
       }
-      return "";
+      if (!best) {
+        const re2 = /([\u4e00-\u9fff]{2,4})\s*[_\-.\s·]*[A-Z]{2,20}(?:[\s\-]+[A-Z]{2,20}){1,3}/gi;
+        while ((mm = re2.exec(win))) {
+          const c = cleanPersonName(mm[1], { nearEng: true });
+          if (c) best = c;
+        }
+      }
+      return best;
     }
     for (const g of found) {
-      let nm = cleanPersonName(g.name);
+      // lookTw 时放宽近形字，避免「尚树页」被收尾清掉后串名
+      let nm = cleanPersonName(g.name, lookTw ? { nearEng: true } : {});
       if (!/[\u4e00-\u9fff]/.test(nm || "")) {
         const cn = cnNearNumber(g.number);
         if (cn) nm = cn;
-      } else {
+      } else if (/[A-Za-z]/.test(nm)) {
         // 中英文混在一起时只留中文
-        nm = cleanPersonName(nm);
+        nm = cleanPersonName(nm, lookTw ? { nearEng: true } : {});
       }
       g.name = nm || "";
       g.line = (g.name ? g.name + " " : "") + g.type + " " + g.number;
+    }
+
+    // 台胞证页抑制无护照强信号的「护照」噪点
+    if (lookTw && !/护照号码|Passport\s*(?:No\.?|Number)|P<[A-Z]{3}/i.test(flat)) {
+      for (let i = found.length - 1; i >= 0; i--) {
+        if (found[i].type === "护照") {
+          delete seen[found[i].number];
+          found.splice(i, 1);
+        }
+      }
     }
 
     return {
@@ -2412,18 +2619,26 @@ const MingdanUpload = (function () {
     });
   }
 
-  /** 放大 + 高图多卡切条，返回 canvas/blob 列表供 OCR */
+  /** 放大 + 高图多卡切条（白缝检测），返回 canvas 列表供 OCR */
   async function prepareOcrCanvases(source) {
     const img = await loadImageElement(source);
     const w = img.width || img.naturalWidth;
     const h = img.height || img.naturalHeight;
-    if (!w || !h) return [source];
+    if (!w || !h) return [{ canvas: source, kind: "full" }];
     const scale = w < 900 ? 2.2 : w < 1400 ? 1.7 : 1.4;
     const outs = [];
+    function pushCanvas(c, kind) {
+      if (c) outs.push({ canvas: c, kind: kind || "full" });
+    }
 
-    function drawBand(sy, sh) {
-      const cw = Math.round(w * scale);
-      const ch = Math.round(sh * scale);
+    function drawBand(sy, sh, opts) {
+      opts = opts || {};
+      const left = opts.left || 0;
+      const right = opts.right != null ? opts.right : w;
+      const srcW = Math.max(1, right - left);
+      const sc = opts.scale || scale;
+      const cw = Math.round(srcW * sc);
+      const ch = Math.round(sh * sc);
       const canvas = document.createElement("canvas");
       canvas.width = cw;
       canvas.height = ch;
@@ -2432,14 +2647,17 @@ const MingdanUpload = (function () {
       ctx.imageSmoothingQuality = "high";
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, cw, ch);
-      ctx.drawImage(img, 0, sy, w, sh, 0, 0, cw, ch);
-      // 轻度对比增强
+      ctx.drawImage(img, left, sy, srcW, sh, 0, 0, cw, ch);
       try {
         const idata = ctx.getImageData(0, 0, cw, ch);
         const d = idata.data;
+        const contrast = opts.contrast != null ? opts.contrast : 1.25;
+        const bin = !!opts.binarize;
+        const thr = opts.threshold != null ? opts.threshold : 150;
         for (let i = 0; i < d.length; i += 4) {
           let g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-          g = Math.max(0, Math.min(255, (g - 128) * 1.25 + 128));
+          g = Math.max(0, Math.min(255, (g - 128) * contrast + 128));
+          if (bin) g = g > thr ? 255 : 0;
           d[i] = d[i + 1] = d[i + 2] = g;
         }
         ctx.putImageData(idata, 0, 0);
@@ -2448,44 +2666,118 @@ const MingdanUpload = (function () {
     }
 
     // 整图
-    outs.push(drawBand(0, h));
+    pushCanvas(drawBand(0, h), "full");
 
-    // 竖长多卡截图：重叠三截（证件叠放）
-    if (h / w >= 1.45) {
-      const bands = [
-        [0, Math.floor(h * 0.42)],
-        [Math.floor(h * 0.28), Math.floor(h * 0.44)],
-        [Math.floor(h * 0.58), h - Math.floor(h * 0.58)],
-      ];
-      // fix: [start, height]
-      const specs = [
-        [0, Math.floor(h * 0.42)],
-        [Math.floor(h * 0.29), Math.floor(h * 0.42)],
-        [Math.floor(h * 0.58), h - Math.floor(h * 0.58)],
-      ];
-      for (const sp of specs) {
-        const sy = Math.max(0, sp[0]);
-        const sh = Math.min(h - sy, sp[1]);
-        if (sh > 40) outs.push(drawBand(sy, sh));
-      }
-      // 文本区（去掉左侧头像约 26%）
-      for (const sp of specs) {
-        const sy = Math.max(0, sp[0]);
-        const sh = Math.min(h - sy, sp[1]);
-        if (sh <= 40) continue;
-        const left = Math.floor(w * 0.26);
-        const cw = Math.round((w - left) * Math.max(scale, 2.4));
-        const ch = Math.round(sh * Math.max(scale, 2.4));
-        const canvas = document.createElement("canvas");
-        canvas.width = cw;
-        canvas.height = ch;
-        const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, cw, ch);
-        ctx.drawImage(img, left, sy, w - left, sh, 0, 0, cw, ch);
-        outs.push(canvas);
+    // 用行亮度找白缝，切出叠放的多张台胞证
+    let regions = [];
+    if (h / w >= 1.35) {
+      try {
+        const probe = document.createElement("canvas");
+        const pw = Math.min(w, 360);
+        const ph = h;
+        probe.width = pw;
+        probe.height = ph;
+        const pctx = probe.getContext("2d");
+        pctx.drawImage(img, 0, 0, pw, ph);
+        const data = pctx.getImageData(0, 0, pw, ph).data;
+        const rowMean = new Array(ph);
+        for (let y = 0; y < ph; y++) {
+          let s = 0;
+          const row = y * pw * 4;
+          for (let x = 0; x < pw; x += 2) {
+            const i = row + x * 4;
+            s += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          }
+          rowMean[y] = s / (pw / 2);
+        }
+        const brightYs = [];
+        for (let y = 0; y < ph; y++) if (rowMean[y] > 232) brightYs.push(y);
+        const clusters = [];
+        for (const y of brightYs) {
+          if (!clusters.length || y - clusters[clusters.length - 1][1] > 2) clusters.push([y, y]);
+          else clusters[clusters.length - 1][1] = y;
+        }
+        const longBright = clusters.filter((c) => c[1] - c[0] > 36);
+        for (let i = 0; i < longBright.length - 1; i++) {
+          const top = longBright[i][1] + 1;
+          const bot = longBright[i + 1][0] - 1;
+          if (bot - top > Math.max(90, h * 0.12)) regions.push([top, bot]);
+        }
+        // 丢掉过矮/过扁的（标题条）
+        regions = regions.filter(function (r) {
+          const rh = r[1] - r[0];
+          return rh >= 120 && rh / w >= 0.22;
+        });
+      } catch (eDet) {
+        console.warn("[MingdanUpload.cardDetect]", eDet);
+        regions = [];
       }
     }
+
+    // 白缝失败时退回固定三截
+    if (!regions.length && h / w >= 1.45) {
+      regions = [
+        [0, Math.floor(h * 0.38)],
+        [Math.floor(h * 0.30), Math.floor(h * 0.68)],
+        [Math.floor(h * 0.58), h],
+      ];
+    }
+
+    // 每张卡：整卡 + 姓名区 + 证号底条（多几何/二值），提高 8 位号与中文名命中
+    const maxCards = 4;
+    for (let ri = 0; ri < Math.min(regions.length, maxCards); ri++) {
+      const sy = Math.max(0, regions[ri][0]);
+      const ey = Math.min(h, regions[ri][1]);
+      const sh = ey - sy;
+      if (sh < 60) continue;
+      pushCanvas(drawBand(sy, sh, { contrast: 1.35 }), "card");
+      // 姓名区（上半、头像右侧）— 两套几何提高中文名命中
+      const nameSpecs = [
+        { top: 0.08, h: 0.40, left: 0.28, right: 0.92, sc: 3.5, contrast: 1.8 },
+        { top: 0.10, h: 0.36, left: 0.30, right: 0.88, sc: 4.0, contrast: 2.0, bin: true, thr: 150 },
+      ];
+      for (const ns of nameSpecs) {
+        const nameTop = sy + Math.floor(sh * ns.top);
+        const nameH = Math.floor(sh * ns.h);
+        pushCanvas(
+          drawBand(nameTop, nameH, {
+            left: Math.floor(w * ns.left),
+            right: Math.floor(w * ns.right),
+            scale: Math.max(scale, ns.sc),
+            contrast: ns.contrast,
+            binarize: !!ns.bin,
+            threshold: ns.thr || 150,
+          }),
+          "name"
+        );
+      }
+      // 证号条：固定高度（勿拉到卡底英文 disclaimer，否则末位易糊成 6/8）
+      const idSpecs = [
+        { top: 0.58, h: 0.30, left: 0.18, right: 0.62, bin: true, thr: 150, sc: 5.0 },
+        { top: 0.62, h: 0.28, left: 0.16, right: 0.58, bin: true, thr: 145, sc: 5.0 },
+        { top: 0.68, h: 0.22, left: 0.15, right: 0.55, bin: true, thr: 150, sc: 5.0 },
+        { top: 0.70, h: 0.20, left: 0.18, right: 0.50, bin: false, thr: 150, sc: 4.5 },
+        { top: 0.55, h: 0.32, left: 0.14, right: 0.65, bin: true, thr: 150, sc: 4.0 },
+      ];
+      for (const sp of idSpecs) {
+        const idTop = sy + Math.floor(sh * sp.top);
+        const idH = Math.max(40, Math.floor(sh * sp.h));
+        pushCanvas(
+          drawBand(idTop, idH, {
+            left: Math.floor(w * sp.left),
+            right: Math.floor(w * sp.right),
+            scale: Math.max(scale, sp.sc),
+            contrast: sp.bin ? 2.0 : 1.8,
+            binarize: !!sp.bin,
+            threshold: sp.thr,
+          }),
+          "id"
+        );
+      }
+    }
+
+    // 整图 + 每卡 1 整卡 + 2 姓名 + 4 证号 ≈ 1+3*7=22，上限 22
+    if (outs.length > 24) return outs.slice(0, 24);
     return outs;
   }
 
@@ -2505,25 +2797,30 @@ const MingdanUpload = (function () {
         canvases = await prepareOcrCanvases(source);
       } catch (ePrep) {
         console.warn("[MingdanUpload.prep]", ePrep);
-        canvases = [source];
+        canvases = [{ canvas: source, kind: "full" }];
       }
       const chunks = [];
-      for (let i = 0; i < canvases.length; i++) {
+      const items = (canvases || []).map(function (c) {
+        if (c && c.canvas) return c;
+        return { canvas: c, kind: "full" };
+      });
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
         setOcrMsg(
-          (canvases.length > 1
-            ? "证件切卡识别中 " + (i + 1) + "/" + canvases.length + "（不是交通）"
+          (items.length > 1
+            ? "证件切卡识别中 " + (i + 1) + "/" + items.length + "（不是交通）"
             : "截图文字识别中") +
             (label ? " · " + label : "") +
             "…",
           ""
         );
-        const result = await Tesseract.recognize(canvases[i], "chi_sim+eng", {
+        const result = await Tesseract.recognize(item.canvas, "chi_sim+eng", {
           logger: function (m) {
             if (!m) return;
             if (m.status === "recognizing text" && typeof m.progress === "number") {
               setOcrMsg(
-                (canvases.length > 1
-                  ? "证件切卡识别中 " + (i + 1) + "/" + canvases.length + " "
+                (items.length > 1
+                  ? "证件切卡识别中 " + (i + 1) + "/" + items.length + " "
                   : "截图识别中 ") +
                   Math.round(m.progress * 100) +
                   "%（写名单用，不是交通）",
@@ -2538,6 +2835,37 @@ const MingdanUpload = (function () {
         });
         const piece = ((result && result.data && result.data.text) || "").trim();
         if (piece) chunks.push(piece);
+        // 证号条：仅当中文 OCR 没吃到 8 位号时，再跑数字白名单（避免末位被噪成 6/8 刷频次）
+        if (item.kind === "id") {
+          const chiHasId = /\b\d{8}\b/.test(piece) && !!(piece.match(/\b\d{8}\b/g) || []).filter(function (x) {
+            return !/^(19|20)\d{6}$/.test(x);
+          }).length;
+          if (!chiHasId) {
+            try {
+              const dig = await Tesseract.recognize(item.canvas, "eng", {
+                tessedit_char_whitelist: "0123456789",
+              });
+              const rawDig = ((dig && dig.data && dig.data.text) || "").trim();
+              if (rawDig) {
+                const cleaned = [];
+                function takeId(n) {
+                  if (!n) return;
+                  if (n.length === 9 && !/^(19|20)/.test(n)) n = n.slice(0, 8);
+                  if (n.length !== 8) return;
+                  if (/^(19|20)\d{6}$/.test(n)) return;
+                  if (/^20[0-3]\d(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$/.test(n)) return;
+                  if (/^0[1-9]20\d{4}$/.test(n)) return; // 签发次数+年份粘连
+                  cleaned.push(n);
+                }
+                const solid = rawDig.match(/\d{8,9}/g) || [];
+                for (let si = 0; si < solid.length; si++) takeId(solid[si]);
+                const spaced = rawDig.match(/\d(?:[ \t]\d){7}/g) || [];
+                for (let si = 0; si < spaced.length; si++) takeId(spaced[si].replace(/\s+/g, ""));
+                if (cleaned.length) chunks.push("证号数字 " + cleaned.join(" "));
+              }
+            } catch (eDig) {}
+          }
+        }
       }
       const text = chunks.join("\n\n");
       lastOcrText = text;
