@@ -15,7 +15,7 @@
 
 | 项 | 值 |
 |---|---|
-| 本地 | `/workspace/tourism-kb-model/web/mingdan/site/index.html` · `completed.html` |
+| 本地 | `/workspace/tourism-kb-model/web/mingdan/site/index.html` · `completed.html` · `upload.html` |
 | GitHub Pages 未出团子页 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/ |
 | GitHub Pages 已完团子页 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html |
 | 仓库 | https://github.com/qinfan079325-rgb/tourism-kb-mingdan |
@@ -66,7 +66,7 @@ python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --xlsx /path/to
 python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --today 2026-10-26   # 测试
 ```
 
-产物：`web/mingdan/site/index.html` + `completed.html`（自包含 CSS/JS）。
+产物：`web/mingdan/site/index.html` + `completed.html` + `upload.html`（自包含 CSS/JS）。模糊订单仅在 `upload.html`；易途完成前不写入未出团。
 
 ## 一键重建并推送
 
@@ -76,7 +76,7 @@ python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --today 2026-10
 
 ## 模糊订单上传（未出团 · MVP）
 
-登录后在未出团页上方可上传/粘贴模糊订单。流程：解析 → **销售确认无误** → 本机标「已确认待易途」。未确认不上钉钉正式名单。字段与解析桩见 `upload/`。
+登录后打开 **模糊订单** 页（`upload.html`）上传/粘贴。流程：解析 → **销售确认无误** → 本机标「已确认待易途」。易途录完前**不进未出团**；未确认不上钉钉正式名单。字段与解析桩见 `upload/`。
 
 - KB 只取结算明细纯数字项（汉字说明项不计）
 - 助手通知：页内「复制通知助手」或下载 JSON（interim；尚无上传后端）

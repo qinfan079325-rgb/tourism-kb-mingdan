@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>散客数据看板 · 模糊订单上传</title>
+<style>
+:root{
+  --bg:#0f1419; --card:#1a2332; --card2:#243044; --line:#2d3a4f;
+  --text:#e8eef7; --muted:#9aabbf; --accent:#3b82f6; --accent2:#22c55e;
+  --warn:#f59e0b; --danger:#ef4444; --chip:#334155;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1100px;margin:0 auto;padding:16px 14px 48px}
+.banner{background:#1e293b;color:#cbd5e1;border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;margin-bottom:14px;font-size:13px}
+.nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.nav a{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--muted)}
+.nav a.active{background:#1e3a5f;border-color:var(--accent);color:#93c5fd;font-weight:650}
+h1{font-size:1.35rem;margin:0 0 4px;font-weight:700}
+.sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+.toolbar input[type=search]{flex:1;min-width:160px;background:var(--card);border:1px solid var(--line);
+  color:var(--text);border-radius:10px;padding:10px 12px;font-size:15px;outline:none}
+.toolbar input:focus{border-color:var(--accent)}
+.btn{background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:10px;
+  padding:8px 12px;font-size:13px;cursor:pointer}
+.btn:active{opacity:.85}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px}
+.stat b{color:var(--accent2);font-size:16px}
+.day{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.day-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:12px 14px;cursor:pointer;user-select:none;
+  background:linear-gradient(180deg,var(--card2),var(--card))}
+.day-h:hover{filter:brightness(1.05)}
+.chev{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:6px;background:var(--chip);font-size:12px;color:var(--muted);flex-shrink:0;
+  transition:transform .15s}
+.day.open .chev{transform:rotate(90deg);color:var(--accent)}
+.day-title{font-weight:650;flex:1;min-width:120px}
+.day-meta{color:var(--muted);font-size:13px;white-space:nowrap;flex-shrink:0}
+.day-kb{background:#422006;color:#fbbf24;border:1px solid #a16207;border-radius:999px;
+  padding:2px 10px;font-size:12px;font-weight:700;flex-shrink:0;white-space:nowrap}
+.day-jade{background:#064e3b;color:#6ee7b7;border:1px solid #059669;border-radius:999px;
+  padding:2px 10px;font-size:12px;font-weight:700;flex-shrink:0;white-space:nowrap}
+.day-body{display:none;padding:0 10px 12px;border-top:1px solid var(--line)}
+.day.open .day-body{display:block}
+.guide{background:#121a24;border:1px solid var(--line);border-radius:12px;margin-top:10px;overflow:hidden}
+.guide-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:10px 12px;cursor:pointer;user-select:none;
+  background:linear-gradient(180deg,#1e293b,#162032)}
+.guide-h:hover{filter:brightness(1.06)}
+.guide .chev{width:20px;height:20px;font-size:11px}
+.guide.open > .guide-h .chev{transform:rotate(90deg);color:#a78bfa}
+.guide-title{font-weight:650;flex:1;min-width:100px;color:#e9d5ff}
+.guide-meta{color:var(--muted);font-size:12.5px;white-space:nowrap;flex-shrink:0}
+.guide-tours{color:#94a3b8;font-size:12px;max-width:100%;word-break:break-all}
+.guide-kb{background:#422006;color:#fbbf24;border:1px solid #a16207;border-radius:999px;
+  padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.guide-jade{background:#064e3b;color:#6ee7b7;border:1px solid #059669;border-radius:999px;
+  padding:2px 10px;font-size:12px;font-weight:700;flex-shrink:0;white-space:nowrap}
+.guide-body{display:none;padding:0 8px 10px;border-top:1px solid rgba(45,58,79,.7)}
+.guide.open .guide-body{display:block}
+.guide .group{margin-top:8px}
+.group{background:var(--bg);border:1px solid var(--line);border-radius:12px;margin-top:10px;padding:10px 12px}
+.group-h{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;margin-bottom:8px}
+.g-seq{background:var(--accent);color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700}
+.g-people{color:var(--muted);font-size:13px}
+.g-crowd{background:#1e3a5f;color:#93c5fd;border-radius:8px;padding:2px 8px;font-size:12px}
+.g-hukou{background:#14532d;color:#86efac;border-radius:8px;padding:2px 8px;font-size:12px}
+.g-tour{background:#312e81;color:#c7d2fe;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:650;word-break:break-all}
+.g-guide{background:#4c1d95;color:#e9d5ff;border-radius:8px;padding:2px 8px;font-size:12px}
+.group-main{display:flex;gap:12px;align-items:stretch}
+.group-left{flex:1.15;min-width:0}
+.group-mid{flex:0 0 118px;min-width:100px;display:flex;flex-direction:column}
+.group-right{flex:1;min-width:0;display:flex;flex-direction:column}
+.g-kb{background:#3b1d0f;color:#fdba74;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:650}
+.g-need{background:#7f1d1d;color:#fecaca;border:1px solid #b91c1c;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:650;max-width:100%;word-break:break-word}
+.members{width:100%;border-collapse:collapse;font-size:13.5px;margin:0}
+.members th{text-align:left;color:var(--muted);font-weight:500;padding:4px 6px;border-bottom:1px solid var(--line);font-size:12px}
+.members td{padding:6px;border-bottom:1px solid rgba(45,58,79,.6);vertical-align:top}
+.members tr:last-child td{border-bottom:none}
+.analysis-panel,.kb-panel{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:8px 10px;height:100%;min-height:72px;display:flex;flex-direction:column}
+.analysis-label,.kb-label{color:var(--warn);font-size:12px;font-weight:600;margin-bottom:6px;flex-shrink:0}
+.kb-label{color:#fb923c}
+.analysis-body{white-space:pre-wrap;font-size:12.5px;color:#d1d5db;overflow:auto;flex:1;max-height:320px}
+.analysis-empty,.kb-empty{color:var(--muted);font-size:12px}
+.kb-raw{font-size:14px;font-weight:650;color:#fdba74;word-break:break-all}
+.kb-yuan{font-size:12.5px;color:#e8eef7;margin-top:6px}
+.kb-yuan b{color:var(--accent2);font-size:15px}
+.money-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px}
+.money-cell{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.money-cell .lab{color:var(--muted);font-size:11px;margin-bottom:4px}
+.money-cell .val{font-size:13.5px;font-weight:650;color:#e8eef7;word-break:break-word}
+.money-cell .val.jade{color:#6ee7b7}
+.money-cell .val.empty{color:var(--muted);font-weight:500}
+.empty{color:var(--muted);text-align:center;padding:28px 10px}
+.hidden{display:none!important}
+.footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
+@media(max-width:720px){
+  .group-main{flex-direction:column}
+  .group-mid{flex:1 1 auto;min-width:0}
+  .analysis-body{max-height:220px}
+  .money-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* —— 登录门禁 —— */
+body.locked{overflow:hidden}
+body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hidden;margin:0;padding:0}
+.auth-gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(8,12,18,.92);backdrop-filter:blur(6px)}
+.auth-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:22px 20px 18px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.auth-card h2{margin:0 0 6px;font-size:1.15rem}
+.auth-hint{color:var(--muted);font-size:13px;margin:0 0 16px}
+.auth-card label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+.auth-card input[type=text],.auth-card input[type=password]{
+  width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:11px 12px;font-size:15px;outline:none;margin-bottom:12px}
+.auth-card input:focus{border-color:var(--accent)}
+.auth-card .auth-submit{width:100%;background:var(--accent);border:none;color:#fff;border-radius:10px;
+  padding:11px 12px;font-size:15px;font-weight:650;cursor:pointer;margin-top:4px}
+.auth-card .auth-submit:disabled{opacity:.6;cursor:wait}
+.auth-err{color:#fecaca;background:#7f1d1d;border:1px solid #b91c1c;border-radius:8px;
+  padding:8px 10px;font-size:13px;margin:0 0 12px}
+.auth-who{color:var(--muted);font-size:12px;margin-left:auto;align-self:center}
+.btn-logout{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;
+  padding:5px 12px;font-size:12px;cursor:pointer}
+.btn-logout:hover{color:var(--text);border-color:var(--muted)}
+.nav{align-items:center}
+
+
+/* —— 模糊订单上传（未出团页加法；不改名单卡片样式） —— */
+.fuzzy-panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.fuzzy-panel-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px;margin-bottom:8px}
+.fuzzy-panel-h h2{margin:0;font-size:1.05rem}
+.fuzzy-hint{color:var(--muted);font-size:12px}
+.fuzzy-note{color:var(--muted);font-size:12.5px;margin:0 0 10px}
+.fuzzy-lab{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+.fuzzy-form textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:10px 12px;font-size:14px;outline:none;resize:vertical;font-family:inherit}
+.fuzzy-form textarea:focus{border-color:var(--accent)}
+.fuzzy-form input[type=file]{color:var(--muted);font-size:13px}
+.fuzzy-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.fuzzy-primary{background:#1d4ed8;border-color:#2563eb;color:#fff;font-weight:650}
+.fuzzy-msg{margin-top:10px;padding:8px 10px;border-radius:8px;font-size:13px}
+.fuzzy-msg.ok{background:#14532d;border:1px solid #166534;color:#bbf7d0}
+.fuzzy-msg.err{background:#7f1d1d;border:1px solid #b91c1c;color:#fecaca}
+.fuzzy-draft-list{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.fuzzy-empty{color:var(--muted);font-size:13px;padding:8px 0}
+.fuzzy-draft{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.fuzzy-draft.active{border-color:var(--accent)}
+.fuzzy-draft-h{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:8px}
+.fuzzy-st{font-size:12px;font-weight:650;border-radius:999px;padding:2px 9px}
+.fuzzy-st.st-pending_parse{background:#422006;color:#fbbf24}
+.fuzzy-st.st-pending_sales_confirm{background:#1e3a5f;color:#93c5fd}
+.fuzzy-st.st-confirmed_await_yitu{background:#14532d;color:#86efac}
+.fuzzy-who{font-size:13px}
+.fuzzy-agency{color:var(--muted);font-size:12px}
+.fuzzy-draft-actions{display:flex;flex-wrap:wrap;gap:6px}
+.fuzzy-review{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.fuzzy-status{font-size:13px;color:var(--muted);margin-bottom:8px}
+.fuzzy-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fuzzy-field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.fuzzy-field.need span em{color:#fbbf24;font-style:normal;font-weight:650}
+.fuzzy-field textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical}
+.fuzzy-field.need textarea{border-color:#a16207}
+.fuzzy-confirm-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.fuzzy-check{font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px}
+.fuzzy-overlay{background:#122018;border:1px dashed #166534;border-radius:12px;padding:10px 12px;margin-bottom:14px}
+.fuzzy-overlay-title{font-size:12px;color:#86efac;font-weight:650;margin-bottom:8px}
+.fuzzy-overlay-card{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:6px 0;border-top:1px solid rgba(22,101,52,.35);font-size:13px}
+.fuzzy-overlay-card:first-of-type{border-top:none}
+@media(max-width:720px){
+  .fuzzy-fields{grid-template-columns:1fr}
+}
+
+</style>
+</head>
+<body class="locked">
+<div id="authGate" class="auth-gate" aria-modal="true" role="dialog" aria-labelledby="authTitle">
+  <div class="auth-card">
+    <h2 id="authTitle">散客数据看板</h2>
+    <p class="auth-hint">导管内部查阅 · 请登录后查看</p>
+    <div id="authErr" class="auth-err hidden"></div>
+    <form id="authForm" autocomplete="on">
+      <label for="authUser">用户名</label>
+      <input type="text" id="authUser" name="username" autocomplete="username" required placeholder="请输入用户名"/>
+      <label for="authPass">密码</label>
+      <input type="password" id="authPass" name="password" autocomplete="current-password" required placeholder="请输入密码"/>
+      <button type="submit" class="auth-submit">登录</button>
+    </form>
+  </div>
+</div>
+<div id="app" class="wrap">
+  <div class="banner">散客数据看板 · 模糊订单上传 · 解析后须销售确认才保存 · 未确认不进钉钉正式名单。</div>
+  <nav class="nav">
+    <a href="index.html">未出团</a>
+    <a href="completed.html">已完团</a>
+    <a class="active" href="upload.html">模糊订单</a>
+    <span class="auth-who" id="authWho"></span>
+    <button type="button" class="btn-logout" id="btnLogout">退出</button>
+  </nav>
+  <h1>模糊订单上传</h1>
+  <div class="sub">粘贴计划确认单 → 解析 22 项草稿 → 销售核对确认 → 本机标「已确认待易途」。KB 只计结算明细纯数字项（如 -1000*6 → 6000）。</div>
+
+  <section id="fuzzyPanel" class="fuzzy-panel" aria-label="模糊订单上传">
+    <div class="fuzzy-panel-h">
+      <h2>上传 / 粘贴</h2>
+      <span class="fuzzy-hint">登录可见 · 草稿仅存本机浏览器</span>
+    </div>
+    <p class="fuzzy-note">优先粘贴文字（组团社、时间、人数、结算明细等）。也可选 Excel/截图：截图暂存「待解析」，下载 JSON 发给助手。确认前不会改钉钉名单。</p>
+    <div class="fuzzy-form">
+      <label class="fuzzy-lab" for="fuzzyText">订单文字</label>
+      <textarea id="fuzzyText" rows="10" placeholder="粘贴例如：&#10;组团社：湖南友记&#10;【时间】：10月27日&#10;【团型天数】: 九武5天4晚&#10;【客人人数】：6大&#10;结算明细：结算：-1000*6+158*6乌江+70加车+200*3续住=-4382&#10;…"></textarea>
+      <label class="fuzzy-lab" for="fuzzyFile">附件（可选）</label>
+      <input type="file" id="fuzzyFile" accept=".xlsx,.xls,.csv,image/*,.txt"/>
+      <div class="fuzzy-actions">
+        <button type="button" class="btn fuzzy-primary" id="fuzzySubmit">提交解析</button>
+        <button type="button" class="btn" id="fuzzyFillSample">填入样例</button>
+      </div>
+    </div>
+    <div id="fuzzyMsg" class="fuzzy-msg hidden"></div>
+    <div id="fuzzyDraftList" class="fuzzy-draft-list"></div>
+    <div id="fuzzyReview" class="fuzzy-review hidden">
+      <div id="fuzzyStatusLine" class="fuzzy-status"></div>
+      <div id="fuzzyFields" class="fuzzy-fields"></div>
+      <div class="fuzzy-confirm-row">
+        <label class="fuzzy-check"><input type="checkbox" id="fuzzyConfirmCheck"/> 销售确认无误（出团日、人数等已核对）</label>
+        <button type="button" class="btn" id="fuzzyRecalcKb">按明细重算 KB</button>
+        <button type="button" class="btn fuzzy-primary" id="fuzzyConfirmBtn" disabled>销售确认无误并保存</button>
+        <button type="button" class="btn" id="fuzzyExportBtn">下载草稿 JSON</button>
+        <button type="button" class="btn" id="fuzzyNotifyBtn">复制通知助手</button>
+      </div>
+    </div>
+  </section>
+  <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
+  <div class="footer">需登录访问 · 模糊订单与未出团/已完团名单分离 · 不展示完整身份证/电话</div>
+</div>
+
+<script>
+/* 散客看板前端门禁：SHA-256(盐|用户名|密码) 与内置哈希比对；非后端鉴权。 */
+const MingdanAuth = (function () {
+  const SALT = "mingdan-hpy";
+  const STORE_KEY = "mingdan_auth_v1";
+  // 用户名 → SHA-256 hex；密码不明文入库
+  const HASHES = {
+    "刘波": "cbd34ff9d84bf2616e4be21a9857ec4a488a56ee7fb6736805e21089f00432f6",
+    "彭程": "4f127fd6fd0c931574d0b4e930d2cc0ebb2cd2a283e34bbec0b5a861ee1cfd4b",
+    "秦凡": "05be8c1ec619aabdb50dfde3c2fa8a49b4008e75b1bb0df57c68bb9f49d75ae3",
+    "张浩": "d77c36e31a33c47a72bad84260c1e7108ea4d6bcae62e390b10fdf89b76b3370",
+  };
+
+  function currentUser() {
+    try {
+      return sessionStorage.getItem(STORE_KEY) || "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function setUser(name) {
+    try {
+      sessionStorage.setItem(STORE_KEY, name);
+    } catch (e) {}
+  }
+
+  function clearUser() {
+    try {
+      sessionStorage.removeItem(STORE_KEY);
+    } catch (e) {}
+  }
+
+  async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(text)
+    );
+    return Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  async function verify(user, pass) {
+    const name = String(user || "").trim();
+    if (!name || !HASHES[name]) return false;
+    const hex = await sha256Hex(SALT + "|" + name + "|" + String(pass || ""));
+    return hex === HASHES[name];
+  }
+
+  function unlockUI(name) {
+    document.body.classList.remove("locked");
+    const gate = document.getElementById("authGate");
+    if (gate) gate.classList.add("hidden");
+    const who = document.getElementById("authWho");
+    if (who) who.textContent = name ? "已登录：" + name : "";
+  }
+
+  function lockUI() {
+    document.body.classList.add("locked");
+    const gate = document.getElementById("authGate");
+    if (gate) gate.classList.remove("hidden");
+  }
+
+  function logout() {
+    clearUser();
+    location.reload();
+  }
+
+  function bindForm(onOk) {
+    const form = document.getElementById("authForm");
+    const err = document.getElementById("authErr");
+    const userEl = document.getElementById("authUser");
+    const passEl = document.getElementById("authPass");
+    if (!form) return;
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (err) {
+        err.textContent = "";
+        err.classList.add("hidden");
+      }
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) btn.disabled = true;
+      try {
+        const user = (userEl && userEl.value) || "";
+        const pass = (passEl && passEl.value) || "";
+        const ok = await verify(user, pass);
+        if (!ok) {
+          if (err) {
+            err.textContent = "用户名或密码不正确";
+            err.classList.remove("hidden");
+          }
+          if (passEl) {
+            passEl.value = "";
+            passEl.focus();
+          }
+          return;
+        }
+        const name = String(user).trim();
+        setUser(name);
+        unlockUI(name);
+        if (typeof onOk === "function") onOk(name);
+      } catch (ex) {
+        if (err) {
+          err.textContent = "当前浏览器不支持安全校验，请换新版 Chrome / Safari";
+          err.classList.remove("hidden");
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+  }
+
+  function require(onOk) {
+    const name = currentUser();
+    const logoutBtn = document.getElementById("btnLogout");
+    if (logoutBtn) logoutBtn.addEventListener("click", logout);
+    if (name && HASHES[name]) {
+      unlockUI(name);
+      if (typeof onOk === "function") onOk(name);
+      return;
+    }
+    if (name) clearUser();
+    lockUI();
+    bindForm(onOk);
+    const userEl = document.getElementById("authUser");
+    if (userEl) userEl.focus();
+  }
+
+  return { require, logout, currentUser };
+})();
+
+</script>
+<script>
+/* 模糊订单上传：独立页 upload.html。草稿仅本机；确认后仍留本页「待易途」，不写入未出团 DATA。 */
+const MingdanUpload = (function () {
+  const STORE_KEY = "mingdan_fuzzy_drafts_v1";
+  const STATUS = {
+    pending_parse: "待解析",
+    pending_sales_confirm: "待销售确认",
+    confirmed_await_yitu: "已确认待易途",
+  };
+  const FIELD_KEYS = [
+    ["line_name", "线路名称"],
+    ["depart_date", "出团时间"],
+    ["return_date", "返程日期"],
+    ["agency", "客户单位"],
+    ["contact_name", "联系人员"],
+    ["contact_phone", "联系人手机"],
+    ["outbound_transport", "去程交通"],
+    ["return_transport", "返程交通"],
+    ["guest_name", "客人姓名"],
+    ["party_size", "参团人数"],
+    ["book_date", "预定日期"],
+    ["sign_date", "签单日期"],
+    ["rooms", "用房"],
+    ["full_amount", "全款"],
+    ["deposit", "定金"],
+    ["collect_on_tour", "代收"],
+    ["settlement", "结算"],
+    ["rebate", "返款"],
+    ["kb", "kb值"],
+    ["settlement_detail", "结算明细"],
+    ["guest_list", "客人名单"],
+    ["remarks", "备注"],
+    ["gendan_pure", "跟单价(纯数字)"],
+  ];
+
+  const SAMPLE_TEXT =
+    "组团社：湖南友记\n" +
+    "【时间】：10月27日\n" +
+    "【客服】：杨俊钰（唐倩）\n" +
+    "【团型天数】: 九武5天4晚\n" +
+    "【房间类型】：3双标\n" +
+    "【抵达日期/航班】：10月27桃园机场-江北机场 19:20-22：50\n" +
+    "【返程日期/航班】:   10/31，江北机场-桃园机场 15:20-18:20\n" +
+    "【客人人数】：6大\n" +
+    "【客人姓名及联系方式]尚树贞，没电话台湾人微信联系\n" +
+    "【客人证件】：见证件图片\n" +
+    "【合同金额】1680*6=10080\n" +
+    "【定金】 600\n" +
+    "【代收金额】10080-600=9480\n" +
+    "备注：第一晚酒店安排好点儿（资质发的成都中青旅），单独赠送乌江画廊船票，其他客人自理。第四晚酒店客人续住签合同的时候收。团费里面没含第四晚酒店\n" +
+    "结算明细：结算：-1000*6+158*6乌江+70加车+200*3续住=-4382\n" +
+    "返款：9480+4382=13862\n";
+
+  /** 内存镜像：localStorage 失败时仍能打开刚解析的草稿 */
+  let memDrafts = null;
+  let activeId = null;
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+    );
+  }
+  function uid() {
+    return "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+  function todayISO() {
+    const d = new Date();
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(d);
+    const g = (t) => parts.find((p) => p.type === t).value;
+    return `${g("year")}-${g("month")}-${g("day")}`;
+  }
+
+  function loadDrafts() {
+    if (memDrafts) return memDrafts.slice();
+    try {
+      const list = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
+      memDrafts = Array.isArray(list) ? list : [];
+      return memDrafts.slice();
+    } catch (e) {
+      memDrafts = [];
+      return [];
+    }
+  }
+  function saveDrafts(list) {
+    memDrafts = list.slice();
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(list));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /** KB：跳过带汉字说明的项（乌江/加车/续住等） */
+  function kbFromDetail(detail) {
+    if (!detail || !String(detail).trim()) return { kb: "", pure: "" };
+    let s = String(detail).trim().split("=")[0].trim();
+    s = s.replace(/[Ｋｋ]/g, "k").replace(/[×ｘxX]/g, "*");
+    const re = /([+-]?)(\d+(?:\.\d+)?(?:\s*\*\s*\d+(?:\.\d+)?)?)([^\d+\-]*)/g;
+    let total = 0;
+    const pureTerms = [];
+    let m;
+    while ((m = re.exec(s))) {
+      let numexpr = m[2].replace(/\s+/g, "");
+      const suffix = m[3] || "";
+      if (!numexpr) continue;
+      if (/[\u4e00-\u9fff]/.test(suffix)) continue;
+      let v;
+      if (numexpr.indexOf("*") >= 0) {
+        const [a, b] = numexpr.split("*");
+        v = parseFloat(a) * parseFloat(b);
+      } else v = parseFloat(numexpr);
+      if (m[1] === "-") v = -v;
+      total += v;
+      pureTerms.push((m[1] || "+") + numexpr);
+    }
+    if (!pureTerms.length) return { kb: "", pure: "" };
+    let pure = pureTerms.join("");
+    if (pure.startsWith("+")) pure = pure.slice(1);
+    return { kb: Math.round(Math.abs(total)), pure };
+  }
+
+  function normalizeText(raw) {
+    let t = String(raw || "");
+    t = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    t = t.replace(/\u00a0/g, " ").replace(/[\u200b\u200c\u200d\ufeff]/g, "");
+    t = t.replace(/[：]/g, "：").replace(/[﹕]/g, "：");
+    // 统一全角/半角冒号后便于匹配
+    t = t.replace(/：/g, "：");
+    // 常见微信粘贴：标签与内容挤在一行时，在「结算明细/返款」前补换行
+    t = t.replace(/([^\n])(结算明细[：:])/g, "$1\n$2");
+    t = t.replace(/([^\n])(返款[：:])/g, "$1\n$2");
+    t = t.replace(/([^\n])(备注[：:])/g, "$1\n$2");
+    return t;
+  }
+
+  function pick(patterns, text) {
+    for (const p of patterns) {
+      const m = text.match(p);
+      if (m) return String(m[1] || "").trim();
+    }
+    return "";
+  }
+  function yearDate(mmdd) {
+    const y = todayISO().slice(0, 4);
+    const m = String(mmdd).match(/(\d{1,2})\s*[月/\-.\uFF0F]\s*(\d{1,2})/);
+    if (!m) return "";
+    return `${y}-${String(m[1]).padStart(2, "0")}-${String(m[2]).padStart(2, "0")}`;
+  }
+
+  function parseText(raw) {
+    const t = normalizeText(raw);
+    const agency = pick(
+      [
+        /组团社\s*[：:]\s*([^\n【]+)/,
+        /客户单位\s*[：:]\s*([^\n]+)/,
+      ],
+      t
+    );
+    const departRaw = pick(
+      [
+        /【\s*时间\s*】\s*[：:]?\s*([^\n]+)/,
+        /出团时间\s*[：:]\s*([^\n]+)/,
+        /(?:^|\n)\s*日期\s*[：:]\s*([^\n]+)/,
+      ],
+      t
+    );
+    const depart_date = departRaw ? yearDate(departRaw) : "";
+    const returnRaw = pick(
+      [
+        /【\s*返程日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n]+)/,
+        /返程日期\s*[：:]\s*([^\n]+)/,
+      ],
+      t
+    );
+    let return_date = "";
+    if (returnRaw) {
+      const rm = returnRaw.match(/(\d{1,2})\s*[月/\-.\uFF0F]\s*(\d{1,2})/);
+      if (rm) return_date = yearDate(rm[1] + "月" + rm[2]);
+    }
+    const line_name = pick(
+      [
+        /【\s*团型天数\s*】\s*[：:]?\s*([^\n]+)/,
+        /线路名称\s*[：:]\s*([^\n]+)/,
+        /行程\s*[：:]\s*([^\n]+)/,
+      ],
+      t
+    );
+    const rooms = pick(
+      [
+        /【\s*房间类型\s*】\s*[：:]?\s*([^\n]+)/,
+        /用房\s*[：:]\s*([^\n]+)/,
+        /酒店\s*[：:]\s*([^\n]+)/,
+      ],
+      t
+    );
+    const outbound_transport = pick(
+      [
+        /【\s*抵达日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n]+)/,
+        /去程交通\s*[：:]\s*([^\n]+)/,
+        /来程信息\s*[：:]\s*([^\n]+)/,
+      ],
+      t
+    );
+    const return_transport = pick(
+      [
+        /【\s*返程日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n]+)/,
+        /返程交通\s*[：:]\s*([^\n]+)/,
+      ],
+      t
+    );
+    const party_size = pick(
+      [
+        /【\s*客人人数\s*】\s*[：:]?\s*([^\n]+)/,
+        /参团人数\s*[：:]\s*([^\n]+)/,
+        /客人人数\s*[：:]\s*([^\n]+)/,
+      ],
+      t
+    );
+    let contact = pick(
+      [
+        /客人姓名及联系方式\s*[\]】]?\s*[：:]?\s*([^\n]+)/,
+        /联系人\s*[：:]\s*([^\n]+)/,
+        /客人姓名\s*[：:]\s*([^\n]+)/,
+      ],
+      t
+    );
+    contact = contact.replace(/^[^\u4e00-\u9fffA-Za-z]*/, "");
+    const contact_name = contact ? contact.split(/[，,（(]/)[0].trim() : "";
+    const pm = contact.match(/(1\d{10})/);
+    const contact_phone = pm ? pm[1] : "";
+    const full_amount = pick(
+      [
+        /【\s*合同金额\s*】\s*[：:]?\s*([^\n]+)/,
+        /全款\s*[：:]\s*([^\n]+)/,
+        /总团款\s*[：:]\s*([^\n]+)/,
+      ],
+      t
+    );
+    const deposit = pick(
+      [/【\s*定金\s*】\s*[：:]?\s*([^\n]+)/, /定金\s*[：:]\s*([^\n]+)/],
+      t
+    );
+    const collect_on_tour = pick(
+      [/【\s*代收金额\s*】\s*[：:]?\s*([^\n]+)/, /代收\s*[：:]\s*([^\n]+)/],
+      t
+    );
+    let settle = pick([/结算明细\s*[：:]\s*([^\n]+)/], t);
+    settle = settle.replace(/^结算\s*[：:]\s*/, "").trim();
+    if (!settle) settle = pick([/(?:^|\n)\s*结算\s*[：:]\s*([^\n]+)/], t);
+    const rebate = pick([/返款\s*[：:]\s*([^\n]+)/], t);
+    let remarks = pick([/备注\s*[：:]\s*([\s\S]+?)(?=\n\s*结算|\n\s*返款|$)/], t);
+    remarks = (remarks || "").trim();
+    const { kb, pure } = kbFromDetail(settle);
+    let settlement = "";
+    if (settle.indexOf("=") >= 0) {
+      const tail = settle.split("=").pop().trim();
+      const n = parseFloat(tail);
+      if (!isNaN(n)) settlement = Math.round(n);
+    }
+    const fields = {
+      line_name,
+      depart_date,
+      return_date,
+      agency: (agency || "").trim(),
+      contact_name,
+      contact_phone,
+      outbound_transport: (outbound_transport || "").trim(),
+      return_transport: (return_transport || "").trim(),
+      guest_name: contact_name,
+      party_size: (party_size || "").trim(),
+      book_date: todayISO(),
+      sign_date: depart_date || todayISO(),
+      rooms: (rooms || "").trim(),
+      full_amount: (full_amount || "").trim(),
+      deposit: (deposit || "").trim(),
+      collect_on_tour: (collect_on_tour || "").trim(),
+      settlement,
+      rebate: (rebate || "").trim(),
+      kb: kb === "" ? "" : kb,
+      settlement_detail: settle,
+      guest_list: "",
+      remarks,
+      gendan_pure: pure,
+    };
+    return {
+      id: uid(),
+      status: "pending_sales_confirm",
+      status_label: STATUS.pending_sales_confirm,
+      source: "text",
+      raw_text: t,
+      file_name: "",
+      fields,
+      needs_human_confirm: ["depart_date", "party_size"],
+      badge: "待易途确认",
+      sales_confirmed: false,
+      created_at: new Date().toISOString(),
+      created_by: (window.MingdanAuth && MingdanAuth.currentUser && MingdanAuth.currentUser()) || "",
+    };
+  }
+
+  function fieldsLookEmpty(fields) {
+    const f = fields || {};
+    return !(f.agency || f.depart_date || f.party_size || f.guest_name || f.settlement_detail);
+  }
+
+  function setMsg(text, kind) {
+    const el = $("fuzzyMsg");
+    if (!el) return;
+    el.textContent = text || "";
+    el.className = "fuzzy-msg" + (kind ? " " + kind : "") + (text ? "" : " hidden");
+  }
+
+  function renderList() {
+    const box = $("fuzzyDraftList");
+    if (!box) return;
+    const drafts = loadDrafts();
+    if (!drafts.length) {
+      box.innerHTML =
+        '<div class="fuzzy-empty">暂无本机草稿。解析后出现在这里；易途录完前不会进入未出团名单。</div>';
+      renderOverlay();
+      return;
+    }
+    box.innerHTML = drafts
+      .map((d) => {
+        const f = d.fields || {};
+        const st = STATUS[d.status] || d.status_label || d.status;
+        return `<div class="fuzzy-draft ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
+          <div class="fuzzy-draft-h">
+            <span class="fuzzy-st st-${esc(d.status)}">${esc(st)}</span>
+            <span class="fuzzy-who">${esc(f.guest_name || "未命名")} · ${esc(f.depart_date || "无出团日")} · ${esc(f.party_size || "")}</span>
+            <span class="fuzzy-agency">${esc(f.agency || "")}</span>
+          </div>
+          <div class="fuzzy-draft-actions">
+            <button type="button" class="btn fuzzy-open" data-id="${esc(d.id)}">打开核对</button>
+            <button type="button" class="btn fuzzy-del" data-id="${esc(d.id)}">删除草稿</button>
+          </div>
+        </div>`;
+      })
+      .join("");
+    box.querySelectorAll(".fuzzy-open").forEach((b) =>
+      b.addEventListener("click", () => openDraft(b.getAttribute("data-id")))
+    );
+    box.querySelectorAll(".fuzzy-del").forEach((b) =>
+      b.addEventListener("click", () => {
+        const id = b.getAttribute("data-id");
+        if (!confirm("删除该本机草稿？不会影响钉钉同步的正式名单。")) return;
+        saveDrafts(loadDrafts().filter((x) => x.id !== id));
+        if (activeId === id) {
+          activeId = null;
+          $("fuzzyReview").classList.add("hidden");
+        }
+        renderList();
+        setMsg("已删除本机草稿", "ok");
+      })
+    );
+    renderOverlay();
+  }
+
+  function openDraft(id) {
+    const d = loadDrafts().find((x) => x.id === id);
+    if (!d) {
+      setMsg("找不到该草稿（可能本机存储被清空）", "err");
+      return;
+    }
+    activeId = id;
+    const rev = $("fuzzyReview");
+    if (!rev) return;
+    rev.classList.remove("hidden");
+    const f = d.fields || {};
+    $("fuzzyFields").innerHTML = FIELD_KEYS.map(([k, label]) => {
+      const need = (d.needs_human_confirm || []).includes(k);
+      const val = f[k] == null ? "" : String(f[k]);
+      return `<label class="fuzzy-field ${need ? "need" : ""}">
+        <span>${esc(label)}${need ? " <em>需核对</em>" : ""}</span>
+        <textarea data-k="${esc(k)}" rows="${k === "remarks" || k === "settlement_detail" || k === "guest_list" ? 3 : 1}">${esc(val)}</textarea>
+      </label>`;
+    }).join("");
+    $("fuzzyConfirmCheck").checked = !!d.sales_confirmed;
+    $("fuzzyConfirmBtn").disabled = d.status === "confirmed_await_yitu" ? true : !$("fuzzyConfirmCheck").checked;
+    if (d.status === "confirmed_await_yitu") {
+      $("fuzzyConfirmBtn").textContent = "已确认待易途（仍在本页）";
+    } else {
+      $("fuzzyConfirmBtn").textContent = "销售确认无误并保存";
+    }
+    $("fuzzyStatusLine").textContent = `状态：${STATUS[d.status] || d.status} · 草稿 ${d.id} · 易途完成前不进未出团`;
+    renderList();
+  }
+
+  function readFieldsFromForm() {
+    const fields = {};
+    $("fuzzyFields").querySelectorAll("textarea[data-k]").forEach((el) => {
+      fields[el.getAttribute("data-k")] = el.value;
+    });
+    const detail = fields.settlement_detail || "";
+    const { kb, pure } = kbFromDetail(detail);
+    if (detail) {
+      fields.kb = kb === "" ? fields.kb : String(kb);
+      fields.gendan_pure = pure || fields.gendan_pure;
+    }
+    return fields;
+  }
+
+  function onConfirmCheck() {
+    const btn = $("fuzzyConfirmBtn");
+    const d = loadDrafts().find((x) => x.id === activeId);
+    if (!d || d.status === "confirmed_await_yitu") {
+      btn.disabled = true;
+      return;
+    }
+    btn.disabled = !$("fuzzyConfirmCheck").checked;
+  }
+
+  function confirmSave() {
+    if (!$("fuzzyConfirmCheck").checked) {
+      setMsg("请先勾选「销售确认无误」", "err");
+      return;
+    }
+    const list = loadDrafts();
+    const idx = list.findIndex((x) => x.id === activeId);
+    if (idx < 0) return;
+    const fields = readFieldsFromForm();
+    if (!(fields.depart_date || "").trim() || !(fields.party_size || "").trim()) {
+      setMsg("出团时间、参团人数必须核对填写后再确认", "err");
+      return;
+    }
+    list[idx].fields = fields;
+    list[idx].sales_confirmed = true;
+    list[idx].status = "confirmed_await_yitu";
+    list[idx].status_label = STATUS.confirmed_await_yitu;
+    list[idx].confirmed_at = new Date().toISOString();
+    list[idx].confirmed_by =
+      (window.MingdanAuth && MingdanAuth.currentUser && MingdanAuth.currentUser()) || "";
+    const ok = saveDrafts(list);
+    setMsg(
+      ok
+        ? "已保存为「已确认待易途」（仅本页/本机）。未出团钉钉名单未改动；易途录完后再同步。"
+        : "已确认（内存）。本机存储失败，请尽快下载 JSON 备份。",
+      ok ? "ok" : "err"
+    );
+    openDraft(activeId);
+  }
+
+  function exportActive() {
+    const d = loadDrafts().find((x) => x.id === activeId);
+    if (!d) {
+      setMsg("请先打开一条草稿", "err");
+      return;
+    }
+    d.fields = readFieldsFromForm();
+    const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `fuzzy-order-${d.id}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setMsg("已下载草稿 JSON（含字段；请勿发到公开群）", "ok");
+  }
+
+  function copyNotify() {
+    const d = loadDrafts().find((x) => x.id === activeId);
+    if (!d) {
+      setMsg("请先打开一条草稿", "err");
+      return;
+    }
+    const f = readFieldsFromForm();
+    const text = [
+      "[模糊订单草稿通知]",
+      `id=${d.id}`,
+      `状态=${STATUS[d.status] || d.status}`,
+      `出团=${f.depart_date || ""}`,
+      `人数=${f.party_size || ""}`,
+      `代表人=${f.guest_name || ""}`,
+      `组团社=${f.agency || ""}`,
+      `KB=${f.kb || ""}`,
+      `跟单价纯数字=${f.gendan_pure || ""}`,
+      "草稿仅在上传页；易途完成前勿写入未出团。请助手继续处理。",
+    ].join("\n");
+    navigator.clipboard.writeText(text).then(
+      () => setMsg("通知文案已复制，请粘贴到与助手的聊天", "ok"),
+      () => {
+        prompt("复制以下通知发给助手：", text);
+      }
+    );
+  }
+
+  function submitParse() {
+    const text = ($("fuzzyText") && $("fuzzyText").value) || "";
+    const fileInput = $("fuzzyFile");
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    if (!text.trim() && !file) {
+      setMsg("请粘贴订单文字，或选择 Excel/截图文件", "err");
+      return;
+    }
+    let draft;
+    if (text.trim()) {
+      draft = parseText(text);
+      draft.status = "pending_sales_confirm";
+      draft.status_label = STATUS.pending_sales_confirm;
+      if (fieldsLookEmpty(draft.fields)) {
+        setMsg(
+          "未能识别出组团社/出团日/人数等字段。请确认粘贴的是计划确认单全文（含「组团社」「时间」「客人人数」「结算明细」等），或点「填入样例」试一次。",
+          "err"
+        );
+        // 仍保存草稿方便对照原文
+      }
+    } else {
+      draft = {
+        id: uid(),
+        status: "pending_parse",
+        status_label: STATUS.pending_parse,
+        source: "file",
+        raw_text: "",
+        file_name: file.name,
+        fields: {
+          line_name: "",
+          depart_date: "",
+          return_date: "",
+          agency: "",
+          contact_name: "",
+          contact_phone: "",
+          outbound_transport: "",
+          return_transport: "",
+          guest_name: "",
+          party_size: "",
+          book_date: todayISO(),
+          sign_date: todayISO(),
+          rooms: "",
+          full_amount: "",
+          deposit: "",
+          collect_on_tour: "",
+          settlement: "",
+          rebate: "",
+          kb: "",
+          settlement_detail: "",
+          guest_list: "",
+          remarks: `（附件待助手解析：${file.name}）`,
+          gendan_pure: "",
+        },
+        needs_human_confirm: ["depart_date", "party_size", "kb"],
+        badge: "待易途确认",
+        sales_confirmed: false,
+        created_at: new Date().toISOString(),
+        created_by: (window.MingdanAuth && MingdanAuth.currentUser && MingdanAuth.currentUser()) || "",
+      };
+    }
+    if (file && text.trim()) {
+      draft.file_name = file.name;
+      draft.fields.remarks = (draft.fields.remarks || "") + `\n（附文件：${file.name}）`;
+    }
+    const list = loadDrafts();
+    list.unshift(draft);
+    const stored = saveDrafts(list);
+    if ($("fuzzyText")) $("fuzzyText").value = "";
+    if (fileInput) fileInput.value = "";
+    if (!fieldsLookEmpty(draft.fields) || draft.status === "pending_parse") {
+      setMsg(
+        draft.status === "pending_parse"
+          ? "已收文件，状态「待解析」。请下载 JSON / 复制通知发给助手；解析后销售再确认。草稿只在本页。"
+          : stored
+            ? "已解析为本机草稿「待销售确认」。请核对出团日与人数；确认后仍留本页待易途，不进未出团。"
+            : "已解析（内存）。本机存储失败，请下载 JSON 备份。",
+        stored || draft.status === "pending_parse" ? "ok" : "err"
+      );
+    }
+    openDraft(draft.id);
+  }
+
+  /** 已确认草稿：仅本上传页展示，绝不写入未出团 DATA */
+  function renderOverlay() {
+    const host = $("fuzzyOverlay");
+    if (!host) return;
+    const confirmed = loadDrafts().filter((d) => d.status === "confirmed_await_yitu");
+    if (!confirmed.length) {
+      host.classList.add("hidden");
+      host.innerHTML = "";
+      return;
+    }
+    host.classList.remove("hidden");
+    host.innerHTML =
+      `<div class="fuzzy-overlay-title">本页已确认 · 待易途（未写入未出团 / 钉钉正式数据）</div>` +
+      confirmed
+        .map((d) => {
+          const f = d.fields || {};
+          return `<div class="fuzzy-overlay-card">
+            <span class="g-need">${esc(d.badge || "待易途确认")}</span>
+            <span>${esc(f.depart_date || "")}</span>
+            <b>${esc(f.guest_name || "")}</b>
+            <span>${esc(f.party_size || "")}</span>
+            <span>${esc(f.agency || "")}</span>
+            <span class="g-kb">KB ${esc(f.kb ?? "—")}</span>
+          </div>`;
+        })
+        .join("");
+  }
+
+  function fillSample() {
+    if ($("fuzzyText")) $("fuzzyText").value = SAMPLE_TEXT;
+    setMsg("已填入湖南友记样例，点「提交解析」试跑", "ok");
+  }
+
+  function init() {
+    if (!$("fuzzyPanel")) return;
+    const submit = $("fuzzySubmit");
+    if (!submit) {
+      setMsg("页面缺少提交按钮，请刷新或联系助手", "err");
+      return;
+    }
+    submit.addEventListener("click", submitParse);
+    const chk = $("fuzzyConfirmCheck");
+    if (chk) chk.addEventListener("change", onConfirmCheck);
+    const cbtn = $("fuzzyConfirmBtn");
+    if (cbtn) cbtn.addEventListener("click", confirmSave);
+    const ebtn = $("fuzzyExportBtn");
+    if (ebtn) ebtn.addEventListener("click", exportActive);
+    const nbtn = $("fuzzyNotifyBtn");
+    if (nbtn) nbtn.addEventListener("click", copyNotify);
+    const sample = $("fuzzyFillSample");
+    if (sample) sample.addEventListener("click", fillSample);
+    const recalc = $("fuzzyRecalcKb");
+    if (recalc)
+      recalc.addEventListener("click", () => {
+        if (!activeId) return;
+        const fields = readFieldsFromForm();
+        const ta = $("fuzzyFields").querySelector('textarea[data-k="kb"]');
+        const tp = $("fuzzyFields").querySelector('textarea[data-k="gendan_pure"]');
+        if (ta) ta.value = fields.kb;
+        if (tp) tp.value = fields.gendan_pure;
+        setMsg("已按结算明细重算 KB（只计纯数字项）", "ok");
+      });
+    renderList();
+  }
+
+  return { init, parseText, kbFromDetail, loadDrafts, SAMPLE_TEXT };
+})();
+
+</script>
+<script>
+MingdanAuth.require(function () {
+  if (window.MingdanUpload) MingdanUpload.init();
+});
+</script>
+</body>
+</html>
