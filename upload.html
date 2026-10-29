@@ -352,13 +352,13 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
     <details class="fuzzy-help">
       <summary>使用说明</summary>
-      <div class="fuzzy-help-body">优先粘贴文字；证件/车票/航班可粘贴或选图。解析结果只进核对区，不会自动存草稿。确认前不改钉钉名单；组团社+出团日+代表人相同会提示可能重复。</div>
+      <div class="fuzzy-help-body">可粘贴文字，或上传 Word(.docx)/Excel/截图。证件车票可粘贴或选图。解析只进核对区；组团社+出团日+代表人相同会提示可能重复。</div>
     </details>
     <div class="fuzzy-form">
       <label class="fuzzy-lab" for="fuzzyText">订单文字</label>
-      <textarea id="fuzzyText" rows="10" placeholder="粘贴例如：&#10;组团社：湖南友记&#10;【时间】：10月27日&#10;【团型天数】: 九武5天4晚&#10;【客人人数】：6大&#10;结算明细：结算：-1000*6+158*6乌江+70加车+200*3续住=-4382&#10;…&#10;也可直接把证件/车票截图粘贴到下方识别区。"></textarea>
-      <label class="fuzzy-lab" for="fuzzyFile">附件（可选 · 图片会自动 OCR）</label>
-      <input type="file" id="fuzzyFile" accept=".xlsx,.xls,.csv,image/*,.txt"/>
+      <textarea id="fuzzyText" rows="10" placeholder="粘贴例如：&#10;组团社：湖南友记&#10;【时间】：10月27日&#10;【团型天数】: 九武5天4晚&#10;【客人人数】：6大&#10;结算明细：结算：-1000*6+158*6乌江+70加车+200*3续住=-4382&#10;…&#10;也可上传 Word 计划(.docx)，或把证件/车票截图粘贴到下方识别区。"></textarea>
+      <label class="fuzzy-lab" for="fuzzyFile">附件（Word .docx / Excel / 图片）</label>
+      <input type="file" id="fuzzyFile" accept=".xlsx,.xls,.csv,image/*,.txt,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"/>
       <div class="fuzzy-ocr" id="fuzzyOcrBox" aria-label="截图识别">
         <div class="fuzzy-lab">截图识别</div>
         <input type="file" id="fuzzyOcrFile" accept="image/*" multiple capture="environment" style="display:none" aria-hidden="true"/>
@@ -944,6 +944,148 @@ const MingdanUpload = (function () {
     return { kb: Math.round(Math.abs(total)), pure };
   }
 
+
+  /** 计划单常见标签（轻旅 Word 等）；取值截到下一标签 */
+  var PLAN_LABELS =
+    "组团社|团队性质|预订日期|预定日期|客人姓名|客人人数|手机号码|备用电话|出团日期|返回日期|返程日期|抵达交通|返程交通|身份证号|产品名称|线路名称|住宿标准|用房|其他备注|计调备注|紧急联系人|订单状态|操作人员|操作时间|总团款|成本|利润|定金自收|定金代收|尾款代收|尾款自收|结算明细|返款|备注|团款|合同金额|定金|代收金额|业务员|客服|对接人";
+
+  function pickField(labels, text) {
+    const lab = Array.isArray(labels) ? labels.join("|") : String(labels || "");
+    if (!lab) return "";
+    const re = new RegExp(
+      "(?:" + lab + ")\\s*：\\s*([^\\n]*?)(?=\\s*(?:" + PLAN_LABELS + ")\\s*：|$)",
+      "i"
+    );
+    const m = String(text || "").match(re);
+    if (!m) return "";
+    return String(m[1] || "")
+      .replace(/\s+/g, " ")
+      .replace(/[|｜]\s*$/g, "")
+      .trim();
+  }
+
+  function flexDate(s) {
+    const t = String(s || "").trim();
+    if (!t) return "";
+    const iso = t.match(/(20\d{2})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/);
+    if (iso) {
+      return iso[1] + "-" + String(iso[2]).padStart(2, "0") + "-" + String(iso[3]).padStart(2, "0");
+    }
+    return yearDate(t);
+  }
+
+  function moneyNum(s) {
+    const m = String(s || "").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+    if (!m) return "";
+    return m[0].replace(/\.0+$/, "");
+  }
+
+  /** 费用有值才填；￥0 / 空不臆造 */
+  function nonzeroMoney(s) {
+    const n = moneyNum(s);
+    if (n === "" || Number(n) === 0) return "";
+    return n;
+  }
+
+  function roomsFromStay(s) {
+    const t = String(s || "");
+    const parts = [];
+    const re = /【\s*([^：:\】]+)\s*[：:]\s*(\d+)\s*】/g;
+    let m;
+    while ((m = re.exec(t))) {
+      const n = parseInt(m[2], 10);
+      if (n > 0) parts.push(String(m[1]).replace(/\s+/g, "") + n);
+    }
+    if (parts.length) return parts.join(" ");
+    const bare = t.replace(/^标准型/, "").trim();
+    return bare || t.trim();
+  }
+
+  function partyFromAdultChild(s) {
+    const t = String(s || "");
+    const a = t.match(/成人\s*：?\s*(\d+)/);
+    const c = t.match(/(?:小孩|儿童)\s*：?\s*(\d+)/);
+    if (a) {
+      let out = a[1] + "大";
+      if (c && parseInt(c[1], 10) > 0) out += c[1] + "小";
+      return out;
+    }
+    return t.trim();
+  }
+
+  function parseEmerContact(s) {
+    const t = String(s || "").trim();
+    if (!t) return { name: "", phone: "" };
+    const phoneM = t.match(/(1\d{10})/);
+    const phone = phoneM ? phoneM[1] : "";
+    let name = t
+      .replace(/1\d{10}/g, "")
+      .replace(/[-—–_]{2,}/g, " ")
+      .replace(/[|｜]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    name = name.replace(/^[,，;；、\-\s]+|[,，;；、\-\s]+$/g, "").trim();
+    if (name.length > 16) {
+      const nm = name.match(/([\u4e00-\u9fffA-Za-z]{2,12}(?:-[\u4e00-\u9fffA-Za-z]{1,12})?)/);
+      if (nm) name = nm[1];
+    }
+    return { name: name, phone: phone };
+  }
+
+  /** 轻量读取 .docx（ZIP + word/document.xml），无外链依赖 */
+  async function extractDocxText(arrayBuffer) {
+    const u8 = new Uint8Array(arrayBuffer);
+    function u16(i) { return u8[i] | (u8[i + 1] << 8); }
+    function u32(i) {
+      return (u8[i] | (u8[i + 1] << 8) | (u8[i + 2] << 16) | (u8[i + 3] << 24)) >>> 0;
+    }
+    if (u8.length < 4 || u16(0) !== 0x4b50) throw new Error("不是有效的 Word(.docx) 文件");
+    let eocd = -1;
+    for (let i = u8.length - 22; i >= 0; i--) {
+      if (u32(i) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error("Word 文件损坏（无目录）");
+    let cdOff = u32(eocd + 16);
+    const cdCount = u16(eocd + 10);
+    let xmlBytes = null;
+    for (let n = 0; n < cdCount; n++) {
+      if (u32(cdOff) !== 0x02014b50) break;
+      const method = u16(cdOff + 10);
+      const compSize = u32(cdOff + 20);
+      const nameLen = u16(cdOff + 28);
+      const extraLen = u16(cdOff + 30);
+      const commentLen = u16(cdOff + 32);
+      const localOff = u32(cdOff + 42);
+      const name = new TextDecoder("utf-8").decode(u8.slice(cdOff + 46, cdOff + 46 + nameLen));
+      cdOff += 46 + nameLen + extraLen + commentLen;
+      if (name !== "word/document.xml") continue;
+      if (u32(localOff) !== 0x04034b50) throw new Error("Word 本地头无效");
+      const lNameLen = u16(localOff + 26);
+      const lExtraLen = u16(localOff + 28);
+      const dataStart = localOff + 30 + lNameLen + lExtraLen;
+      const comp = u8.slice(dataStart, dataStart + compSize);
+      if (method === 0) xmlBytes = comp;
+      else if (method === 8) {
+        if (typeof DecompressionStream === "undefined") throw new Error("浏览器不支持解压 docx，请改粘贴文字");
+        const ds = new DecompressionStream("deflate-raw");
+        const stream = new Blob([comp]).stream().pipeThrough(ds);
+        xmlBytes = new Uint8Array(await new Response(stream).arrayBuffer());
+      } else throw new Error("不支持的 docx 压缩方式");
+      break;
+    }
+    if (!xmlBytes) throw new Error("docx 内未找到正文");
+    let xml = new TextDecoder("utf-8").decode(xmlBytes);
+    xml = xml.replace(/<w:tab[^/]*\/>/g, "\t").replace(/<w:br[^/]*\/>/g, "\n")
+      .replace(/<\/w:p>/g, "\n").replace(/<\/w:tr>/g, "\n").replace(/<\/w:tc>/g, "\t");
+    xml = xml.replace(/<[^>]+>/g, "");
+    xml = xml.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
+      .replace(/&#(\d+);/g, function (_, n) { return String.fromCharCode(parseInt(n, 10)); })
+      .replace(/&#x([0-9a-fA-F]+);/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); });
+    return xml.split(/\n+/).map(function (l) {
+      return l.replace(/[ \t]+\t/g, "\t").replace(/\t+/g, " ").replace(/[ \t]+$/g, "").trim();
+    }).filter(Boolean).join("\n");
+  }
+
   function normalizeText(raw) {
     let t = String(raw || "");
     t = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -957,9 +1099,17 @@ const MingdanUpload = (function () {
     t = t.replace(/([^\n])(结算明细\s*：)/g, "$1\n$2");
     t = t.replace(/([^\n])(结算\s*：)/g, "$1\n$2");
     t = t.replace(/([^\n])(返款\s*：)/g, "$1\n$2");
-    t = t.replace(/([^\n])(备注\s*：)/g, "$1\n$2");
+    // 勿拆「计调备注 / 其他备注」；仅拆粘连的独立「备注：」
+    t = t.replace(/([^\n调他])(备注\s*：)/g, "$1\n$2");
     t = t.replace(/([^\n])(【定金】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【代收)/g, "$1\n$2");
+    // 轻旅 Word：标签独占一行、值在下一行 → 并成「标签：值」
+    t = t.replace(
+      new RegExp("(" + PLAN_LABELS + ")\\s*：\\s*\\n\\s*(?!" + "(?:" + PLAN_LABELS + ")\\s*：)([^\\n]+)", "g"),
+      "$1：$2"
+    );
+    // 表格式同一行多字段：下一标签前补换行
+    t = t.replace(new RegExp("([^\\n])(\\s*)(" + PLAN_LABELS + ")\\s*：", "g"), "$1\n$3：");
     return t;
   }
 
@@ -1020,6 +1170,116 @@ const MingdanUpload = (function () {
   function cleanTransportField(s) {
     const v = String(s || "").trim();
     return isTransportLine(v) ? v : "";
+  }
+
+
+  /** 轻旅/计划 Word 字段补全（标签：值）；联系人=紧急联系人/对接人，非客人 */
+  function enrichPlanDocFields(fields, t) {
+    const f = fields || {};
+    const agency = pickField("组团社", t);
+    if (agency && (!f.agency || f.agency.length > agency.length + 2)) f.agency = agency;
+    const product = pickField(["产品名称", "线路名称"], t);
+    if (product && !f.line_name) f.line_name = product;
+    const dep = flexDate(pickField("出团日期", t) || pickField("出团时间", t));
+    if (dep) f.depart_date = dep;
+    const ret = flexDate(pickField(["返回日期", "返程日期"], t));
+    if (ret) f.return_date = ret;
+    const book = flexDate(pickField(["预订日期", "预定日期"], t));
+    if (book) f.book_date = book;
+    if (f.depart_date) f.sign_date = f.depart_date;
+    const guest = pickField("客人姓名", t);
+    if (guest) {
+      const gn = guest.match(/([\u4e00-\u9fff]{2,4})/);
+      if (gn) f.guest_name = gn[1];
+      else if (!f.guest_name) f.guest_name = guest.split(/[，,；;、]/)[0].trim();
+    }
+    const psz = pickField("客人人数", t);
+    if (psz) {
+      const p = partyFromAdultChild(psz);
+      if (p) f.party_size = p;
+    }
+    const stay = pickField("住宿标准", t) || pickField("用房", t);
+    if (stay) f.rooms = roomsFromStay(stay);
+    const jidiao = pickField("计调备注", t);
+    const settleLabeled = pickField("结算明细", t);
+    function applySettleDetail(detail) {
+      if (!detail) return;
+      f.settlement_detail = detail;
+      const kbPack = kbFromDetail(detail);
+      if (kbPack.kb !== "") f.kb = kbPack.kb;
+      if (kbPack.pure) f.gendan_pure = kbPack.pure;
+      if (detail.indexOf("=") >= 0) {
+        const n = parseFloat(detail.split("=").pop().trim());
+        if (!isNaN(n)) f.settlement = Math.round(n);
+      } else if (kbPack.kb !== "") {
+        // 如计调备注 -20*2 → 结算=KB纯数字 40
+        f.settlement = kbPack.kb;
+      }
+    }
+    if (jidiao) {
+      applySettleDetail(jidiao);
+    } else if (settleLabeled) {
+      applySettleDetail(settleLabeled);
+    }
+    const emer = parseEmerContact(pickField("紧急联系人", t));
+    if (emer.name) f.contact_name = emer.name;
+    if (emer.phone) f.contact_phone = emer.phone;
+    // 勿把客人手机写入联系人手机
+    const guestPhone = pickField("手机号码", t);
+    const nature = pickField("团队性质", t);
+    const other = pickField("其他备注", t);
+    const remarkParts = [];
+    if (nature) remarkParts.push("团性质：" + nature);
+    if (other) remarkParts.push(other);
+    if (remarkParts.length) {
+      if (!f.remarks) f.remarks = remarkParts.join("；");
+      else {
+        const missing = remarkParts.filter(function (p) { return p && f.remarks.indexOf(p) < 0; });
+        if (missing.length) f.remarks = (missing.join("；") + "；" + f.remarks).trim();
+      }
+    }
+    // 团款/定金/代收/返款/全款：有非零才填，空或￥0 不臆造
+    const total = nonzeroMoney(pickField("总团款", t) || pickField("团款", t));
+    if (total && !nonzeroMoney(f.full_amount)) f.full_amount = total;
+    const depAmt = nonzeroMoney(pickField("定金自收", t) || pickField("定金", t));
+    if (depAmt && !nonzeroMoney(f.deposit)) f.deposit = depAmt;
+    const collectAmt = nonzeroMoney(
+      pickField("定金代收", t) || pickField("尾款代收", t) || pickField("代收金额", t)
+    );
+    if (collectAmt && !nonzeroMoney(f.collect_on_tour)) f.collect_on_tour = collectAmt;
+    const rebateAmt = nonzeroMoney(pickField("返款", t));
+    if (rebateAmt && !nonzeroMoney(f.rebate)) f.rebate = rebateAmt;
+    if (!nonzeroMoney(f.full_amount)) f.full_amount = "";
+    if (!nonzeroMoney(f.deposit)) f.deposit = "";
+    if (!nonzeroMoney(f.collect_on_tour)) f.collect_on_tour = "";
+    if (!nonzeroMoney(f.rebate)) f.rebate = "";
+    // 去程/返程交通（空则保持空，不填垃圾）
+    // 计划单有「抵达/返程交通」标签时：有有效值才填，空则清空（勿留误匹配）
+    const hasArriveLabel = /(?:抵达交通|去程交通)\s*：/.test(t);
+    const hasReturnLabel = /返程交通\s*：/.test(t);
+    const outT = pickField(["抵达交通", "去程交通"], t);
+    const retT = pickField("返程交通", t);
+    if (hasArriveLabel) {
+      f.outbound_transport = outT && isTransportLine(outT) ? cleanTransportField(outT) : "";
+    } else if (outT && isTransportLine(outT)) {
+      f.outbound_transport = cleanTransportField(outT);
+    }
+    if (hasReturnLabel) {
+      f.return_transport = retT && isTransportLine(retT) ? cleanTransportField(retT) : "";
+    } else if (retT && isTransportLine(retT)) {
+      f.return_transport = cleanTransportField(retT);
+    }
+    // 身份证号粘连：交给 parseIdDoc；客人手机写入名单
+    if (guestPhone && /^1\d{10}$/.test(guestPhone)) {
+      if (f.guest_list && f.guest_list.indexOf(guestPhone) < 0) {
+        const lines = f.guest_list.split(/\n+/);
+        if (lines[0] && lines[0].indexOf(guestPhone) < 0) {
+          lines[0] = lines[0].replace(/\s*$/, "") + " " + guestPhone;
+          f.guest_list = lines.join("\n");
+        }
+      }
+    }
+    return f;
   }
 
   function parseText(raw) {
@@ -1173,6 +1433,7 @@ const MingdanUpload = (function () {
       [
         /结算明细\s*：\s*([^\n]+)/,
         /结算明细\s*：\s*结算\s*：\s*([^\n]+)/,
+        /计调备注\s*：\s*([^\n]+)/,
       ],
       t
     );
@@ -1183,6 +1444,7 @@ const MingdanUpload = (function () {
       const m = t.match(/结算\s*：\s*([-+\d.*×xXｋＫkK乌江加车续住房差\u4e00-\u9fff]+(?:=\s*-?\d+(?:\.\d+)?)?)/);
       if (m) settle = m[1].trim();
     }
+    if (!settle) settle = pick([/计调备注\s*：\s*([^\n]+)/], t);
     let rebate = pick([/返款\s*：\s*([^\n]+)/], t);
     // 返款行常粘「业务员：xx / 电话」，电话也可能在下一行 → 拆到第5/6条，返款只留算式
     if (rebate) {
@@ -1201,7 +1463,10 @@ const MingdanUpload = (function () {
         .replace(/[，,；;\s]+$/g, "")
         .trim();
     }
-    let remarks = pick([/备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*返款|$)/], t);
+    let remarks = pick([
+      /(?<![调他])备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*返款|\n\s*(?:计调|其他)?备注|$)/,
+      /其他备注\s*：\s*([^\n]+)/,
+    ], t);
     remarks = (remarks || "").trim();
     const { kb, pure } = kbFromDetail(settle);
     let settlement = "";
@@ -1209,6 +1474,9 @@ const MingdanUpload = (function () {
       const tail = settle.split("=").pop().trim();
       const n = parseFloat(tail);
       if (!isNaN(n)) settlement = Math.round(n);
+    } else if (kb !== "") {
+      // 无「=总额」时（计调备注 -20*2）结算填 KB 纯数字绝对值
+      settlement = kb;
     }
     const fields = {
       line_name,
@@ -1224,11 +1492,11 @@ const MingdanUpload = (function () {
       book_date: todayISO(),
       sign_date: depart_date || todayISO(),
       rooms: (rooms || "").trim(),
-      full_amount: (full_amount || "").trim(),
-      deposit: (deposit || "").trim(),
-      collect_on_tour: (collect_on_tour || "").trim(),
+      full_amount: nonzeroMoney(full_amount),
+      deposit: nonzeroMoney(deposit),
+      collect_on_tour: nonzeroMoney(collect_on_tour),
       settlement,
-      rebate: (rebate || "").trim(),
+      rebate: nonzeroMoney(rebate),
       kb: kb === "" ? "" : kb,
       settlement_detail: settle,
       guest_list: "",
@@ -1286,6 +1554,8 @@ const MingdanUpload = (function () {
       const pm = t.match(/(?:^|[^\d])(\d{1,3})\s*(?:大|人|位)(?:\s|$|，|,|；|;)/);
       if (pm) fields.party_size = pm[1] + (/大/.test(pm[0]) ? "大" : "人");
     }
+
+    try { enrichPlanDocFields(fields, t); } catch (ePlan) {}
 
     // 无明确返程日 → 默认 4 天行程（出团后第 4 天）
     ensureDefaultReturnDate(fields);
@@ -2108,23 +2378,44 @@ const MingdanUpload = (function () {
     );
   }
 
-  function submitParse() {
+  async function submitParse() {
     console.log("[MingdanUpload] submitParse clicked");
     try {
       const textEl = $("fuzzyText");
-      const text = (textEl && textEl.value) || "";
+      let text = (textEl && textEl.value) || "";
       const fileInput = $("fuzzyFile");
       const file = fileInput && fileInput.files && fileInput.files[0];
       if (!text.trim() && !file) {
-        setMsg("请粘贴订单文字，或选择 Excel/截图文件", "err");
+        setMsg("请粘贴订单文字，或选择 Word/Excel/截图文件", "err");
         return false;
       }
       let draft;
       let partial = false;
+      // Word / 纯文本附件：先抽正文再走同一套解析
+      if (!text.trim() && file) {
+        const fname = String(file.name || "").toLowerCase();
+        const isDocx =
+          /\.docx$/i.test(fname) ||
+          (file.type && /wordprocessingml|officedocument\.word/.test(file.type));
+        const isTxt = /\.txt$/i.test(fname) || file.type === "text/plain";
+        if (isDocx) {
+          setMsg("正在读取 Word…", "ok");
+          const ab = await file.arrayBuffer();
+          text = await extractDocxText(ab);
+          if (textEl) textEl.value = text;
+        } else if (isTxt) {
+          text = await file.text();
+          if (textEl) textEl.value = text;
+        }
+      }
       if (text.trim()) {
         draft = parseText(text);
         draft.status = "draft_todo";
         draft.status_label = STATUS.draft_todo;
+        if (file) {
+          draft.file_name = file.name;
+          draft.source = /\.docx$/i.test(file.name || "") ? "docx" : draft.source || "text";
+        }
         if (fieldsLookEmpty(draft.fields)) {
           partial = true;
           // 绝不因「看起来空」丢掉原文：仍开核对，让销售补字段
@@ -2390,7 +2681,8 @@ const MingdanUpload = (function () {
       return eight;
     });
     // 台胞证号旁签发次数：30384335""01 / 02215633 "04 / 07042222 °03
-    t = t.replace(/(\d{8})\s*["“”'`'*°·.=]{0,4}\s*(0[1-9]|[1-9])(?!\d)/g, "$1 签发次数$2");
+    // 须为独立 8 位（前后非数字），避免吃掉身份证 18 位末位
+    t = t.replace(/(?<!\d)(\d{8})(?!\d)\s*["“”'`'*°·.=]{0,4}\s*(0[1-9]|[1-9])(?!\d)/g, "$1 签发次数$2");
     // 证件号码 OCR 粘连/错字
     t = t.replace(/证\s*[件仲体忻]\s*[号码纺名]?\s*[码码友]?/g, "证件号码");
     // 英文名逗号被认成分号/空
@@ -2590,6 +2882,10 @@ const MingdanUpload = (function () {
       let nm = nearbyName(m.index, flat);
       const glued = flat.slice(Math.max(0, m.index - 12), m.index).match(/([\u4e00-\u9fff]{2,4})身份证\s*$/);
       if (glued) nm = glued[1];
+      else {
+        const glued2 = flat.slice(Math.max(0, m.index - 8), m.index).match(/([\u4e00-\u9fff]{2,4})\s*$/);
+        if (glued2) nm = glued2[1];
+      }
       push(nm, "身份证", m[1].toUpperCase());
     }
 
