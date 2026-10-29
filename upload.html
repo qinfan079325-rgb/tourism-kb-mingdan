@@ -801,14 +801,17 @@ const MingdanUpload = (function () {
       if (m) settle = m[1].trim();
     }
     let rebate = pick([/返款\s*：\s*([^\n]+)/], t);
-    // 返款行常粘「业务员：xx / 电话」→ 拆到第5/6条，返款只留算式
+    // 返款行常粘「业务员：xx / 电话」，电话也可能在下一行 → 拆到第5/6条，返款只留算式
     if (rebate) {
+      const rebateBlock = (t.match(/返款\s*：\s*([^\n]+)(?:\n\s*(1\d{10}))?/) || []);
       const staffM = rebate.match(/业务员\s*[：:]\s*([^\d\n，,；;]{1,12})/);
-      const phoneM = rebate.match(/(1\d{10})/);
-      if (staffM && !contact_name) {
+      const phoneM = rebate.match(/(1\d{10})/) || (rebateBlock[2] ? [null, rebateBlock[2]] : null)
+        || t.match(/返款\s*：[^\n]*\n\s*(1\d{10})/);
+      if (staffM) {
+        // 业务员优先于客服，写入第5条
         contact_name = staffM[1].replace(/[（(].*$/, "").trim();
       }
-      if (phoneM && !contact_phone) contact_phone = phoneM[1];
+      if (phoneM && phoneM[1] && !contact_phone) contact_phone = phoneM[1];
       rebate = rebate
         .replace(/业务员\s*[：:].*$/, "")
         .replace(/1\d{10}/g, "")
