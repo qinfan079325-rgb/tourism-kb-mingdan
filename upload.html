@@ -321,7 +321,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-29 23:58 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:06 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -476,11 +476,11 @@ const MingdanUpload = (function () {
     ["depart_date", "出团时间"],
     ["return_date", "返程日期"],
     ["agency", "客户单位"],
-    ["contact_name", "联系人员"],
-    ["contact_phone", "联系人手机"],
+    ["contact_name", "联系人员（业务员/对接人）"],
+    ["contact_phone", "联系人手机（业务员/对接人）"],
     ["outbound_transport", "去程交通"],
     ["return_transport", "返程交通"],
-    ["guest_name", "客人姓名"],
+    ["guest_name", "客人姓名（代表人）"],
     ["party_size", "参团人数"],
     ["book_date", "预定日期"],
     ["sign_date", "签单日期"],
@@ -724,18 +724,49 @@ const MingdanUpload = (function () {
       ],
       t
     );
-    let contact = pick(
+    // 第5/6条：联系人员/手机 = 业务员或游客以外的对接人，不是客人代表人
+    let staff = pick(
       [
-        /【?\s*客人姓名及联系方式\s*[】\]]?\s*：?\s*([^\n]+)/,
-        /联系人员?\s*：\s*([^\n]+)/,
-        /客人姓名\s*：\s*([^\n]+)/,
+        /【\s*客服\s*】\s*[：:]?\s*([^\n]+)/,
+        /【\s*业务员\s*】\s*[：:]?\s*([^\n]+)/,
+        /业务员\s*[：:]\s*([^\n]+)/,
+        /联系人员?\s*[：:]\s*([^\n]+)/,
+        /对接人\s*[：:]\s*([^\n]+)/,
+        /销售\s*[：:]\s*([^\n]+)/,
       ],
       t
     );
-    contact = contact.replace(/^[^\u4e00-\u9fffA-Za-z]*/, "");
-    const contact_name = contact ? contact.split(/[，,（(]/)[0].trim() : "";
-    const pm = contact.match(/(1\d{10})/);
-    const contact_phone = pm ? pm[1] : "";
+    staff = (staff || "").replace(/^[^\u4e00-\u9fffA-Za-z]*/, "").trim();
+    // 去掉括号里的附注电话以外的内容时，姓名取第一段
+    let contact_name = staff ? staff.split(/[，,；;、]/)[0].replace(/[（(][^）)]*[）)]/g, "").trim() : "";
+    // 若第一段过长或像说明，再从「客服：姓名」式取 2–4 汉字
+    if (contact_name && (contact_name.length > 8 || /电话|微信|没有/.test(contact_name))) {
+      const nm = staff.match(/([\u4e00-\u9fff]{2,4})/);
+      contact_name = nm ? nm[1] : contact_name.slice(0, 8);
+    }
+    const staffPhone = (staff.match(/(1\d{10})/) || [])[1] || "";
+    let contact_phone = staffPhone;
+    if (!contact_phone) {
+      contact_phone = pick([/联系人手机\s*[：:]\s*(1\d{10})/, /对接人手机\s*[：:]\s*(1\d{10})/, /业务员手机\s*[：:]\s*(1\d{10})/], t) || "";
+    }
+
+    // 第9条：客人姓名 = 代表人（可从「客人姓名及联系方式」取）
+    let guestRaw = pick(
+      [
+        /【?\s*客人姓名及联系方式\s*[】\]]?\s*：?\s*([^\n]+)/,
+        /客人姓名\s*[：:]\s*([^\n]+)/,
+        /代表人\s*[：:]\s*([^\n]+)/,
+        /【\s*客人\s*】\s*[：:]?\s*([^\n]+)/,
+      ],
+      t
+    );
+    guestRaw = (guestRaw || "").replace(/^[^\u4e00-\u9fffA-Za-z]*/, "").trim();
+    let guest_name = guestRaw ? guestRaw.split(/[，,；;、（(]/)[0].trim() : "";
+    if (guest_name && (guest_name.length > 8 || /电话|微信|台湾|没有/.test(guest_name))) {
+      const gn = guestRaw.match(/([\u4e00-\u9fff]{2,4})/);
+      if (gn) guest_name = gn[1];
+    }
+    // 客人行里的手机不算第6条联系人手机（那是业务员/对接人）
     const full_amount = pick(
       [
         /【\s*合同金额\s*[】\]]\s*：?\s*([^\n]+)/,
@@ -785,7 +816,7 @@ const MingdanUpload = (function () {
       contact_phone,
       outbound_transport: (outbound_transport || "").trim(),
       return_transport: (return_transport || "").trim(),
-      guest_name: contact_name,
+      guest_name,
       party_size: (party_size || "").trim(),
       book_date: todayISO(),
       sign_date: depart_date || todayISO(),
@@ -838,8 +869,8 @@ const MingdanUpload = (function () {
       if (train && train.order_date && !fields.book_date) fields.book_date = train.order_date;
       const pass = (train && train.passenger) || (flight && flight.passenger) || "";
       if (pass) {
+        // 车票/机票上的姓名是游客，只填客人姓名，不填第5条联系人员
         if (!fields.guest_name) fields.guest_name = pass;
-        if (!fields.contact_name) fields.contact_name = pass;
       }
       if (train && train.ticket_count && !fields.party_size) {
         fields.party_size = train.ticket_count + "大";
@@ -2312,8 +2343,8 @@ const MingdanUpload = (function () {
       if (date && !readField("return_date")) writeField("return_date", date);
     }
     if (pass) {
+      // 乘客是游客代表人 → 客人姓名；不写入业务员联系人
       if (!readField("guest_name")) writeField("guest_name", pass);
-      if (!readField("contact_name")) writeField("contact_name", pass);
     }
     if (count && !readField("party_size")) writeField("party_size", count + "大");
 
