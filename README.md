@@ -73,3 +73,12 @@ python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --today 2026-10
 ```bash
 /workspace/tourism-kb-model/web/mingdan/deploy.sh
 ```
+
+## 模糊订单上传（未出团 · MVP）
+
+登录后在未出团页上方可上传/粘贴模糊订单。流程：解析 → **销售确认无误** → 本机标「已确认待易途」。未确认不上钉钉正式名单。字段与解析桩见 `upload/`。
+
+- KB 只取结算明细纯数字项（汉字说明项不计）
+- 助手通知：页内「复制通知助手」或下载 JSON（interim；尚无上传后端）
+- 不改已完团页；不改钉钉导出合并逻辑
+
