@@ -270,10 +270,10 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <span class="fuzzy-ocr-drop-s">识别后点下方按钮写入名单 / 去程 / 返程；首次需下载中文模型，稍等即可</span>
         </div>
         <div class="fuzzy-actions fuzzy-ocr-actions">
-          <button type="button" class="btn" id="fuzzyOcrIdBtn" title="从最近一次 OCR 结果提取证件写入客人名单" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrIds)MingdanUpload.applyOcrIds()}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入证件失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别证件 → 名单</button>
+          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrIdBtn" title="从最近一次 OCR 结果提取证件写入客人名单" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrIds)MingdanUpload.applyOcrIds()}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入证件失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别证件 → 名单</button>
           <button type="button" class="btn" id="fuzzyOcrOutBtn" title="填入去程交通" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('outbound')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入去程失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别交通 → 去程</button>
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="填入返程交通" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('return')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入返程失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别交通 → 返程</button>
-          <button type="button" class="btn fuzzy-primary" id="fuzzyOcrAutoBtn" title="去程空则填去程，否则填返程" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('auto')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入交通失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别交通（自动）</button>
+          <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="去程空则填去程，否则填返程" onclick="try{if(window.MingdanUpload&amp;&amp;MingdanUpload.applyOcrTransport)MingdanUpload.applyOcrTransport('auto')}catch(e){console.error(e);var m=document.getElementById('fuzzyOcrMsg');if(m){m.textContent='写入交通失败：'+(e&amp;&amp;e.message||e);m.className='fuzzy-ocr-msg err'}}return false;">识别交通（自动）</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
@@ -321,7 +321,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:15 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:20 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2249,12 +2249,15 @@ const MingdanUpload = (function () {
     const kind = (meta && meta.kind) || "";
     const idBtn = $("fuzzyOcrIdBtn");
     const autoBtn = $("fuzzyOcrAutoBtn");
+    // 默认高亮「识别证件」；只有明确火车/航班才高亮交通自动
+    const idHi = kind === "id" || kind === "" || kind === "unknown" || !kind;
+    const trHi = kind === "train" || kind === "flight";
     if (idBtn) {
-      idBtn.classList.toggle("fuzzy-primary", kind === "id");
+      idBtn.classList.toggle("fuzzy-primary", idHi && !trHi);
       idBtn.disabled = false;
     }
     if (autoBtn) {
-      autoBtn.classList.toggle("fuzzy-primary", kind === "train" || kind === "flight");
+      autoBtn.classList.toggle("fuzzy-primary", trHi);
     }
   }
 
@@ -2379,6 +2382,7 @@ const MingdanUpload = (function () {
     }
     setOcrBusy(true);
     try {
+      refreshOcrActionButtons({ kind: "id" }); // 识别过程中高亮证件，避免误以为在跑交通
       setOcrMsg("正在加载识别引擎" + (label ? "（" + label + "）" : "") + "…首次需下载中文模型，可能需几十秒", "");
       const Tesseract = await loadTesseract();
       setOcrMsg("预处理截图（放大/切卡）…", "");
@@ -2392,9 +2396,11 @@ const MingdanUpload = (function () {
       const chunks = [];
       for (let i = 0; i < canvases.length; i++) {
         setOcrMsg(
-          "识别中…" +
-            (canvases.length > 1 ? "第 " + (i + 1) + "/" + canvases.length + " 段 " : "") +
-            (label ? "（" + label + "）" : ""),
+          (canvases.length > 1
+            ? "证件切卡识别中 " + (i + 1) + "/" + canvases.length + "（不是交通）"
+            : "截图文字识别中") +
+            (label ? " · " + label : "") +
+            "…",
           ""
         );
         const result = await Tesseract.recognize(canvases[i], "chi_sim+eng", {
@@ -2402,10 +2408,11 @@ const MingdanUpload = (function () {
             if (!m) return;
             if (m.status === "recognizing text" && typeof m.progress === "number") {
               setOcrMsg(
-                "识别中…" +
-                  (canvases.length > 1 ? "段" + (i + 1) + "/" + canvases.length + " " : "") +
+                (canvases.length > 1
+                  ? "证件切卡识别中 " + (i + 1) + "/" + canvases.length + " "
+                  : "截图识别中 ") +
                   Math.round(m.progress * 100) +
-                  "%",
+                  "%（写名单用，不是交通）",
                 ""
               );
             } else if (m.status === "loading language traineddata") {
