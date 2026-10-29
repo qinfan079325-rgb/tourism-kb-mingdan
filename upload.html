@@ -315,7 +315,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-29 23:48 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-29 23:50 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -634,14 +634,24 @@ const MingdanUpload = (function () {
 
   function parseText(raw) {
     const t = normalizeText(raw);
+    // 字段按「标签/格式」识别，不依赖易途 1–22 顺序；截图/粘贴顺序任意均可
     const agency = pick(
-      [/组团社\s*[：:]\s*([^\n【]+)/, /客户单位\s*[：:]\s*([^\n]+)/],
+      [
+        /组团社\s*[：:]\s*([^\n【]+)/,
+        /客户单位\s*[：:]\s*([^\n]+)/,
+        /(?:^|\n)\s*单位\s*[：:]\s*([^\n]+)/,
+        /旅行社\s*[：:]\s*([^\n【]+)/,
+        /【\s*组团社\s*】\s*[：:]?\s*([^\n]+)/,
+        /社名\s*[：:]\s*([^\n]+)/,
+      ],
       t
     );
     const departRaw = pick(
       [
         /【\s*时间\s*】\s*[：:]?\s*([^\n]+)/,
         /出团时间\s*[：:]\s*([^\n]+)/,
+        /出团日(?:期)?\s*[：:]\s*([^\n]+)/,
+        /发团(?:日|时间)?\s*[：:]\s*([^\n]+)/,
         /(?:^|\n)\s*日期\s*[：:]\s*([^\n]+)/,
       ],
       t
@@ -678,15 +688,21 @@ const MingdanUpload = (function () {
     const outbound_transport = pick(
       [
         /【\s*抵达日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n]+)/,
+        /【\s*去程[^】]*】\s*[：:]?\s*([^\n]+)/,
         /去程交通\s*[：:]\s*([^\n]+)/,
         /来程信息\s*[：:]\s*([^\n]+)/,
+        /抵达航班\s*[：:]\s*([^\n]+)/,
+        /去程\s*[：:]\s*([^\n]+)/,
       ],
       t
     );
     const return_transport = pick(
       [
         /【\s*返程日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n]+)/,
+        /【\s*返程[^】]*】\s*[：:]?\s*([^\n]+)/,
         /返程交通\s*[：:]\s*([^\n]+)/,
+        /返程航班\s*[：:]\s*([^\n]+)/,
+        /回程\s*[：:]\s*([^\n]+)/,
       ],
       t
     );
@@ -694,9 +710,11 @@ const MingdanUpload = (function () {
       [
         /【\s*客人人数\s*[】\]]\s*：?\s*([^\n]+)/,
         /【\s*人数\s*[】\]]\s*：?\s*([^\n]+)/,
-        /参团人数\s*：\s*([^\n]+)/,
-        /客人人数\s*：\s*([^\n]+)/,
-        /(?:^|\n)\s*人数\s*：\s*([^\n]+)/,
+        /参团人数\s*[：:]\s*([^\n]+)/,
+        /客人人数\s*[：:]\s*([^\n]+)/,
+        /(?:^|\n)\s*人数\s*[：:]\s*([^\n]+)/,
+        /总人数\s*[：:]\s*([^\n]+)/,
+        /共\s*(\d+\s*[大人位])/,
       ],
       t
     );
@@ -777,6 +795,57 @@ const MingdanUpload = (function () {
       remarks,
       gendan_pure: pure,
     };
+    // 正文里若夹带证件号（顺序任意），一并填入名单
+    try {
+      const idParsed = parseIdDoc(t);
+      if (idParsed && idParsed.guest_list) {
+        fields.guest_list = idParsed.guest_list;
+        if (!fields.guest_name && idParsed.names && idParsed.names[0]) {
+          fields.guest_name = idParsed.names[0];
+        }
+        if (!fields.party_size && idParsed.guests && idParsed.guests.length) {
+          fields.party_size = idParsed.guests.length + "大";
+        }
+      }
+    } catch (e) {}
+
+    // 内容/格式兜底：与易途 1–22 字段出现顺序无关；火车票/航班行 → 交通字段
+    try {
+      const train = parseTrainTicket(t);
+      const flight = parseFlightTicket(t);
+      const lookTrain = /12306|发车时间|总张数|车次|已支付/.test(t);
+      const lookFlight = /Terminal|Confirmed|Flight|登机|航班/i.test(t) || /\b(?:CX|CA|MU|CZ|HU|3U)\s*\d{2,4}\b/i.test(t);
+      let transportLine = "";
+      if (lookTrain && train.line) transportLine = train.line;
+      else if (lookFlight && flight.line && !/^[GDCZKTY]\d+$/i.test(flight.flight_no || "")) transportLine = flight.line;
+      else if (train.line && !flight.line) transportLine = train.line;
+      else if (flight.line && !/^[GDCZKTY]\d+$/i.test(flight.flight_no || "")) transportLine = flight.line;
+
+      if (transportLine) {
+        if (!fields.outbound_transport) fields.outbound_transport = transportLine;
+        else if (!fields.return_transport && fields.outbound_transport !== transportLine) {
+          fields.return_transport = transportLine;
+        }
+      }
+      const tDate = (train && train.depart_date) || (flight && flight.depart_date) || "";
+      if (tDate && !fields.depart_date) fields.depart_date = tDate;
+      if (train && train.order_date && !fields.book_date) fields.book_date = train.order_date;
+      const pass = (train && train.passenger) || (flight && flight.passenger) || "";
+      if (pass) {
+        if (!fields.guest_name) fields.guest_name = pass;
+        if (!fields.contact_name) fields.contact_name = pass;
+      }
+      if (train && train.ticket_count && !fields.party_size) {
+        fields.party_size = train.ticket_count + "大";
+      }
+    } catch (e) {}
+
+    // 无标签时：纯格式抓人数「N大 / N人 / N位」
+    if (!fields.party_size) {
+      const pm = t.match(/(?:^|[^\d])(\d{1,3})\s*(?:大|人|位)(?:\s|$|，|,|；|;)/);
+      if (pm) fields.party_size = pm[1] + (/大/.test(pm[0]) ? "大" : "人");
+    }
+
     return {
       id: uid(),
       status: "pending_sales_confirm",
@@ -1413,9 +1482,55 @@ const MingdanUpload = (function () {
     if (!s) return "";
     let m = String(s).match(/(\d{4})\s*[年\-\/.]\s*(\d{1,2})\s*[月\-\/.]\s*(\d{1,2})/);
     if (m) return m[1] + "-" + String(m[2]).padStart(2, "0") + "-" + String(m[3]).padStart(2, "0");
+    // English: Tue 27 Oct 2026 / 27 Oct 2026 / Oct 27, 2026
+    const months = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
+    m = String(s).match(/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?\s*(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*,?\s*(20\d{2})/i);
+    if (m) {
+      const mo = months[m[2].slice(0, 3).toLowerCase()];
+      return m[3] + "-" + String(mo).padStart(2, "0") + "-" + String(m[1]).padStart(2, "0");
+    }
+    m = String(s).match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2})\s*,?\s*(20\d{2})/i);
+    if (m) {
+      const mo = months[m[1].slice(0, 3).toLowerCase()];
+      return m[3] + "-" + String(mo).padStart(2, "0") + "-" + String(m[2]).padStart(2, "0");
+    }
     m = String(s).match(/(\d{4})(\d{2})(\d{2})/);
     if (m) return m[1] + "-" + m[2] + "-" + m[3];
     return "";
+  }
+
+  const AIRPORT_ZH = {
+    HKG: "香港", CKG: "重庆", PEK: "北京", PKX: "北京大兴", PVG: "上海浦东", SHA: "上海虹桥",
+    CAN: "广州", SZX: "深圳", CTU: "成都", TFU: "成都天府", XIY: "西安", KMG: "昆明",
+    HGH: "杭州", NKG: "南京", WUH: "武汉", TSN: "天津", TPE: "台北", TSA: "台北松山",
+    KHH: "高雄", MFM: "澳门", NRT: "东京成田", HND: "东京羽田", ICN: "首尔", SIN: "新加坡",
+    BKK: "曼谷", DXB: "迪拜", LAX: "洛杉矶", SFO: "旧金山",
+  };
+  const CITY_EN_TO_CODE = {
+    "hong kong": "HKG", chongqing: "CKG", beijing: "PEK", shanghai: "PVG",
+    guangzhou: "CAN", shenzhen: "SZX", chengdu: "CTU", taipei: "TPE",
+    kaohsiung: "KHH", macau: "MFM", macao: "MFM", tokyo: "NRT",
+    seoul: "ICN", singapore: "SIN", bangkok: "BKK",
+  };
+  function airportLabel(code, nameHint) {
+    const c = String(code || "").toUpperCase();
+    let zh = AIRPORT_ZH[c] || "";
+    if (!zh && nameHint) {
+      const hint = String(nameHint).trim();
+      if (/[\u4e00-\u9fff]/.test(hint)) zh = hint.replace(/\s+/g, "").replace(/国际机场|机场/g, "");
+      else {
+        const low = hint.toLowerCase();
+        for (const k of Object.keys(CITY_EN_TO_CODE)) {
+          if (low.indexOf(k) >= 0) {
+            zh = AIRPORT_ZH[CITY_EN_TO_CODE[k]] || hint;
+            break;
+          }
+        }
+        if (!zh) zh = hint;
+      }
+    }
+    if (zh && c) return zh + "(" + c + ")";
+    return zh || c || "";
   }
 
   function normalizeTime(s) {
@@ -1448,11 +1563,30 @@ const MingdanUpload = (function () {
     const found = [];
     const seen = {};
 
+    function cleanPersonName(name) {
+      let nm = String(name || "").replace(/\s+/g, "").trim();
+      nm = nm.replace(/(?:身份证|护照|台胞证|通行证|证件号|姓名)$/g, "");
+      nm = nm.replace(/^(?:身份证|护照|台胞证|通行证|证件号|姓名)/g, "");
+      if (!nm || nm.length < 2 || nm.length > 8) return "";
+      if (/证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|订单/.test(nm)) return "";
+      return nm;
+    }
     function push(name, typ, num) {
       const id = String(num || "").trim().toUpperCase();
-      if (!id || seen[id]) return;
+      if (!id) return;
+      const nm = cleanPersonName(name);
+      if (seen[id]) {
+        if (nm) {
+          const prev = found.find((g) => g.number === id);
+          if (prev && (!prev.name || prev.name.length < nm.length)) {
+            prev.name = nm;
+            prev.type = typ || prev.type;
+            prev.line = nm + " " + prev.type + " " + id;
+          }
+        }
+        return;
+      }
       seen[id] = true;
-      const nm = String(name || "").replace(/\s+/g, "").trim();
       found.push({
         name: nm,
         type: typ,
@@ -1462,10 +1596,12 @@ const MingdanUpload = (function () {
     }
 
     function nearbyName(idx, hay) {
-      // 向前找 2–4 个汉字姓名
-      const before = hay.slice(Math.max(0, idx - 24), idx);
-      const m = before.match(/([\u4e00-\u9fff]{2,4})\s*$/);
-      if (m && !/证件|护照|台胞|身份|号码|姓名|旅客|乘客/.test(m[1])) return m[1];
+      // 向前找 2–4 个汉字姓名（版式顺序任意）
+      const before = hay.slice(Math.max(0, idx - 40), idx);
+      let m = before.match(/(?:姓名|Name)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Za-z][A-Za-z\s]{1,30})\s*$/i);
+      if (m) return m[1].replace(/\s+/g, "");
+      m = before.match(/([\u4e00-\u9fff]{2,4})\s*$/);
+      if (m && !/证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆/.test(m[1])) return m[1];
       return "";
     }
 
@@ -1473,7 +1609,10 @@ const MingdanUpload = (function () {
     const id18 = /([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])/g;
     let m;
     while ((m = id18.exec(flat))) {
-      push(nearbyName(m.index, flat), "身份证", m[1].toUpperCase());
+      let nm = nearbyName(m.index, flat);
+      const glued = flat.slice(Math.max(0, m.index - 12), m.index).match(/([\u4e00-\u9fff]{2,4})身份证\s*$/);
+      if (glued) nm = glued[1];
+      push(nm, "身份证", m[1].toUpperCase());
     }
 
     // 台胞证：常见 8 位数字（避免把订单号/车次误判：需靠近「台胞/通行证」或姓名）
@@ -1522,8 +1661,36 @@ const MingdanUpload = (function () {
       if (pm2 && /\d/.test(pm2[1]) && !/^[GDCZKTY]\d+$/i.test(pm2[1])) {
         push(pm2[2], "护照", pm2[1].toUpperCase());
       }
-      const idn = line.match(/([\u4e00-\u9fff]{2,4})\s+([1-9]\d{16}[\dXx])/);
+      const idn =
+        line.match(/([\u4e00-\u9fff]{2,4})\s*身份证\s*([1-9]\d{16}[\dXx])/) ||
+        line.match(/([\u4e00-\u9fff]{2,4})\s+(?:身份证\s*)?([1-9]\d{16}[\dXx])/);
       if (idn) push(idn[1], "身份证", idn[2].toUpperCase());
+      const idn2 =
+        line.match(/([\u4e00-\u9fff]{2,4})\s*台胞证\s*(\d{8})\b/) ||
+        line.match(/([\u4e00-\u9fff]{2,4})\s+(?:台胞证|通行证)\s*(\d{8})\b/);
+      if (idn2) push(idn2[1], "台胞证", idn2[2]);
+      const idn3 =
+        line.match(/([\u4e00-\u9fff]{2,4})\s*护照\s*([A-Z][A-Z0-9]{6,9})\b/i) ||
+        line.match(/([\u4e00-\u9fff]{2,4})\s+护照\s*([A-Z][A-Z0-9]{6,9})\b/i);
+      if (idn3) push(idn3[1], "护照", idn3[2].toUpperCase());
+    }
+
+    // 「姓名：xx」与邻近证件号配对（不依赖字段顺序）
+    for (let i = 0; i < lines.length; i++) {
+      const nm = lines[i].match(/^(?:姓名|Name)\s*[:：]?\s*([\u4e00-\u9fff]{2,8}|[A-Za-z][A-Za-z\s]{1,30})$/i);
+      if (!nm) continue;
+      const name = nm[1].replace(/\s+/g, "");
+      const window = [lines[i + 1] || "", lines[i + 2] || "", lines[i - 1] || ""].join(" ");
+      let num =
+        (window.match(/([1-9]\d{16}[\dXx])/) ||
+          window.match(/\b(\d{8})\b/) ||
+          window.match(/\b([A-Z][A-Z0-9]{6,9})\b/i) ||
+          [])[1];
+      if (!num) continue;
+      let typ = "护照";
+      if (/^\d{17}[\dXx]$/i.test(num)) typ = "身份证";
+      else if (/^\d{8}$/.test(num)) typ = "台胞证";
+      push(name, typ, num);
     }
 
     return {
@@ -1562,10 +1729,10 @@ const MingdanUpload = (function () {
     }
     m =
       flat.match(
-        /([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))\s*[-~～至到]\s*([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))/
+        /([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))\s*[-~～—–一至到→]+\s*([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))/
       ) ||
       flat.match(
-        /\b[GDCZKTY]\d{1,5}\s+([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))\s*[-~～至到]?\s*([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))/i
+        /\b[GDCZKTY]\d{1,5}\s+([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))\s*[-~～—–一至到→]?\s*([\u4e00-\u9fff]{1,6}(?:东|西|南|北|站|丁|酉))/i
       );
     if (m) {
       out.from = fixStation(m[1]);
@@ -1595,7 +1762,7 @@ const MingdanUpload = (function () {
     m = flat.match(/订单号\s*:?\s*([A-Z]?\d{6,14})/i);
     if (m) out.order_no = m[1].toUpperCase();
 
-    // 总张数 4张 何燕芳 等4人（姓名不含「等」）
+    // 人数/代表人：按内容匹配（总张数 / N张 / 姓名等N人），与版式顺序无关
     m = flat.match(/总张数\s*:?\s*(\d+)\s*张\s*([\u4e00-\u9fff]{2,4}?)(?:\s*等|\s*\d|\s*$)/);
     if (m) {
       out.ticket_count = m[1];
@@ -1606,6 +1773,17 @@ const MingdanUpload = (function () {
         out.ticket_count = m[1];
         out.passenger = m[2];
       }
+    }
+    if (!out.passenger) {
+      m = flat.match(/([\u4e00-\u9fff]{2,4})\s*等\s*(\d+)\s*人/);
+      if (m) {
+        out.passenger = m[1];
+        if (!out.ticket_count) out.ticket_count = m[2];
+      }
+    }
+    if (!out.ticket_count) {
+      m = flat.match(/(\d+)\s*张/);
+      if (m) out.ticket_count = m[1];
     }
     if (out.passenger) out.passenger = out.passenger.replace(/等$/, "");
 
@@ -1619,14 +1797,16 @@ const MingdanUpload = (function () {
     return out;
   }
 
-  /** 航班行程截图 */
+  /** 航班行程截图（不依赖字段顺序；按航班号/机场码/英文 to / 时间匹配） */
   function parseFlightTicket(ocrText) {
-    const text = collapseOcrNoise(ocrText);
-    const flat = text.replace(/\s+/g, " ");
+    const text = String(ocrText || "").replace(/\r/g, "\n");
+    const flat = text.replace(/[—–―−－]/g, "-").replace(/\s+/g, " ");
     const out = {
       flight_no: "",
       from: "",
       to: "",
+      from_code: "",
+      to_code: "",
       depart_date: "",
       depart_time: "",
       arrive_time: "",
@@ -1634,32 +1814,89 @@ const MingdanUpload = (function () {
       line: "",
     };
 
-    let m = flat.match(
-      /\b((?:CA|MU|CZ|HU|3U|FM|SC|ZH|MF|9C|HO|TV|PN|G5|JD|KN|NS|BK|EU|GY|A6|UQ|CN)\s*\d{2,4})\b/i
-    );
-    if (!m) m = flat.match(/(?:航班(?:号)?|Flight)\s*[:：]?\s*([A-Z0-9]{2}\s*\d{2,4})/i);
-    if (m) out.flight_no = m[1].replace(/\s+/g, "").toUpperCase();
+    // 航班号：CX966 / CA1234 / 任意两字母或字母数字 + 2–4 位（排除日期/时间）
+    let m =
+      flat.match(/\b((?:CX|CA|MU|CZ|HU|3U|FM|SC|ZH|MF|9C|HO|TV|PN|G5|JD|KN|NS|BK|EU|GY|A6|UQ|CN|NX|HX|KA|SQ|TG|NH|JL|KE|OZ|QR|EK|AA|UA|DL|BA|AF|LH|QR)\s*-?\s*\d{2,4})\b/i) ||
+      flat.match(/(?:航班(?:号)?|Flight(?:\s*No\.?)?)\s*[:：]?\s*([A-Z0-9]{2}\s*-?\s*\d{2,4})/i) ||
+      flat.match(/\b([A-Z]{2}\s*-?\s*\d{2,4})\b/);
+    if (m) out.flight_no = m[1].replace(/[\s-]+/g, "").toUpperCase();
 
+    // English: Hong Kong to Chongqing
+    m = flat.match(/\b([A-Za-z][A-Za-z .]{1,24}?)\s+to\s+([A-Za-z][A-Za-z .]{1,24}?)\b/i);
+    let fromName = "", toName = "";
+    if (m) {
+      fromName = m[1].trim();
+      toName = m[2].trim();
+      const fl = fromName.toLowerCase(), tl = toName.toLowerCase();
+      for (const k of Object.keys(CITY_EN_TO_CODE)) {
+        if (!out.from_code && fl.indexOf(k) >= 0) out.from_code = CITY_EN_TO_CODE[k];
+        if (!out.to_code && tl.indexOf(k) >= 0) out.to_code = CITY_EN_TO_CODE[k];
+      }
+    }
+    // 中文航线
+    if (!fromName) {
+      m =
+        flat.match(
+          /([\u4e00-\u9fff]{2,10}(?:国际)?机场?|[\u4e00-\u9fff]{2,6})\s*[-~～至到→]\s*([\u4e00-\u9fff]{2,10}(?:国际)?机场?|[\u4e00-\u9fff]{2,6})/
+        );
+      if (m) {
+        fromName = m[1].replace(/国际机场|机场/g, "");
+        toName = m[2].replace(/国际机场|机场/g, "");
+      }
+    }
+
+    // 机场三字码（过滤英文星期/月份缩写）
+    const skip = {
+      THE:1, AND:1, FOR:1, OCT:1, NOV:1, DEC:1, JAN:1, FEB:1, MAR:1, APR:1, MAY:1, JUN:1,
+      JUL:1, AUG:1, SEP:1, TUE:1, WED:1, THU:1, FRI:1, SAT:1, SUN:1, MON:1, UTC:1, GMT:1,
+      EST:1, PST:1, CST:1, CONFIRMED:1, TERMINAL:1,
+    };
+    const codes = [];
+    const cre = /\b([A-Z]{3})\b/g;
+    let cm;
+    while ((cm = cre.exec(flat))) {
+      const c = cm[1].toUpperCase();
+      if (skip[c]) continue;
+      if (codes.indexOf(c) < 0) codes.push(c);
+    }
+    const known = codes.filter((c) => AIRPORT_ZH[c]);
+    if (known.length >= 2) {
+      out.from_code = out.from_code || known[0];
+      out.to_code = out.to_code || known[1];
+    } else if (known.length === 1) {
+      if (!out.from_code) out.from_code = known[0];
+      else if (!out.to_code) out.to_code = known[0];
+    }
+    // HKG-CKG glued
+    m = flat.match(/\b([A-Z]{3})\s*[-~～至到→]\s*([A-Z]{3})\b/);
+    if (m && AIRPORT_ZH[m[1].toUpperCase()] && AIRPORT_ZH[m[2].toUpperCase()]) {
+      out.from_code = m[1].toUpperCase();
+      out.to_code = m[2].toUpperCase();
+    }
+
+    out.from = airportLabel(out.from_code, fromName);
+    out.to = airportLabel(out.to_code, toName);
+
+    // 日期：英文优先，再中文
     m =
-      flat.match(
-        /([\u4e00-\u9fff]{2,10}(?:国际)?机场?|[\u4e00-\u9fff]{2,6})\s*[-~～—至到→]\s*([\u4e00-\u9fff]{2,10}(?:国际)?机场?|[\u4e00-\u9fff]{2,6})/
-      ) ||
-      flat.match(/([A-Z]{3})\s*[-~～至到→]\s*([A-Z]{3})/);
+      flat.match(/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+20\d{2}/i) ||
+      flat.match(/\b\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+20\d{2}/i) ||
+      flat.match(/(20\d{2}\s*[年\-\/.]\s*\d{1,2}\s*[月\-\/.]\s*\d{1,2})/) ||
+      flat.match(/(\d{1,2}\s*[月/\-.]\s*\d{1,2})/);
     if (m) {
-      out.from = m[1].replace(/国际机场|机场/g, "");
-      out.to = m[2].replace(/国际机场|机场/g, "");
+      out.depart_date = normalizeCnDate(m[0]) || yearDate(m[0]);
     }
 
-    m = flat.match(/(\d{4}[年\-\/.]\d{1,2}[月\-\/.]\d{1,2}|\d{1,2}[月/\-.]\d{1,2})/);
-    if (m) {
-      out.depart_date = normalizeCnDate(m[1]) || yearDate(m[1]);
+    const times = [];
+    const tre = /\b([01]?\d|2[0-3])\s*[:：]\s*([0-5]\d)\b/g;
+    let tm;
+    while ((tm = tre.exec(flat))) {
+      times.push(String(tm[1]).padStart(2, "0") + ":" + tm[2]);
     }
-
-    const times = [...flat.matchAll(/(\d{1,2}\s*[:：]\s*\d{2})/g)].map((x) => normalizeTime(x[1]));
     if (times[0]) out.depart_time = times[0];
     if (times[1]) out.arrive_time = times[1];
 
-    m = flat.match(/(?:旅客|乘客|姓名)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Z][A-Z\s]{1,20})/i);
+    m = flat.match(/(?:旅客|乘客|姓名|Passenger|Name)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Z][A-Za-z\s]{1,30})/i);
     if (m) out.passenger = m[1].replace(/\s+/g, " ").trim();
 
     const parts = [];
@@ -1686,21 +1923,47 @@ const MingdanUpload = (function () {
   }
 
   function analyzeOcrText(text) {
-    const train = parseTrainTicket(text);
-    const flight = parseFlightTicket(text);
-    const ids = parseIdDoc(text);
-    const hasTrain = !!(train.train_no && (train.from || train.depart_date));
-    const hasFlight = !!(flight.flight_no || (flight.from && flight.depart_time));
-    const hasId = !!(ids.guests && ids.guests.length);
+    const raw = String(text || "");
+    const train = parseTrainTicket(raw);
+    const flight = parseFlightTicket(raw);
+    const ids = parseIdDoc(raw);
+    const lookTrain = /12306|发车时间|总张数|车次|已支付|下单日期/.test(raw);
+    const lookFlight = /Terminal|Confirmed|Flight|登机|航班|HKG|CKG|to\s+[A-Z]/i.test(raw) && /\b[A-Z]{2}\d{2,4}\b/.test(raw.replace(/\s+/g, ""));
+    const lookId = /护照|台胞|身份证|Passport|证件号/.test(raw);
+    let hasTrain = !!(train.train_no && (train.from || train.depart_date));
+    // 航班号须像航司代码，且不是火车车次
+    let hasFlight = !!(flight.flight_no && !/^[GDCZKTY]\d+$/i.test(flight.flight_no));
+    if (hasFlight && lookTrain && !lookFlight) hasFlight = false;
+    if (hasTrain && lookTrain) {
+      // 12306 订单号 E######## 勿当护照
+    }
+    let hasId = !!(ids.guests && ids.guests.length);
+    if (hasId && lookTrain && !lookId) {
+      // 过滤：仅订单号被当成证件
+      const cleaned = ids.guests.filter((g) => {
+        if (train.order_no && g.number === train.order_no) return false;
+        if (/^E\d{8,}$/i.test(g.number) && train.order_no) return false;
+        return true;
+      });
+      ids.guests = cleaned;
+      ids.guest_list = cleaned.map((g) => g.line).join("\n");
+      ids.names = cleaned.map((g) => g.name).filter(Boolean);
+      hasId = cleaned.length > 0;
+    }
     let kind = "unknown";
-    if (hasTrain && /12306|发车时间|总张数|车次|已支付/.test(text)) kind = "train";
+    if (lookTrain && hasTrain) kind = "train";
+    else if (lookFlight && hasFlight) kind = "flight";
     else if (hasTrain && !hasFlight) kind = "train";
     else if (hasFlight && !hasTrain) kind = "flight";
-    else if (hasTrain && hasFlight) kind = train.train_no ? "train" : "flight";
-    else if (hasId) kind = "id";
+    else if (hasTrain && hasFlight) kind = lookTrain ? "train" : "flight";
+    else if (hasId || lookId) kind = "id";
     const summary = [];
-    if (hasTrain) summary.push("火车 " + (train.line || train.train_no));
-    if (hasFlight) summary.push("航班 " + (flight.line || flight.flight_no));
+    if (kind === "train" || (hasTrain && kind !== "flight")) {
+      if (hasTrain) summary.push("火车 " + (train.line || train.train_no));
+    }
+    if (kind === "flight" || (hasFlight && kind !== "train")) {
+      if (hasFlight) summary.push("航班 " + (flight.line || flight.flight_no));
+    }
     if (hasId) summary.push("证件 " + ids.guests.length + " 人");
     lastOcrMeta = { train, flight, ids, kind, summary: summary.join("；") };
     return lastOcrMeta;
@@ -1920,13 +2183,17 @@ const MingdanUpload = (function () {
     const date = train.depart_date || flight.depart_date || "";
     const count = train.ticket_count || "";
 
+    // 按内容写入对应易途字段（与截图区块出现顺序无关）
     if (target === "outbound") {
       if (date && !readField("depart_date")) writeField("depart_date", date);
       if (train.order_date && !readField("book_date")) writeField("book_date", train.order_date);
     } else {
       if (date && !readField("return_date")) writeField("return_date", date);
     }
-    if (pass && !readField("guest_name")) writeField("guest_name", pass);
+    if (pass) {
+      if (!readField("guest_name")) writeField("guest_name", pass);
+      if (!readField("contact_name")) writeField("contact_name", pass);
+    }
     if (count && !readField("party_size")) writeField("party_size", count + "大");
 
     persistActiveFromForm();
