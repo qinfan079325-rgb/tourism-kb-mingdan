@@ -283,7 +283,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="把识别到的交通自动写入去程或返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('auto')}catch(e){console.error(e)}return false;">仅填交通（自动）</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 00:36 Asia/Shanghai · 蓝色=当前选中操作（点哪个蓝哪个）；先粘贴截图再点写入</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 00:43 Asia/Shanghai · 证件优先（有效期/出生日期不再误填航班）；蓝=当前选中；先粘贴再点写入</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -329,7 +329,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:36 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 不展示完整身份证/电话 · build 2026-10-30 00:43 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2089,12 +2089,20 @@ const MingdanUpload = (function () {
       line: "",
     };
 
-    // 航班号：CX966 / CA1234 / 任意两字母或字母数字 + 2–4 位（排除日期/时间）
+    // 航班号：仅已知航司代码，或带「航班/Flight」标签；禁止裸 AL2024 等 OCR 噪点
+    const KNOWN_AIRLINE =
+      "CX|CA|MU|CZ|HU|3U|FM|SC|ZH|MF|9C|HO|TV|PN|G5|JD|KN|NS|BK|EU|GY|A6|UQ|CN|NX|HX|KA|SQ|TG|NH|JL|KE|OZ|QR|EK|AA|UA|DL|BA|AF|LH|NQ|GJ|RY";
     let m =
-      flat.match(/\b((?:CX|CA|MU|CZ|HU|3U|FM|SC|ZH|MF|9C|HO|TV|PN|G5|JD|KN|NS|BK|EU|GY|A6|UQ|CN|NX|HX|KA|SQ|TG|NH|JL|KE|OZ|QR|EK|AA|UA|DL|BA|AF|LH|QR)\s*-?\s*\d{2,4})\b/i) ||
-      flat.match(/(?:航班(?:号)?|Flight(?:\s*No\.?)?)\s*[:：]?\s*([A-Z0-9]{2}\s*-?\s*\d{2,4})/i) ||
-      flat.match(/\b([A-Z]{2}\s*-?\s*\d{2,4})\b/);
-    if (m) out.flight_no = m[1].replace(/[\s-]+/g, "").toUpperCase();
+      flat.match(new RegExp("\\b((?:" + KNOWN_AIRLINE + ")\\s*-?\\s*\\d{2,4})\\b", "i")) ||
+      flat.match(/(?:航班(?:号)?|Flight(?:\s*No\.?)?|Carrier)\s*[:：]?\s*([A-Z0-9]{2}\s*-?\s*\d{2,4})/i);
+    if (m) {
+      const fn = m[1].replace(/[\s-]+/g, "").toUpperCase();
+      // 拒日期粘连：AL2024 / JUN06 / OCT30
+      if (!/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\d{2,4}$/i.test(fn) &&
+          !/^[A-Z]{2}(19|20)\d{2}$/i.test(fn)) {
+        out.flight_no = fn;
+      }
+    }
 
     // English: Hong Kong to Chongqing
     m = flat.match(/\b([A-Za-z][A-Za-z .]{1,24}?)\s+to\s+([A-Za-z][A-Za-z .]{1,24}?)\b/i);
@@ -2204,22 +2212,42 @@ const MingdanUpload = (function () {
     const flight = parseFlightTicket(raw);
     const ids = parseIdDoc(raw);
     const lookTrain = /12306|发车时间|总张数|车次|已支付|下单日期/.test(collapsed);
-    // 勿用裸 to\s+[A-Z]：台胞证英文说明有 "TO TRAVEL TO THE MAINLAND"
+    // 航班需真实语境：登机牌/航班词，或「已知航司+机场码/航线」；勿因 TO TRAVEL TO THE MAINLAND
+    const lookAirport =
+      /(?:HKG|CKG|PEK|PKX|PVG|SHA|CAN|SZX|CTU|TFU|XIY|TPE|KHH|RMQ|MFM|机场|登机口|登机牌|→|->)/i.test(collapsed);
+    const lookKnownAirlineFlight =
+      /\b(?:CX|CA|MU|CZ|HU|3U|FM|HO|9C|ZH|SC|JD|TV|PN|MF|HX|KA|SQ)\s*-?\s*\d{2,4}\b/i.test(collapsed);
     const lookFlight =
-      /(?:Terminal|Confirmed|Flight\b|登机|航班|行程卡)/i.test(collapsed) ||
-      (/\b(?:CX|CA|MU|CZ|HU|3U|FM|HO|9C|ZH|SC|JD|TV)\s*\d{2,4}\b/i.test(collapsed) &&
-        /(?:HKG|CKG|PEK|PVG|SHA|CAN|CTU|XIY|TPE|KHH|RMQ|机场|→|->)/i.test(collapsed));
+      /(?:Terminal|Confirmed|Flight\b|登机|航班|行程卡|登机牌|Boarding\s*Pass|Depart(?:ure)?|Arriv(?:e|al))/i.test(collapsed) ||
+      (lookKnownAirlineFlight && lookAirport) ||
+      (!!(flight.from_code && flight.to_code) && lookKnownAirlineFlight);
+    // 证件强信号：关键词 + 台胞证/护照有效期区间 + 出生日期样式 + MRZ
+    const lookIdValidity =
+      /(?:19|20)\d{2}[./\-]\d{1,2}[./\-]\d{1,2}\s*[-~～—–至到]\s*(?:19|20)\d{2}[./\-]\d{1,2}[./\-]\d{1,2}/.test(collapsed) ||
+      /(?:19|20)\d{2}\s*[年./\-]\s*\d{1,2}\s*[月./\-]\s*\d{1,2}\s*日?\s*[-~～—–至到]\s*(?:19|20)\d{2}/.test(collapsed);
+    const lookIdBirth =
+      /(?:19|20)\d{2}[./]\d{1,2}[./]\d{1,2}/.test(collapsed) ||
+      /(?:19|20)\d{6}\b/.test(collapsed.replace(/\s+/g, "")) ||
+      /出生|生日|Date\s*of\s*Birth|Birth/i.test(collapsed);
     const lookIdStrong =
-      /台湾居民来往大陆通行证|台胞证|来往大陆通行证|来往大陆通/.test(collapsed) ||
+      /台湾居民来往大陆通行证|台胞证|来往大陆通行证|来往大陆通|大陆居民往来台湾通行证/.test(collapsed) ||
       /THIS\s+CARD\s+IS\s+INTENDED/i.test(collapsed) ||
-      /HOLDER\s+TO\s+TRAVEL\s+TO\s+THE\s+MAINLAND/i.test(collapsed) ||
+      /ONLY\s+TO\s+TRAVEL\s+TO\s+THE\s+MAINLAND/i.test(collapsed) ||
       /(?:护照|Passport)\b/i.test(collapsed) ||
       /Passport\s*(?:No\.?|Number|#)/i.test(collapsed) ||
       /身份证|居民身份证/.test(collapsed) ||
-      /P<[A-Z]{3}/.test(collapsed.replace(/\s+/g, "")); // MRZ 粗检
+      /签发(?:机关|日期)|有效期至|Authority|Validity|Expiry|期满/i.test(collapsed) ||
+      /P<[A-Z]{3}/.test(collapsed.replace(/\s+/g, "")) ||
+      (lookIdValidity && (lookIdBirth || /[男女]|Sex|Gender|持证人|姓名|Name/i.test(collapsed))) ||
+      (lookIdValidity && !lookFlight && !lookTrain);
     const lookId = lookIdStrong || /通行证|证件号|持证人|证件号码|签发次数/.test(collapsed);
     let hasTrain = !!(train.train_no && (train.from || train.depart_date));
-    let hasFlight = !!(flight.flight_no && !/^[GDCZKTY]\d+$/i.test(flight.flight_no));
+    // 航班：必须有 flight_no 且具备航班语境；裸两字母+数字不算
+    let hasFlight = !!(
+      flight.flight_no &&
+      !/^[GDCZKTY]\d+$/i.test(flight.flight_no) &&
+      (lookFlight || (flight.from_code && flight.to_code) || (flight.from && flight.to))
+    );
     if (hasFlight && lookTrain && !lookFlight) hasFlight = false;
     // 强证件信号：禁止因英文 to/航班噪点当成交通
     if (lookIdStrong || (ids.guests && ids.guests.length && lookId)) {
@@ -2239,13 +2267,15 @@ const MingdanUpload = (function () {
       hasId = cleaned.length > 0;
     }
     let kind = "unknown";
-    if (lookIdStrong) kind = "id";
+    // 优先级：证件强信号 > 火车 > 航班（须 lookFlight）> 弱证件；模糊默认证件（用户痛点：证件→交通）
+    if (lookIdStrong || (hasId && lookId && !lookFlight && !lookTrain)) kind = "id";
     else if (lookTrain && hasTrain) kind = "train";
-    else if (lookFlight && hasFlight) kind = "flight";
-    else if (hasTrain && !hasFlight) kind = "train";
-    else if (hasFlight && !hasTrain) kind = "flight";
-    else if (hasTrain && hasFlight) kind = lookTrain ? "train" : "flight";
+    else if (lookFlight && hasFlight && !lookIdStrong) kind = "flight";
+    else if (hasTrain && !hasFlight && !lookIdStrong) kind = "train";
+    else if (hasFlight && lookFlight && !hasTrain && !lookIdStrong) kind = "flight";
+    else if (hasTrain && hasFlight) kind = lookTrain ? "train" : lookFlight ? "flight" : "id";
     else if (hasId || lookId) kind = "id";
+    else if (lookIdValidity || lookIdBirth) kind = "id"; // 有效期/出生日期 → 证件，勿填交通
     const summary = [];
     if (kind === "train" || (hasTrain && kind !== "flight" && kind !== "id")) {
       if (hasTrain) summary.push("火车 " + (train.line || train.train_no));
@@ -2473,15 +2503,15 @@ const MingdanUpload = (function () {
         setOcrMsg("未识别到文字，请换更清晰的截图或手动填写", "err");
         return meta;
       }
-      if (meta.kind === "id") {
+      if (meta.kind === "id" || meta.lookIdStrong) {
         setOcrMsg("识别完成，判定为证件。" + (meta.summary ? " " + meta.summary + "。" : "") + "正在写入名单…", "ok");
         try {
           applyOcrIds();
         } catch (eApply) {
           console.error("[MingdanUpload.applyOcrIds]", eApply);
-          setOcrMsg("自动写入名单失败，请再点「识别证件 → 名单」：" + ((eApply && eApply.message) || eApply), "err");
+          setOcrMsg("自动写入名单失败，请再点「写入证件名单」：" + ((eApply && eApply.message) || eApply), "err");
         }
-      } else if (meta.kind === "train" || meta.kind === "flight") {
+      } else if ((meta.kind === "train" || meta.kind === "flight") && !meta.lookIdStrong) {
         setOcrMsg(
           "识别完成，判定为" + (meta.kind === "train" ? "火车" : "航班") + "。" +
             (meta.summary ? " 发现：" + meta.summary + "。" : "") +
