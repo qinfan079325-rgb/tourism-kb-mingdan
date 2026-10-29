@@ -394,7 +394,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       <div class="fuzzy-review-bar">
         <div class="fuzzy-review-bar-title" id="fuzzyReviewBarTitle">核对区</div>
         <div class="fuzzy-review-bar-actions">
-          <button type="button" class="btn" id="fuzzyReviewToggle" title="保留草稿后收起时，点此一步展开核对" style="display:none">展开核对</button>
+          <button type="button" class="btn" id="fuzzyReviewToggle" title="收起后点此一步展开核对" style="display:none">展开核对</button>
           <button type="button" class="btn fuzzy-primary" id="fuzzyNewOrderBtn" title="清空核对区并滚回上传，草稿仍在账号列表">开新单</button>
         </div>
       </div>
@@ -1760,7 +1760,7 @@ const MingdanUpload = (function () {
   }
 
 
-  function openReviewFromWorking(opts) {
+  function openReviewFromWorking() {
     const d = workingDraft;
     if (!d) return;
     activeId = d.id;
@@ -1768,7 +1768,7 @@ const MingdanUpload = (function () {
     const rev = $("fuzzyReview");
     if (!rev) return;
     rev.classList.remove("hidden");
-    // 默认展开；仅保留草稿成功时 collapseAfter（开新单走 startNewOrder）
+    // 默认展开；保留草稿成功 / 开新单走 startNewOrder 整条隐藏
     setReviewCollapsed(false);
     const f = d.fields || {};
     const raw = $("fuzzyRaw");
@@ -1802,10 +1802,6 @@ const MingdanUpload = (function () {
     renderHistory(d);
     updateActionButtons(d);
     renderList();
-    if (opts && opts.collapseAfter) {
-      setReviewCollapsed(true);
-      scrollToUpload();
-    }
   }
 
   function openDraft(id) {
@@ -1817,7 +1813,7 @@ const MingdanUpload = (function () {
     workingDraft = cloneDraft(d);
     // 打开核对 = 打开并展开（一步到位）；仅「保留草稿 / 开新单」才收起
     openReviewFromWorking();
-    setMsg("已打开草稿，可直接核对。录新单请点「开新单」；保留草稿后会自动收起", "ok");
+    setMsg("已打开草稿，可直接核对。录新单请点「开新单」；保留草稿后会关闭核对区", "ok");
     const rev = $("fuzzyReview");
     if (rev && rev.scrollIntoView) rev.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
@@ -1870,14 +1866,17 @@ const MingdanUpload = (function () {
     if (!Array.isArray(d.change_history)) d.change_history = [];
     workingDraft = d;
     const res = await upsertPersisted(cloneDraft(d));
+    if (!res.ok) {
+      setMsg(saveErrorMsg(res.error), "err");
+      openReviewFromWorking();
+      return;
+    }
+    // 保留成功：整条隐藏「核对中」条（同开新单），草稿仍在账号列表，无需再点开新单
+    startNewOrder();
     setMsg(
-      res.ok
-        ? "已保留为账号「仅为草稿·待办」。核对区已收起，可直接录新单；要改再点列表「打开核对」（一步展开）或顶栏「展开核对」。"
-        : saveErrorMsg(res.error),
-      res.ok ? "ok" : "err"
+      "已保留为账号「仅为草稿·待办」。核对区已关闭，可直接录新单；要改再点列表「打开核对」。",
+      "ok"
     );
-    // 仅「保留草稿 / 开新单」收起核对区
-    openReviewFromWorking({ collapseAfter: res.ok });
   }
 
   async function confirmSave() {
