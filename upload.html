@@ -302,7 +302,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:58 Asia/Shanghai · 去程/返程分键 · 无自动交通 · 证件云识别 · 名单分栏 · 蓝=当前选中</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:59 Asia/Shanghai · 去程/返程分键 · 无自动交通 · 默认4天返程 · 证件云识别 · 名单分栏 · 蓝=当前选中</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -348,7 +348,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 中文名优先 · build 2026-10-30 01:58 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 默认4天返程 · 中文名优先 · build 2026-10-30 01:59 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -665,6 +665,31 @@ const MingdanUpload = (function () {
     return `${y}-${String(m[1]).padStart(2, "0")}-${String(m[2]).padStart(2, "0")}`;
   }
 
+  /** ISO YYYY-MM-DD + N calendar days（按本地日历，避免时区漂移） */
+  function addDaysISO(iso, days) {
+    const s = String(iso || "").trim();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return "";
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (isNaN(d.getTime())) return "";
+    d.setDate(d.getDate() + Number(days || 0));
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const da = String(d.getDate()).padStart(2, "0");
+    return y + "-" + mo + "-" + da;
+  }
+
+  /** 无明确返程日时：默认 4 天行程（出团后第 4 天 = depart + 3） */
+  function ensureDefaultReturnDate(fields) {
+    const f = fields || {};
+    const dep = String(f.depart_date || "").trim();
+    const ret = String(f.return_date || "").trim();
+    if (!dep || ret) return f;
+    const next = addDaysISO(dep, 3);
+    if (next) f.return_date = next;
+    return f;
+  }
+
   function parseText(raw) {
     const t = normalizeText(raw);
     // 字段按「标签/格式」识别，不依赖易途 1–22 顺序；截图/粘贴顺序任意均可
@@ -926,6 +951,9 @@ const MingdanUpload = (function () {
       const pm = t.match(/(?:^|[^\d])(\d{1,3})\s*(?:大|人|位)(?:\s|$|，|,|；|;)/);
       if (pm) fields.party_size = pm[1] + (/大/.test(pm[0]) ? "大" : "人");
     }
+
+    // 无明确返程日 → 默认 4 天行程（出团后第 4 天）
+    ensureDefaultReturnDate(fields);
 
     return {
       id: uid(),
@@ -1724,6 +1752,8 @@ const MingdanUpload = (function () {
         draft.file_name = file.name;
         draft.fields.remarks = (draft.fields.remarks || "") + `\n（附文件：${file.name}）`;
       }
+      // 无明确返程日且有出团日 → 默认 4 天（出团后第 4 天）
+      if (draft && draft.fields) ensureDefaultReturnDate(draft.fields);
       // 只有成功/部分解析出草稿后才清空输入；空识别也保留核对，但仍清空以免重复提交同一段
       // 按需求：fieldsLookEmpty 时不因失败而「看起来没反应」——始终 openReview；清空仅在已生成草稿后
       const dups = findDuplicates(draft.fields, draft.id);
@@ -3543,13 +3573,13 @@ const MingdanUpload = (function () {
           applyOcrTransport("outbound");
         } catch (eApply) {
           console.error("[MingdanUpload.applyOcrTransport]", eApply);
-          setOcrMsg("自动写入交通失败，请点「识别交通」按钮：" + ((eApply && eApply.message) || eApply), "err");
+          setOcrMsg("自动写入去程失败，请点「仅填去程」或「仅填返程」：" + ((eApply && eApply.message) || eApply), "err");
         }
       } else {
         setOcrMsg(
           "识别完成。" +
             (meta.summary ? " 发现：" + meta.summary + "。" : " 未自动分类，") +
-            "请点「识别证件」或「识别交通」写入字段；也可打开 OCR 原文核对。",
+            "请点「写入证件名单」或「仅填去程 / 仅填返程」写入字段；也可打开 OCR 原文核对。",
           meta.summary ? "ok" : "err"
         );
       }
@@ -3841,6 +3871,12 @@ const MingdanUpload = (function () {
     if (target === "outbound") {
       if (date && !readField("depart_date")) writeField("depart_date", date);
       if (train.order_date && !readField("book_date")) writeField("book_date", train.order_date);
+      // 无返程日时默认 4 天行程
+      const depNow = readField("depart_date");
+      if (depNow && !readField("return_date")) {
+        const defRet = addDaysISO(depNow, 3);
+        if (defRet) writeField("return_date", defRet);
+      }
     } else {
       if (date && !readField("return_date")) writeField("return_date", date);
     }
