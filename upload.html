@@ -283,7 +283,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
           <button type="button" class="btn" id="fuzzyOcrAutoBtn" title="把识别到的交通自动写入去程或返程" onclick="try{window.MingdanUpload&amp;&amp;MingdanUpload.onTransportBtn&amp;&amp;MingdanUpload.onTransportBtn('auto')}catch(e){console.error(e)}return false;">仅填交通（自动）</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:43 Asia/Shanghai · 证件云识别(百度) · 中文名优先 · 蓝=当前选中；交通仍本地OCR</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">截图识别版 2026-10-30 01:50 Asia/Shanghai · 证件云识别(百度) · 整卡切分+字段校验 · 中文名优先 · 蓝=当前选中；交通仍本地OCR</div>
         <details class="fuzzy-ocr-raw-wrap" id="fuzzyOcrRawWrap">
           <summary>OCR 原文（可核对）</summary>
           <pre id="fuzzyOcrRaw" class="fuzzy-raw fuzzy-ocr-raw">（尚未识别）</pre>
@@ -329,7 +329,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 中文名优先 · build 2026-10-30 01:43 Asia/Shanghai</div>
+  <div class="footer">需登录 · 模糊订单与未出团/已完团分离 · 证件云识别 · 中文名优先 · build 2026-10-30 01:50 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2881,18 +2881,164 @@ const MingdanUpload = (function () {
     const list = (data && data.guests) || [];
     for (let i = 0; i < list.length; i++) {
       const g = list[i] || {};
-      const nameZh = String(g.name_zh || "").trim();
-      const nameEn = String(g.name_en || "").trim();
+      let nameZh = String(g.name_zh || "").trim().replace(/\s+/g, "");
+      let nameEn = String(g.name_en || "").trim();
+      if (/身份信息|出入境管理|签发机关|台湾居民|来往大陆|通行证|返乡证|证件号码|有效期限|出生日期/i.test(nameZh)) nameZh = "";
+      if (/身份信息|出入境管理|Immigration|Authority|PERMIT/i.test(nameEn)) nameEn = "";
       const name = nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : nameEn;
       const idType = String(g.id_type || "证件").trim();
-      const idNumber = String(g.id_number || "").trim();
+      let idNumber = String(g.id_number || "").trim();
       if (!idNumber) continue;
+      // Soft filter here; sanitizeCloudGuest does strict 台胞证 rules
+      if (/[\u4e00-\u9fff]/.test(idNumber) || /身份信息|出入境/.test(idNumber)) continue;
       const line = g.line || [name, idType, idNumber].filter(Boolean).join(" ");
       guests.push({ name_zh: nameZh, name_en: nameZh ? "" : nameEn, id_type: idType, id_number: idNumber, line: line });
       if (name) names.push(name);
     }
-    const guest_list = (data && data.guest_list) || guests.map(function (g) { return g.line; }).join("\n");
+    const guest_list = guests.map(function (g) { return g.line; }).join("\n");
     return { guests: guests, guest_list: guest_list, names: names, provider: (data && data.provider) || "baidu", doc_type: (data && data.doc_type) || "" };
+  }
+
+  function isCloudChromeName(s) {
+    const raw = String(s || "").trim();
+    if (!raw) return true;
+    const t = raw.replace(/\s+/g, "");
+    if (/身份信息|出入境管理|签发机关|签发地点|台湾居民|来往大陆|来往内地|通行证|返乡证|港澳|台胞证|证件号码|有效期限|出生日期|姓名拼音|性别|National|Immigration|Authority|PERMIT|PASSPORT/i.test(t)) {
+      return true;
+    }
+    if (/^[\u4e00-\u9fff]+$/.test(t) && (t.length < 2 || t.length > 5)) return true;
+    return false;
+  }
+
+  function sanitizeCloudGuest(g) {
+    if (!g) return null;
+    let idType = String(g.id_type || "证件").trim() || "证件";
+    let idNumber = String(g.id_number || "").trim();
+    let nameZh = String(g.name_zh || "").trim().replace(/\s+/g, "");
+    let nameEn = String(g.name_en || "").trim();
+    if (isCloudChromeName(nameZh)) nameZh = "";
+    if (isCloudChromeName(nameEn)) nameEn = "";
+    // 台胞证/返乡证：必须 8 位数字
+    if (idType === "台胞证" || idType === "返乡证" || /^\d{8}$/.test(idNumber)) {
+      const m = idNumber.match(/\b(\d{8})\b/);
+      idNumber = m && !/^(19|20)\d{6}$/.test(m[1]) ? m[1] : "";
+      if (!idNumber) return null;
+      if (idType !== "返乡证") idType = "台胞证";
+    } else if (!idNumber || idNumber.length < 5) {
+      return null;
+    }
+    // 拒绝把机关名/UI 当证件号
+    if (/[\u4e00-\u9fff]/.test(idNumber) || /身份信息|出入境/.test(idNumber)) return null;
+    const name = nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : nameEn;
+    const line = [name, idType, idNumber].filter(Boolean).join(" ");
+    return {
+      name_zh: nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : "",
+      name_en: nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? "" : nameEn,
+      id_type: idType,
+      id_number: idNumber,
+      line: line,
+    };
+  }
+
+  /** Color full-card crops for Baidu (do NOT send grayscale ID strips). */
+  async function prepareCloudCardCanvases(source) {
+    const img = await loadImageElement(source);
+    const w = img.width || img.naturalWidth;
+    const h = img.height || img.naturalHeight;
+    if (!w || !h) return [];
+    const outs = [];
+
+    function drawColor(sx, sy, sw, sh, maxSide) {
+      maxSide = maxSide || 1600;
+      const sc = Math.min(1, maxSide / Math.max(sw, sh));
+      const cw = Math.max(1, Math.round(sw * sc));
+      const ch = Math.max(1, Math.round(sh * sc));
+      const canvas = document.createElement("canvas");
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+      return canvas;
+    }
+
+    let regions = [];
+    // Tall collage → find white seams between stacked 台胞证
+    if (h / w >= 1.25) {
+      try {
+        const probe = document.createElement("canvas");
+        const pw = Math.min(w, 360);
+        const ph = h;
+        probe.width = pw;
+        probe.height = ph;
+        const pctx = probe.getContext("2d");
+        pctx.drawImage(img, 0, 0, pw, ph);
+        const data = pctx.getImageData(0, 0, pw, ph).data;
+        const rowMean = new Array(ph);
+        for (let y = 0; y < ph; y++) {
+          let s = 0;
+          const row = y * pw * 4;
+          for (let x = 0; x < pw; x += 2) {
+            const i = row + x * 4;
+            s += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          }
+          rowMean[y] = s / (pw / 2);
+        }
+        // Find dark content bands (cards) separated by bright gaps
+        const isBright = function (y) { return rowMean[y] > 228; };
+        const isDarkish = function (y) { return rowMean[y] < 210; };
+        // Skip top header (身份信息): find first solid darkish band
+        let y = 0;
+        while (y < ph && isBright(y)) y++;
+        // If early band is very short (title text), skip past next bright gap
+        const bands = [];
+        while (y < ph) {
+          while (y < ph && !isDarkish(y)) y++;
+          const top = y;
+          while (y < ph && !isBright(y)) y++;
+          const bot = y;
+          if (bot - top > Math.max(100, h * 0.14)) bands.push([top, bot]);
+          while (y < ph && isBright(y)) y++;
+        }
+        // Drop tiny title-like first band
+        regions = bands.filter(function (r) {
+          const rh = r[1] - r[0];
+          return rh >= 140 && rh / w >= 0.28;
+        });
+        // Merge overlapping / expand slightly
+        regions = regions.map(function (r) {
+          const pad = Math.floor((r[1] - r[0]) * 0.02);
+          return [Math.max(0, r[0] - pad), Math.min(h, r[1] + pad)];
+        });
+      } catch (eDet) {
+        console.warn("[MingdanUpload.cloudCardDetect]", eDet);
+        regions = [];
+      }
+    }
+
+    if (!regions.length && h / w >= 1.35) {
+      // Header + 3 cards: skip top ~8% then thirds
+      const topSkip = Math.floor(h * 0.08);
+      const body = h - topSkip;
+      regions = [
+        [topSkip, topSkip + Math.floor(body * 0.36)],
+        [topSkip + Math.floor(body * 0.30), topSkip + Math.floor(body * 0.68)],
+        [topSkip + Math.floor(body * 0.62), h],
+      ];
+    }
+
+    const maxCards = 4;
+    for (let ri = 0; ri < Math.min(regions.length, maxCards); ri++) {
+      const sy = Math.max(0, regions[ri][0]);
+      const ey = Math.min(h, regions[ri][1]);
+      const sh = ey - sy;
+      if (sh < 80) continue;
+      outs.push({ canvas: drawColor(0, sy, w, sh, 1600), kind: "card" });
+    }
+    return outs;
   }
 
   async function runCloudIdOcrOnSource(source) {
@@ -2905,32 +3051,38 @@ const MingdanUpload = (function () {
       const data = await postCloudIdOcr(b64, "auto");
       if (!data) return;
       rawBits.push("[" + tag + " http=" + (data._http || "") + " ok=" + !!data.ok + (data.error ? " err=" + data.error : "") + "]");
+      if (data.raw_fields) {
+        try { rawBits.push(JSON.stringify(data.raw_fields)); } catch (e) {}
+      }
       if (!data.ok) return;
       const ids = cloudResultToIds(data);
       for (let i = 0; i < ids.guests.length; i++) {
-        const g = ids.guests[i];
+        const g = sanitizeCloudGuest(ids.guests[i]);
+        if (!g) continue;
         const key = String(g.id_number || "").toUpperCase();
         if (!key || seen[key]) continue;
         seen[key] = true;
         allGuests.push(g);
       }
-      if (data.raw_fields) {
-        try { rawBits.push(JSON.stringify(data.raw_fields)); } catch (e) {}
-      }
     }
-    // full image first
-    const fullB64 = await sourceToJpegBase64(source);
-    await ingest(fullB64, "full");
-    // then card crops if any
+    // Prefer per-card color crops (Baidu = one doc per image). Full collage often mis-maps 身份信息.
+    let cardItems = [];
     try {
-      const canvases = await prepareOcrCanvases(source);
-      const items = (canvases || []).filter(function (c) { return c && c.canvas && c.kind === "id"; });
-      for (let i = 0; i < items.length && i < 6; i++) {
-        const b64 = canvasToJpegBase64(items[i].canvas, 0.92);
-        await ingest(b64, "card" + (i + 1));
-      }
+      cardItems = await prepareCloudCardCanvases(source);
     } catch (eCrop) {
       console.warn("[MingdanUpload.cloudCrop]", eCrop);
+      cardItems = [];
+    }
+    if (cardItems.length) {
+      for (let i = 0; i < cardItems.length && i < 4; i++) {
+        const b64 = canvasToJpegBase64(cardItems[i].canvas, 0.92);
+        await ingest(b64, "card" + (i + 1));
+      }
+    }
+    // Fallback: whole image (single-card photos)
+    if (!allGuests.length) {
+      const fullB64 = await sourceToJpegBase64(source);
+      await ingest(fullB64, "full");
     }
     if (!allGuests.length) {
       return { ok: false, error: "no_document_recognized", raw: rawBits.join("\n") };
