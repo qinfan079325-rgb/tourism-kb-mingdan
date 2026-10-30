@@ -367,7 +367,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 14:47 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 14:53 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -427,7 +427,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 14:47 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 14:53 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -711,11 +711,42 @@ const MingdanUpload = (function () {
     return String(ID_OCR_WORKER_URL).replace(/\/$/, "") + "/drafts";
   }
 
+  const DRAFTS_FETCH_MS = 12000;
+  const DRAFTS_PUT_MS = 15000;
+
+  function abortErrorName(err) {
+    if (!err) return "";
+    if (err.name === "AbortError" || err.name === "TimeoutError") return "timeout";
+    const m = String(err.message || err || "");
+    if (/aborted|timeout|TimeoutError|AbortError/i.test(m)) return "timeout";
+    return m;
+  }
+
+  async function fetchWithTimeout(url, options, ms) {
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = setTimeout(function () {
+      try { if (ctrl) ctrl.abort(); } catch (e) {}
+    }, ms);
+    try {
+      const opts = Object.assign({}, options || {});
+      if (ctrl) opts.signal = ctrl.signal;
+      return await fetch(url, opts);
+    } catch (e) {
+      const name = abortErrorName(e);
+      if (name === "timeout") throw new Error("timeout");
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** GET 单账号草稿列表（不含共享） */
   async function fetchDraftsCloud(account) {
-    const res = await fetch(draftsBaseUrl() + "?account=" + encodeURIComponent(account), {
-      method: "GET",
-      headers: draftsAuthHeaders(),
-    });
+    const res = await fetchWithTimeout(
+      draftsBaseUrl() + "?account=" + encodeURIComponent(account),
+      { method: "GET", headers: draftsAuthHeaders() },
+      DRAFTS_FETCH_MS
+    );
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
       const err = (data && data.error) || ("http_" + res.status);
@@ -724,12 +755,51 @@ const MingdanUpload = (function () {
     return Array.isArray(data.drafts) ? data.drafts : [];
   }
 
+  /**
+   * 一次 GET：个人待办 + 全员已确认（worker ?include_shared=1）
+   * 避免浏览器二次请求 account=__shared_confirmed__（部分网络会挂死）
+   */
+  async function fetchPersonalAndShared(account) {
+    const url =
+      draftsBaseUrl() +
+      "?account=" +
+      encodeURIComponent(account) +
+      "&include_shared=1";
+    const res = await fetchWithTimeout(
+      url,
+      { method: "GET", headers: draftsAuthHeaders() },
+      DRAFTS_FETCH_MS
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      const err = (data && data.error) || ("http_" + res.status);
+      throw new Error(err);
+    }
+    const personal = Array.isArray(data.drafts) ? data.drafts : [];
+    let shared = Array.isArray(data.shared) ? data.shared : null;
+    // 旧 worker 无 shared 字段时，再单独拉共享（带超时）
+    if (shared == null) {
+      try {
+        shared = await fetchDraftsCloud(SHARED_ACCOUNT);
+      } catch (e2) {
+        console.warn("[drafts shared fallback]", e2);
+        shared = [];
+        throw e2;
+      }
+    }
+    return { personal: personal, shared: shared };
+  }
+
   async function putDraftsCloud(account, list) {
-    const res = await fetch(draftsBaseUrl(), {
-      method: "PUT",
-      headers: draftsAuthHeaders(),
-      body: JSON.stringify({ account, drafts: list }),
-    });
+    const res = await fetchWithTimeout(
+      draftsBaseUrl(),
+      {
+        method: "PUT",
+        headers: draftsAuthHeaders(),
+        body: JSON.stringify({ account: account, drafts: list }),
+      },
+      DRAFTS_PUT_MS
+    );
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
       const err = (data && data.error) || ("http_" + res.status);
@@ -769,8 +839,9 @@ const MingdanUpload = (function () {
       return { ok: false, error: "not_configured" };
     }
     try {
-      let personal = await fetchDraftsCloud(user);
-      let shared = await fetchDraftsCloud(SHARED_ACCOUNT);
+      const bundle = await fetchPersonalAndShared(user);
+      let personal = bundle.personal || [];
+      let shared = bundle.shared || [];
       let migrated = false;
 
       // 一次性：本机旧草稿 → 当前账号个人库（仅空库时）
@@ -887,6 +958,7 @@ const MingdanUpload = (function () {
   }
 
   function isDraftLike(status) {
+    if (status == null || status === "") return true;
     return DRAFT_LIKE.has(status);
   }
 
@@ -954,6 +1026,9 @@ const MingdanUpload = (function () {
     if (err === "not_logged_in") return "请先登录后再保存草稿";
     if (err === "not_configured") return "云端草稿未配置，请联系助手";
     if (err === "unauthorized") return "云端鉴权失败，请联系助手";
+    if (err === "timeout" || /timeout|AbortError|aborted/i.test(String(err || ""))) {
+      return "云端草稿请求超时。请检查网络后刷新；确认单在「全员共享」库";
+    }
     if (!err || err === "network" || /Failed to fetch|NetworkError|fetch/i.test(err)) {
       return "网络异常，云端保存失败。请联网后重试，或下载 JSON 备份";
     }
@@ -4625,20 +4700,41 @@ const MingdanUpload = (function () {
     if (newOrderBtn) newOrderBtn.addEventListener("click", startNewOrder);
 
     setMsg("正在加载账号草稿…", "ok");
-    const sync = await syncDraftsFromCloud();
-    if (!sync.ok) {
-      setMsg(
-        sync.error === "not_logged_in"
-          ? "请先登录"
-          : "账号草稿加载失败：" + saveErrorMsg(sync.error) + "。可稍后刷新；保留草稿需联网。",
-        "err"
-      );
-    } else if (sync.migrated) {
-      setMsg("已将本机旧草稿迁入云端（一次性）：待办跟账号，已确认进全员共享。", "ok");
-    } else {
-      setMsg("账号草稿已同步（" + sync.count + " 条）", "ok");
+    let sync = { ok: false, error: "unknown" };
+    try {
+      sync = await syncDraftsFromCloud();
+    } catch (eSync) {
+      console.error("[drafts sync]", eSync);
+      sync = { ok: false, error: String((eSync && eSync.message) || eSync || "network") };
+      if (!memDrafts) memDrafts = [];
+      draftsReady = false;
+      draftsSyncError = sync.error;
+    } finally {
+      // 无论成功/超时/异常，都必须清掉「正在加载」并渲染列表
+      try {
+        if (!sync.ok) {
+          setMsg(
+            sync.error === "not_logged_in"
+              ? "请先登录"
+              : "账号草稿加载失败：" + saveErrorMsg(sync.error) + "。可稍后刷新；保留草稿需联网。",
+            "err"
+          );
+        } else if (sync.migrated) {
+          setMsg("已将本机旧草稿迁入云端（一次性）：待办跟账号，已确认进全员共享。", "ok");
+        } else {
+          const p = typeof sync.personal === "number" ? sync.personal : "?";
+          const s = typeof sync.shared === "number" ? sync.shared : "?";
+          setMsg("账号草稿已同步（共 " + sync.count + " 条：本人待办 " + p + " · 全员已确认 " + s + "）", "ok");
+        }
+      } catch (eMsg) {
+        setMsg("账号草稿加载结束（界面刷新异常，请强制刷新）", "err");
+      }
+      try {
+        renderList();
+      } catch (eList) {
+        console.error("[drafts renderList]", eList);
+      }
     }
-    renderList();
   }
 
   const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, keepDraft, startNewOrder, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport, pickOcrImage, onIdBtn, onTransportBtn };
@@ -4654,8 +4750,19 @@ MingdanAuth.require(function () {
   // const 不会挂到 window；用全局词法绑定 + window 兜底
   var mod = (typeof MingdanUpload !== "undefined" && MingdanUpload) || window.MingdanUpload;
   if (mod && typeof mod.init === "function") {
-    try { mod.init(); }
-    catch (e) {
+    try {
+      var p = mod.init();
+      if (p && typeof p.then === "function") {
+        p.catch(function (e) {
+          console.error("[MingdanUpload.init async]", e);
+          var m = document.getElementById("fuzzyMsg");
+          if (m) {
+            m.textContent = "上传模块初始化失败：" + ((e && e.message) || e);
+            m.className = "fuzzy-msg err";
+          }
+        });
+      }
+    } catch (e) {
       console.error("[MingdanUpload.init]", e);
       var m = document.getElementById("fuzzyMsg");
       if (m) { m.textContent = "上传模块初始化失败：" + (e && e.message || e); m.className = "fuzzy-msg err"; }
