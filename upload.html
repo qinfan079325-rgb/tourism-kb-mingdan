@@ -197,6 +197,9 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-draft.is-draft-todo{border-color:#b45309;background:#1c1410}
 .fuzzy-draft-badge{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;
   background:#9a3412;color:#ffedd5;border:1px solid #f97316;letter-spacing:.02em}
+.fuzzy-shared-badge{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:#14532d;color:#bbf7d0;border:1px solid #22c55e}
+.fuzzy-draft.is-shared{border-color:#166534}
+.fuzzy-by{font-size:11px;color:var(--muted);margin-left:6px}
 .fuzzy-st.st-draft_todo{background:#7c2d12;color:#fdba74}
 .fuzzy-keep{background:#9a3412;border-color:#ea580c;color:#ffedd5;font-weight:650}
 .fuzzy-keep:hover{filter:brightness(1.08)}
@@ -325,7 +328,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
   </div>
 </div>
 <div id="app" class="wrap">
-  <div class="banner">模糊订单 · 草稿跟账号 · 销售确认后录易途 · 未出团以钉钉为准</div>
+  <div class="banner">模糊订单 · 待办跟账号 · 销售确认后全员可见 · 录易途 · 未出团以钉钉为准</div>
   <nav class="nav">
     <a href="index.html">未出团</a>
     <a href="completed.html">已完团</a>
@@ -339,7 +342,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
   <section id="fuzzyPanel" class="fuzzy-panel" aria-label="模糊订单上传">
     <div class="fuzzy-panel-h">
       <h2>上传 / 粘贴</h2>
-      <span class="fuzzy-hint">须点「保留草稿」才存账号 · 列表标「仅为草稿·待办」</span>
+      <span class="fuzzy-hint">「保留草稿」仅本账号 · 「销售确认」后全员可见</span>
     </div>
     <details class="fuzzy-help">
       <summary>使用说明</summary>
@@ -364,7 +367,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 14:38 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 14:47 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -386,7 +389,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
         <div class="fuzzy-review-bar-title" id="fuzzyReviewBarTitle">核对区</div>
         <div class="fuzzy-review-bar-actions">
           <button type="button" class="btn" id="fuzzyReviewToggle" title="收起后可继续在上方录新单">收起核对</button>
-          <button type="button" class="btn fuzzy-primary" id="fuzzyNewOrderBtn" title="清空核对区并滚回上传，草稿仍在账号列表">开新单</button>
+          <button type="button" class="btn fuzzy-primary" id="fuzzyNewOrderBtn" title="清空核对区并滚回上传，草稿仍在列表（个人/全员）">开新单</button>
         </div>
       </div>
       <div class="fuzzy-review-body">
@@ -411,7 +414,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       <div class="fuzzy-confirm-row">
         <label class="fuzzy-check"><input type="checkbox" id="fuzzyConfirmCheck"/> 销售确认无误（出团日、人数等已核对）</label>
         <button type="button" class="btn" id="fuzzyRecalcKb">按明细重算 KB</button>
-        <button type="button" class="btn fuzzy-keep" id="fuzzyKeepDraftBtn" title="写入当前账号云端草稿并标「仅为草稿·待办」，换设备可见">保留草稿</button>
+        <button type="button" class="btn fuzzy-keep" id="fuzzyKeepDraftBtn" title="写入当前账号云端草稿并标「仅为草稿·待办」（仅本账号；换设备同账号可见）">保留草稿</button>
         <button type="button" class="btn fuzzy-primary" id="fuzzyConfirmBtn" disabled>销售确认无误并保存</button>
         <button type="button" class="btn" id="fuzzyMarkYituBtn">标记易途已录入</button>
         <button type="button" class="btn" id="fuzzyChangeBtn">申请改单</button>
@@ -424,7 +427,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">登录 · 草稿跟账号 · 手动保留 · build 2026-10-30 14:38 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 14:47 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -564,7 +567,7 @@ const MingdanAuth = (function () {
 
 </script>
 <script>
-/* 模糊订单上传：独立页 upload.html。草稿跟登录账号走（Cloudflare KV）；确认后仍留本页；改单流程见 STATUS。不写入未出团 DATA。 */
+/* 模糊订单上传：独立页 upload.html。仅为草稿·待办跟登录账号（Cloudflare KV）；销售确认后进全员共享 drafts:v1:shared_confirmed；改单流程见 STATUS。不写入未出团 DATA。 */
 const MingdanUpload = (function () {
   const LOCAL_STORE_KEY = "mingdan_fuzzy_drafts_v1"; // 仅一次性迁移本机旧草稿
   const MIGRATE_PREFIX = "mingdan_fuzzy_drafts_migrated_v1:";
@@ -578,6 +581,14 @@ const MingdanUpload = (function () {
     yitu_updated: "易途已更新",
   };
   const DRAFT_LIKE = new Set(["draft_todo", "pending_parse", "pending_sales_confirm"]);
+  /** 销售确认及后续状态 → 全员共享 KV（drafts:v1:shared_confirmed） */
+  const SHARED_ACCOUNT = "__shared_confirmed__";
+  const SHARED_STATUSES = new Set([
+    "confirmed_await_yitu",
+    "in_yitu",
+    "pending_change_sync",
+    "yitu_updated",
+  ]);
   const FIELD_KEYS = [
     ["line_name", "线路名称"],
     ["depart_date", "出团时间"],
@@ -644,6 +655,8 @@ const MingdanUpload = (function () {
   let workingDraft = null;
   let draftsReady = false;
   let draftsSyncError = "";
+  /** 上次同步时共享列表里的 id，用于保存时合并删除 */
+  let memSharedIdSet = new Set();
 
   function $(id) {
     return document.getElementById(id);
@@ -743,26 +756,39 @@ const MingdanUpload = (function () {
     draftsSyncError = "";
     if (!user) {
       memDrafts = [];
+      memSharedIdSet = new Set();
       draftsReady = false;
       draftsSyncError = "not_logged_in";
       return { ok: false, error: "not_logged_in" };
     }
     if (!draftsApiConfigured()) {
       memDrafts = [];
+      memSharedIdSet = new Set();
       draftsReady = false;
       draftsSyncError = "not_configured";
       return { ok: false, error: "not_configured" };
     }
     try {
-      let list = await fetchDraftsCloud(user);
+      let personal = await fetchDraftsCloud(user);
+      let shared = await fetchDraftsCloud(SHARED_ACCOUNT);
       let migrated = false;
+
+      // 一次性：本机旧草稿 → 当前账号个人库（仅空库时）
       try {
         const flag = localStorage.getItem(migrateFlagKey(user));
-        if ((!list || !list.length) && !flag) {
+        if ((!personal || !personal.length) && !flag) {
           const local = readLocalLegacyDrafts();
           if (local.length) {
-            await putDraftsCloud(user, local);
-            list = local;
+            const locPersonal = local.filter((d) => !belongsOnShared(d));
+            const locShared = local.filter(belongsOnShared);
+            if (locPersonal.length) {
+              await putDraftsCloud(user, locPersonal);
+              personal = locPersonal;
+            }
+            if (locShared.length) {
+              shared = mergeSharedLists(shared, locShared, new Set());
+              await putDraftsCloud(SHARED_ACCOUNT, shared);
+            }
             migrated = true;
           }
           localStorage.setItem(migrateFlagKey(user), "1");
@@ -770,9 +796,31 @@ const MingdanUpload = (function () {
       } catch (migErr) {
         console.warn("[drafts migrate]", migErr);
       }
-      memDrafts = Array.isArray(list) ? list.slice() : [];
+
+      // 账号库里若还留着「已确认」单，迁到全员共享
+      const stuck = (personal || []).filter(belongsOnShared);
+      if (stuck.length) {
+        shared = mergeSharedLists(shared, stuck, new Set());
+        personal = (personal || []).filter((d) => !belongsOnShared(d));
+        try {
+          await putDraftsCloud(SHARED_ACCOUNT, shared);
+          await putDraftsCloud(user, personal);
+          migrated = true;
+        } catch (mig2) {
+          console.warn("[drafts migrate shared]", mig2);
+        }
+      }
+
+      memSharedIdSet = new Set((shared || []).map((d) => d && d.id).filter(Boolean));
+      memDrafts = sortDraftsNewest([...(personal || []), ...(shared || [])]);
       draftsReady = true;
-      return { ok: true, migrated, count: memDrafts.length };
+      return {
+        ok: true,
+        migrated,
+        count: memDrafts.length,
+        personal: (personal || []).length,
+        shared: (shared || []).length,
+      };
     } catch (e) {
       draftsSyncError = String((e && e.message) || e || "network");
       // 离线兜底：不把本机旧库当账号库，避免串账号；仅空列表 + 报错
@@ -790,15 +838,42 @@ const MingdanUpload = (function () {
 
   /** @returns {Promise<{ok:boolean,error?:string}>} */
   async function saveDrafts(list) {
-    memDrafts = list.slice();
     const user = currentUser();
     if (!user) return { ok: false, error: "not_logged_in" };
     if (!draftsApiConfigured()) return { ok: false, error: "not_configured" };
+
+    const incoming = Array.isArray(list) ? list.slice() : [];
+    const personal = incoming.filter((d) => !belongsOnShared(d));
+    const sharedLocal = incoming.filter(belongsOnShared);
+    const localSharedIds = new Set(sharedLocal.map((d) => d && d.id).filter(Boolean));
+    const deletedIds = new Set();
+    memSharedIdSet.forEach((id) => {
+      if (!localSharedIds.has(id) && !incoming.some((d) => d && d.id === id)) {
+        deletedIds.add(id);
+      }
+    });
+
     try {
-      await putDraftsCloud(user, list);
+      let cloudShared = [];
+      try {
+        cloudShared = await fetchDraftsCloud(SHARED_ACCOUNT);
+      } catch (eFetch) {
+        // 读共享失败时仍写个人库，避免整单丢失；共享稍后再试
+        console.warn("[drafts shared fetch]", eFetch);
+        await putDraftsCloud(user, personal);
+        memDrafts = sortDraftsNewest([...personal, ...sharedLocal]);
+        return { ok: false, error: String((eFetch && eFetch.message) || eFetch || "shared_fetch_failed") };
+      }
+      const mergedShared = mergeSharedLists(cloudShared, sharedLocal, deletedIds);
+      await putDraftsCloud(user, personal);
+      await putDraftsCloud(SHARED_ACCOUNT, mergedShared);
+      memSharedIdSet = new Set(mergedShared.map((d) => d && d.id).filter(Boolean));
+      memDrafts = sortDraftsNewest([...personal, ...mergedShared]);
       return { ok: true };
     } catch (e) {
       const err = String((e && e.message) || e || "network");
+      // 失败时仍更新内存视图，便于用户下载 JSON
+      memDrafts = sortDraftsNewest(incoming);
       return { ok: false, error: err };
     }
   }
@@ -813,6 +888,47 @@ const MingdanUpload = (function () {
 
   function isDraftLike(status) {
     return DRAFT_LIKE.has(status);
+  }
+
+  function belongsOnShared(d) {
+    if (!d) return false;
+    if (d.sales_confirmed) return true;
+    const st = d.status || "";
+    if (SHARED_STATUSES.has(st)) return true;
+    // 未知的非草稿状态也按全员可见处理，避免漏展示
+    return !!(st && !isDraftLike(st));
+  }
+
+  function sortDraftsNewest(list) {
+    return (list || []).slice().sort((a, b) => {
+      const ta = Date.parse((a && (a.updated_at || a.confirmed_at || a.created_at)) || 0) || 0;
+      const tb = Date.parse((b && (b.updated_at || b.confirmed_at || b.created_at)) || 0) || 0;
+      return tb - ta;
+    });
+  }
+
+  function draftTouchTime(d) {
+    return Date.parse((d && (d.updated_at || d.confirmed_at || d.created_at)) || 0) || 0;
+  }
+
+  /** 合并云端共享列表：本地 upsert 覆盖同 id；deletedIds 从云端去掉；其余云端项保留 */
+  function mergeSharedLists(cloudShared, localShared, deletedIds) {
+    const byId = new Map();
+    for (const d of cloudShared || []) {
+      if (!d || !d.id) continue;
+      if (deletedIds && deletedIds.has(d.id)) continue;
+      byId.set(d.id, d);
+    }
+    for (const d of localShared || []) {
+      if (!d || !d.id) continue;
+      const prev = byId.get(d.id);
+      if (!prev || draftTouchTime(d) >= draftTouchTime(prev)) byId.set(d.id, d);
+      else {
+        // 本地无更新时间时仍以本地为准（本机刚改的状态）
+        byId.set(d.id, d);
+      }
+    }
+    return Array.from(byId.values());
   }
 
   function getActiveDraft() {
@@ -882,7 +998,7 @@ const MingdanUpload = (function () {
     if (notes) notes.value = "";
     renderList();
     scrollToUpload();
-    setMsg("已开新单：在上方粘贴/识别即可；原草稿仍在账号列表里", "ok");
+    setMsg("已开新单：在上方粘贴/识别即可；原草稿仍在下方列表（个人待办 / 全员已确认）", "ok");
   }
 
   function updateReviewChrome(d) {
@@ -1363,7 +1479,7 @@ const MingdanUpload = (function () {
     const drafts = loadDrafts();
     if (!drafts.length) {
       box.innerHTML =
-        '<div class="fuzzy-empty">暂无账号草稿。解析/识别只留在下方核对区；点「保留草稿」才会出现在这里（仅为草稿·待办）。换设备登录可见；不进未出团。</div>';
+        '<div class="fuzzy-empty">暂无草稿。点「保留草稿」→仅本人可见的待办；点「销售确认」→全员可见「已确认待易途」。都不进未出团。</div>';
       renderOverlay();
       return;
     }
@@ -1372,18 +1488,22 @@ const MingdanUpload = (function () {
         const f = d.fields || {};
         const st = STATUS[d.status] || d.status_label || d.status;
         const draftBadge = isDraftLike(d.status)
-          ? '<span class="fuzzy-draft-badge" title="尚未销售确认，伙伴可见：仍是草稿待办">仅为草稿·待办</span>'
-          : "";
-        return `<div class="fuzzy-draft ${isDraftLike(d.status) ? "is-draft-todo" : ""} ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
+          ? '<span class="fuzzy-draft-badge" title="仅当前登录账号可见">仅为草稿·待办</span>'
+          : '<span class="fuzzy-shared-badge" title="销售确认后全员账号可见">全员</span>';
+        const byLine = d.confirmed_by
+          ? `<span class="fuzzy-by">确认：${esc(d.confirmed_by)}</span>`
+          : (d.updated_by ? `<span class="fuzzy-by">更新：${esc(d.updated_by)}</span>` : "");
+        return `<div class="fuzzy-draft ${isDraftLike(d.status) ? "is-draft-todo" : "is-shared"} ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
           <div class="fuzzy-draft-h">
             ${draftBadge}
             <span class="fuzzy-st st-${esc(d.status)}">${esc(st)}</span>
             <span class="fuzzy-who">${esc(f.guest_name || "未命名")} · ${esc(f.depart_date || "无出团日")} · ${esc(f.party_size || "")}</span>
             <span class="fuzzy-agency">${esc(f.agency || "")}</span>
+            ${byLine}
           </div>
           <div class="fuzzy-draft-actions">
             <button type="button" class="btn fuzzy-open" data-id="${esc(d.id)}">打开核对</button>
-            <button type="button" class="btn fuzzy-del" data-id="${esc(d.id)}">删除草稿</button>
+            <button type="button" class="btn fuzzy-del" data-id="${esc(d.id)}">删除</button>
           </div>
         </div>`;
       })
@@ -1394,7 +1514,7 @@ const MingdanUpload = (function () {
     box.querySelectorAll(".fuzzy-del").forEach((b) =>
       b.addEventListener("click", async () => {
         const id = b.getAttribute("data-id");
-        if (!confirm("删除该账号草稿？不会影响钉钉同步的正式名单。")) return;
+        if (!confirm("删除该草稿？全员共享单会从所有账号列表消失；不影响钉钉正式名单。")) return;
         const res = await saveDrafts(loadDrafts().filter((x) => x.id !== id));
         if (!res.ok) {
           setMsg(saveErrorMsg(res.error), "err");
@@ -1408,7 +1528,7 @@ const MingdanUpload = (function () {
           if (rev) rev.classList.add("hidden");
         }
         renderList();
-        setMsg("已删除账号草稿", "ok");
+        setMsg("已删除草稿", "ok");
       })
     );
     renderOverlay();
@@ -1768,7 +1888,7 @@ const MingdanUpload = (function () {
     if (notes) notes.value = "";
     const persisted = loadDrafts().some((x) => x.id === d.id);
     const draftHint = isDraftLike(d.status)
-      ? (persisted ? "仅为草稿·待办（已保留账号）" : "未保留 · 仅内存核对中，点「保留草稿」才写入账号")
+      ? (persisted ? "仅为草稿·待办（仅本账号）" : "未保留 · 仅内存核对中，点「保留草稿」才写入本账号")
       : (STATUS[d.status] || d.status);
     $("fuzzyStatusLine").textContent =
       `状态：${draftHint} · ${d.id}`;
@@ -1847,7 +1967,7 @@ const MingdanUpload = (function () {
     const res = await upsertPersisted(cloneDraft(d));
     setMsg(
       res.ok
-        ? "已保留为账号「仅为草稿·待办」。核对区已收起，可直接录新单；要改再点「展开核对」或列表「打开核对」。"
+        ? "已保留为「仅为草稿·待办」（仅本账号可见）。核对区已收起，可直接录新单；销售确认后才会全员可见。"
         : saveErrorMsg(res.error),
       res.ok ? "ok" : "err"
     );
@@ -1875,7 +1995,7 @@ const MingdanUpload = (function () {
       return;
     }
     const dups = findDuplicates(fields, d.id);
-    if (dups.length && !confirm("账号下已有相同组团社+出团日+代表人的草稿，仍要确认保存吗？")) {
+    if (dups.length && !confirm("已有相同组团社+出团日+代表人的草稿/确认单（含全员共享），仍要确认保存吗？")) {
       return;
     }
     d.fields = fields;
@@ -1889,7 +2009,7 @@ const MingdanUpload = (function () {
     const res = await upsertPersisted(cloneDraft(d));
     setMsg(
       res.ok
-        ? "已保存为「已确认待易途」（跟账号）。未出团钉钉名单未改动；易途录完后再同步。"
+        ? "已保存为「已确认待易途」（全员可见）。未出团钉钉名单未改动；易途录完后再同步。"
         : "已确认（内存）。" + saveErrorMsg(res.error),
       res.ok ? "ok" : "err"
     );
@@ -4514,7 +4634,7 @@ const MingdanUpload = (function () {
         "err"
       );
     } else if (sync.migrated) {
-      setMsg("已将本机旧草稿迁入当前账号（一次性），换设备登录可见。", "ok");
+      setMsg("已将本机旧草稿迁入云端（一次性）：待办跟账号，已确认进全员共享。", "ok");
     } else {
       setMsg("账号草稿已同步（" + sync.count + " 条）", "ok");
     }
