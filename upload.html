@@ -349,6 +349,17 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
   .cs-fab{right:12px;bottom:14px}
   .cs-fab-btn{padding:11px 14px;font-size:13px}
 }
+/* 通知AI助手录易途：主操作按钮，醒目 */
+.btn.btn-notify{background:linear-gradient(180deg,#4f46e5,#3730a3);border:1px solid #6366f1;color:#fff;
+  font-weight:800;font-size:15px;padding:10px 18px;border-radius:10px;letter-spacing:.5px;
+  box-shadow:0 4px 14px rgba(79,70,229,.45),inset 0 1px 0 rgba(255,255,255,.18);cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:transform .08s,box-shadow .15s,filter .15s}
+.btn.btn-notify .ico{font-size:17px;line-height:1}
+.btn.btn-notify:hover{filter:brightness(1.15);box-shadow:0 6px 18px rgba(99,102,241,.6),inset 0 1px 0 rgba(255,255,255,.2)}
+.btn.btn-notify:active{transform:translateY(1px);opacity:1}
+.btn.btn-notify:focus-visible{outline:3px solid #a5b4fc;outline-offset:2px}
+.btn.btn-notify:disabled,.btn.btn-notify[aria-disabled="true"]{background:#312e81;border-color:#4338ca;color:#c7d2fe;
+  box-shadow:none;filter:none;cursor:not-allowed;opacity:1}
 
 </style>
 </head>
@@ -407,7 +418,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 17:04 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 18:30 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -465,13 +476,13 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
         <button type="button" class="btn fuzzy-primary" id="fuzzySubmitChangeBtn">提交改单</button>
         <button type="button" class="btn" id="fuzzyYituUpdatedBtn">易途已更新</button>
         <button type="button" class="btn" id="fuzzyExportBtn">下载草稿 JSON</button>
-        <button type="button" class="btn" id="fuzzyNotifyBtn">复制通知助手</button>
+        <button type="button" class="btn btn-notify" id="fuzzyNotifyBtn"><span class="ico" aria-hidden="true">🔔</span>通知AI助手录易途</button>
       </div>
       </div>
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-30 17:04 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-30 18:30 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -491,7 +502,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 17:04 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 18:30 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2722,13 +2733,13 @@ const MingdanUpload = (function () {
       list[idx].status = resultStatus;
       list[idx].status_label = STATUS[resultStatus] || resultStatus;
       msg =
-        "改单已写入本页草稿（尚未进易途，无需同步状态）。可继续录易途；复制通知可选。";
+        "改单已写入本页草稿（尚未进易途，无需同步状态）。可继续录易途；「通知AI助手录易途」可选。";
     } else {
       resultStatus = "pending_change_sync";
       list[idx].status = "pending_change_sync";
       list[idx].status_label = STATUS.pending_change_sync;
       msg =
-        "改单已提交，状态「待同步易途」。请点「复制通知助手」或下载 JSON，助手改完易途后点「易途已更新」。已进未出团的等钉钉同步覆盖。";
+        "改单已提交，状态「待同步易途」。请点「🔔 通知AI助手录易途」或下载 JSON，助手改完易途后点「易途已更新」。已进未出团的等钉钉同步覆盖。";
     }
 
     list[idx].change_history.push({
@@ -2944,7 +2955,7 @@ const MingdanUpload = (function () {
     }
     const text = lines.join("\n");
     navigator.clipboard.writeText(text).then(
-      () => setMsg("通知文案已复制，请粘贴到与助手的聊天", "ok"),
+      () => setMsg("🔔 已复制「通知AI助手录易途」文案，请粘贴到与助手的聊天", "ok"),
       () => {
         prompt("复制以下通知发给助手：", text);
       }
@@ -3039,7 +3050,7 @@ const MingdanUpload = (function () {
       let base;
       if (draft.status === "pending_parse") {
         base =
-          "已收文件，状态「待解析」（仅内存）。需要留着请点「保留草稿」（跟账号）；或下载 JSON / 复制通知发给助手。";
+          "已收文件，状态「待解析」（仅内存）。需要留着请点「保留草稿」（跟账号）；或下载 JSON / 点「通知AI助手录易途」发给助手。";
       } else if (partial) {
         base =
           "已解析到部分字段（仅内存，未自动保留）。请在下方补全；要跨设备可见请点「保留草稿」→仅为草稿·待办。";

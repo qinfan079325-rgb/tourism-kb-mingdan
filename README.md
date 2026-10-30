@@ -101,3 +101,9 @@ python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --today 2026-10
 - KB 只取结算明细纯数字项（汉字说明项不计）
 - 不改未出团/已完团钉钉名单与展示逻辑
 
+## 中国大陆访问（帽子云）
+
+- 上传页（大陆可达）：https://mingdanupload-10m363dc.maozi.io/upload
+- 草稿/OCR 仍指向 Cloudflare Worker；已放行 maozi Origin，客户端超时 45s/60s、重试×3。
+- 同域 `/drafts` `/ocr` 网关反代：控制台规则 API 暂未能用脚本创建（需在 应用详情→规则→反向代理 手工添加，或付费 Web 反代）。
+
