@@ -422,7 +422,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
         <label class="fuzzy-check"><input type="checkbox" id="fuzzyConfirmCheck"/> 销售确认无误（出团日、人数等已核对）</label>
         <button type="button" class="btn" id="fuzzyRecalcKb">按明细重算 KB</button>
         <button type="button" class="btn fuzzy-keep" id="fuzzyKeepDraftBtn" title="写入当前账号云端草稿并标「仅为草稿·待办」，换设备可见">保留草稿</button>
-        <button type="button" class="btn fuzzy-primary" id="fuzzyConfirmBtn" disabled>销售确认无误并保存</button>
+        <button type="button" class="btn fuzzy-primary" id="fuzzyConfirmBtn">销售确认无误并保存</button>
         <button type="button" class="btn" id="fuzzyMarkYituBtn">标记易途已录入</button>
         <button type="button" class="btn" id="fuzzyChangeBtn">申请改单</button>
         <button type="button" class="btn fuzzy-primary" id="fuzzySubmitChangeBtn">提交改单</button>
@@ -434,7 +434,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">登录 · 草稿跟账号 · 手动保留 · build 2026-10-30 03:02 Asia/Shanghai · ★核对重点 · v=20261030-030220</div>
+  <div class="footer">登录 · 草稿跟账号 · 手动保留 · build 2026-10-30 14:31 Asia/Shanghai · ★核对重点 · v=20261030-1431</div>
 </div>
 
 <script>
@@ -835,6 +835,7 @@ const MingdanUpload = (function () {
   }
 
   function isDraftLike(status) {
+    if (status == null || status === "") return true;
     return DRAFT_LIKE.has(status);
   }
 
@@ -1731,7 +1732,8 @@ const MingdanUpload = (function () {
     if (cbtn) {
       if (awaitingFirstConfirm) {
         cbtn.style.display = "";
-        cbtn.disabled = !(chk && chk.checked);
+        // 不因未勾选而 disabled：否则点击无事件、无提示；由 confirmSave 校验并提示
+        cbtn.disabled = false;
         cbtn.textContent = "销售确认无误并保存";
       } else {
         cbtn.style.display = "none";
@@ -2108,10 +2110,16 @@ const MingdanUpload = (function () {
     const d = getActiveDraft();
     if (!btn || !d) return;
     if (!isDraftLike(d.status)) {
-      btn.disabled = true;
+      btn.style.display = "none";
       return;
     }
-    btn.disabled = !$("fuzzyConfirmCheck").checked;
+    btn.style.display = "";
+    btn.disabled = false;
+    const lab = btn.closest(".fuzzy-confirm-row") && btn.closest(".fuzzy-confirm-row").querySelector(".fuzzy-check");
+    if (lab) {
+      if ($("fuzzyConfirmCheck").checked) lab.style.outline = "";
+      else lab.style.outline = "";
+    }
   }
 
 
@@ -2150,44 +2158,60 @@ const MingdanUpload = (function () {
   }
 
   async function confirmSave() {
-    if (!$("fuzzyConfirmCheck").checked) {
-      setMsg("请先勾选「销售确认无误」", "err");
-      return;
+    try {
+      const chk = $("fuzzyConfirmCheck");
+      const lab = chk && chk.closest ? chk.closest("label") : null;
+      if (!chk || !chk.checked) {
+        if (lab) {
+          lab.style.outline = "2px solid #ef4444";
+          lab.style.outlineOffset = "2px";
+          try { lab.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
+        }
+        if (chk) {
+          try { chk.focus(); } catch (e) {}
+        }
+        setMsg("请先勾选上方「销售确认无误（出团日、人数等已核对）」，再点保存", "err");
+        return;
+      }
+      if (lab) { lab.style.outline = ""; lab.style.outlineOffset = ""; }
+      const d = getActiveDraft();
+      if (!d) {
+        setMsg("请先解析或打开一条草稿", "err");
+        return;
+      }
+      if (!currentUser()) {
+        setMsg("请先登录后再确认保存", "err");
+        return;
+      }
+      const fields = readFieldsFromForm();
+      if (!(fields.depart_date || "").trim() || !(fields.party_size || "").trim()) {
+        setMsg("出团时间、参团人数必须核对填写后再确认", "err");
+        return;
+      }
+      const dups = findDuplicates(fields, d.id);
+      if (dups.length && !confirm("账号下已有相同组团社+出团日+代表人的草稿，仍要确认保存吗？")) {
+        return;
+      }
+      d.fields = fields;
+      d.sales_confirmed = true;
+      d.status = "confirmed_await_yitu";
+      d.status_label = STATUS.confirmed_await_yitu;
+      d.confirmed_at = nowISO();
+      d.confirmed_by = currentUser();
+      if (!Array.isArray(d.change_history)) d.change_history = [];
+      workingDraft = d;
+      const res = await upsertPersisted(cloneDraft(d));
+      setMsg(
+        res.ok
+          ? "已保存为「已确认待易途」（跟账号）。未出团钉钉名单未改动；易途录完后再同步。"
+          : "已确认（内存）。" + saveErrorMsg(res.error),
+        res.ok ? "ok" : "err"
+      );
+      openReviewFromWorking();
+    } catch (e) {
+      console.error("[confirmSave]", e);
+      setMsg("销售确认保存出错：" + ((e && e.message) || e), "err");
     }
-    const d = getActiveDraft();
-    if (!d) {
-      setMsg("请先解析或打开一条草稿", "err");
-      return;
-    }
-    if (!currentUser()) {
-      setMsg("请先登录后再确认保存", "err");
-      return;
-    }
-    const fields = readFieldsFromForm();
-    if (!(fields.depart_date || "").trim() || !(fields.party_size || "").trim()) {
-      setMsg("出团时间、参团人数必须核对填写后再确认", "err");
-      return;
-    }
-    const dups = findDuplicates(fields, d.id);
-    if (dups.length && !confirm("账号下已有相同组团社+出团日+代表人的草稿，仍要确认保存吗？")) {
-      return;
-    }
-    d.fields = fields;
-    d.sales_confirmed = true;
-    d.status = "confirmed_await_yitu";
-    d.status_label = STATUS.confirmed_await_yitu;
-    d.confirmed_at = nowISO();
-    d.confirmed_by = currentUser();
-    if (!Array.isArray(d.change_history)) d.change_history = [];
-    workingDraft = d;
-    const res = await upsertPersisted(cloneDraft(d));
-    setMsg(
-      res.ok
-        ? "已保存为「已确认待易途」（跟账号）。未出团钉钉名单未改动；易途录完后再同步。"
-        : "已确认（内存）。" + saveErrorMsg(res.error),
-      res.ok ? "ok" : "err"
-    );
-    openReviewFromWorking();
   }
 
   async function markInYitu() {
@@ -4725,7 +4749,13 @@ const MingdanUpload = (function () {
     const chk = $("fuzzyConfirmCheck");
     if (chk) chk.addEventListener("change", onConfirmCheck);
     const cbtn = $("fuzzyConfirmBtn");
-    if (cbtn) cbtn.addEventListener("click", confirmSave);
+    if (cbtn) cbtn.addEventListener("click", function (ev) {
+      try { if (ev && ev.preventDefault) ev.preventDefault(); } catch (e0) {}
+      Promise.resolve(confirmSave()).catch(function (e) {
+        console.error("[fuzzyConfirmBtn]", e);
+        setMsg("销售确认保存出错：" + ((e && e.message) || e), "err");
+      });
+    });
     const keepBtn = $("fuzzyKeepDraftBtn");
     if (keepBtn) keepBtn.addEventListener("click", keepDraft);
     const ebtn = $("fuzzyExportBtn");
