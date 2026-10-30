@@ -200,11 +200,23 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-st.st-draft_todo{background:#7c2d12;color:#fdba74}
 .fuzzy-keep{background:#9a3412;border-color:#ea580c;color:#ffedd5;font-weight:650}
 .fuzzy-keep:hover{filter:brightness(1.08)}
+.fuzzy-notify{background:#9a3412;border-color:#ea580c;color:#ffedd5;font-weight:650}
+.fuzzy-notify:hover{filter:brightness(1.08)}
+.fuzzy-notify.is-next{box-shadow:0 0 0 2px rgba(249,115,22,.55),0 0 18px rgba(234,88,12,.35);
+  animation:fuzzy-notify-pulse 1.6s ease-in-out infinite}
+@keyframes fuzzy-notify-pulse{0%,100%{box-shadow:0 0 0 2px rgba(249,115,22,.45),0 0 12px rgba(234,88,12,.25)}
+50%{box-shadow:0 0 0 3px rgba(249,115,22,.7),0 0 22px rgba(234,88,12,.45)}}
+.fuzzy-check-done{background:#065f46;border-color:#10b981;color:#d1fae5;font-weight:650}
+.fuzzy-check-done:hover{filter:brightness(1.08)}
 
-.fuzzy-st.st-confirmed_await_yitu{background:#14532d;color:#86efac}
-.fuzzy-st.st-in_yitu{background:#064e3b;color:#6ee7b7}
-.fuzzy-st.st-pending_change_sync{background:#7c2d12;color:#fdba74}
-.fuzzy-st.st-yitu_updated{background:#312e81;color:#c7d2fe}
+.fuzzy-st.st-confirmed_await_yitu{background:#14532d;color:#86efac;border:1px solid #22c55e}
+.fuzzy-st.st-in_yitu{background:#064e3b;color:#6ee7b7;border:1px solid #34d399}
+.fuzzy-st.st-yitu_check_done{background:#0f766e;color:#99f6e4;border:1px solid #2dd4bf}
+.fuzzy-st.st-pending_change_sync{background:#7c2d12;color:#fdba74;border:1px solid #f97316}
+.fuzzy-st.st-yitu_updated{background:#312e81;color:#c7d2fe;border:1px solid #818cf8}
+.fuzzy-draft.is-await-yitu{border-color:#16a34a;background:#0c1a12}
+.fuzzy-draft.is-in-yitu{border-color:#059669;background:#0a1f18}
+.fuzzy-draft.is-check-done{border-color:#0d9488;background:#0a1c1a}
 .fuzzy-who{font-size:13px}
 .fuzzy-agency{color:var(--muted);font-size:12px}
 .fuzzy-draft-actions{display:flex;flex-wrap:wrap;gap:6px}
@@ -423,18 +435,19 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
         <button type="button" class="btn" id="fuzzyRecalcKb">按明细重算 KB</button>
         <button type="button" class="btn fuzzy-keep" id="fuzzyKeepDraftBtn" title="写入当前账号云端草稿并标「仅为草稿·待办」，换设备可见">保留草稿</button>
         <button type="button" class="btn fuzzy-primary" id="fuzzyConfirmBtn">销售确认无误并保存</button>
-        <button type="button" class="btn" id="fuzzyMarkYituBtn">标记易途已录入</button>
+        <button type="button" class="btn fuzzy-primary" id="fuzzyMarkYituBtn" title="助手/销售：易途已录入后点此">标记易途已录入</button>
+        <button type="button" class="btn fuzzy-check-done" id="fuzzyYituCheckDoneBtn" title="核对易途录入无误后点此">易途检查完成</button>
         <button type="button" class="btn" id="fuzzyChangeBtn">申请改单</button>
         <button type="button" class="btn fuzzy-primary" id="fuzzySubmitChangeBtn">提交改单</button>
         <button type="button" class="btn" id="fuzzyYituUpdatedBtn">易途已更新</button>
         <button type="button" class="btn" id="fuzzyExportBtn">下载草稿 JSON</button>
-        <button type="button" class="btn" id="fuzzyNotifyBtn">复制通知助手</button>
+        <button type="button" class="btn fuzzy-notify" id="fuzzyNotifyBtn" title="复制通知文案，粘贴到与助手的聊天">复制通知助手</button>
       </div>
       </div>
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">登录 · 草稿跟账号 · 手动保留 · build 2026-10-30 14:31 Asia/Shanghai · ★核对重点 · v=20261030-1431</div>
+  <div class="footer">登录 · 草稿跟账号 · 手动保留 · build 2026-10-30 14:35 Asia/Shanghai · ★核对重点 · 状态徽章 · v=20261030-143556</div>
 </div>
 
 <script>
@@ -582,7 +595,8 @@ const MingdanUpload = (function () {
     pending_parse: "待解析",
     pending_sales_confirm: "待销售确认",
     confirmed_await_yitu: "已确认待易途",
-    in_yitu: "已进易途",
+    in_yitu: "已录易途",
+    yitu_check_done: "易途检查完成",
     pending_change_sync: "待同步易途",
     yitu_updated: "易途已更新",
   };
@@ -1668,10 +1682,17 @@ const MingdanUpload = (function () {
         const draftBadge = isDraftLike(d.status)
           ? '<span class="fuzzy-draft-badge" title="尚未销售确认，伙伴可见：仍是草稿待办">仅为草稿·待办</span>'
           : "";
-        return `<div class="fuzzy-draft ${isDraftLike(d.status) ? "is-draft-todo" : ""} ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
+        const rowCls = [
+          isDraftLike(d.status) ? "is-draft-todo" : "",
+          d.status === "confirmed_await_yitu" ? "is-await-yitu" : "",
+          d.status === "in_yitu" ? "is-in-yitu" : "",
+          d.status === "yitu_check_done" ? "is-check-done" : "",
+          d.id === activeId ? "active" : "",
+        ].filter(Boolean).join(" ");
+        return `<div class="fuzzy-draft ${rowCls}" data-id="${esc(d.id)}">
           <div class="fuzzy-draft-h">
             ${draftBadge}
-            <span class="fuzzy-st st-${esc(d.status)}">${esc(st)}</span>
+            <span class="fuzzy-st st-${esc(d.status)}" title="订单状态">${esc(st)}</span>
             <span class="fuzzy-who">${esc(f.guest_name || "未命名")} · ${esc(f.depart_date || "无出团日")} · ${esc(f.party_size || "")}</span>
             <span class="fuzzy-agency">${esc(f.agency || "")}</span>
           </div>
@@ -1712,12 +1733,13 @@ const MingdanUpload = (function () {
     const chk = $("fuzzyConfirmCheck");
     const cbtn = $("fuzzyConfirmBtn");
     const markYitu = $("fuzzyMarkYituBtn");
+    const checkDone = $("fuzzyYituCheckDoneBtn");
     const changeBtn = $("fuzzyChangeBtn");
     const submitChange = $("fuzzySubmitChangeBtn");
     const yituUpdated = $("fuzzyYituUpdatedBtn");
     const changeBox = $("fuzzyChangeBox");
 
-    const confirmed = !!d.sales_confirmed || d.status === "confirmed_await_yitu" || d.status === "in_yitu" || d.status === "pending_change_sync" || d.status === "yitu_updated";
+    const confirmed = !!d.sales_confirmed || d.status === "confirmed_await_yitu" || d.status === "in_yitu" || d.status === "yitu_check_done" || d.status === "pending_change_sync" || d.status === "yitu_updated";
     const awaitingFirstConfirm = isDraftLike(d.status);
     const keepBtn = $("fuzzyKeepDraftBtn");
 
@@ -1740,7 +1762,12 @@ const MingdanUpload = (function () {
       }
     }
     if (markYitu) {
+      // 助手/销售：已确认待易途 → 标记易途已录入 → 已录易途
       markYitu.style.display = d.status === "confirmed_await_yitu" ? "" : "none";
+    }
+    if (checkDone) {
+      // 已录易途后可点「易途检查完成」
+      checkDone.style.display = d.status === "in_yitu" ? "" : "none";
     }
     if (changeBtn) {
       changeBtn.style.display = confirmed && !changeMode ? "" : "none";
@@ -1754,6 +1781,13 @@ const MingdanUpload = (function () {
     if (changeBox) {
       if (changeMode) changeBox.classList.remove("hidden");
       else changeBox.classList.add("hidden");
+    }
+    const nbtn = $("fuzzyNotifyBtn");
+    if (nbtn) {
+      // 「已确认待易途 / 待同步易途」时高亮为下一步（同保留草稿橙色）
+      const nextNotify = d.status === "confirmed_await_yitu" || d.status === "pending_change_sync";
+      nbtn.classList.toggle("is-next", nextNotify);
+      nbtn.textContent = nextNotify ? "下一步 · 复制通知助手" : "复制通知助手";
     }
   }
 
@@ -2219,7 +2253,7 @@ const MingdanUpload = (function () {
     const idx = list.findIndex((x) => x.id === activeId);
     if (idx < 0) return;
     if (list[idx].status !== "confirmed_await_yitu") {
-      setMsg("仅「已确认待易途」可标记为已进易途", "err");
+      setMsg("仅「已确认待易途」可标记为已录易途", "err");
       return;
     }
     list[idx].status = "in_yitu";
@@ -2229,7 +2263,7 @@ const MingdanUpload = (function () {
     if (!Array.isArray(list[idx].change_history)) list[idx].change_history = [];
     list[idx].change_history.push({
       kind: "易途已录入",
-      notes: "标记订单已录入易途；正式未出团名单仍等钉钉同步。",
+      notes: "标记订单已录入易途（已录易途）；正式未出团名单仍等钉钉同步。",
       at: nowISO(),
       by: currentUser(),
       result_status: "in_yitu",
@@ -2238,8 +2272,37 @@ const MingdanUpload = (function () {
     workingDraft = cloneDraft(list[idx]);
     setMsg(
       res.ok
-        ? "已标记「已进易途」。订单仍留本页；未出团等钉钉同步覆盖/出现。"
+        ? "已标记「已录易途」。请再核对易途后点「易途检查完成」。未出团等钉钉同步。"
         : saveErrorMsg(res.error),
+      res.ok ? "ok" : "err"
+    );
+    openReviewFromWorking();
+  }
+
+  async function markYituCheckDone() {
+    const list = loadDrafts();
+    const idx = list.findIndex((x) => x.id === activeId);
+    if (idx < 0) return;
+    if (list[idx].status !== "in_yitu") {
+      setMsg("仅「已录易途」可标记为易途检查完成", "err");
+      return;
+    }
+    list[idx].status = "yitu_check_done";
+    list[idx].status_label = STATUS.yitu_check_done;
+    list[idx].yitu_checked_at = nowISO();
+    list[idx].yitu_checked_by = currentUser();
+    if (!Array.isArray(list[idx].change_history)) list[idx].change_history = [];
+    list[idx].change_history.push({
+      kind: "易途检查完成",
+      notes: "易途录入已核对无误；正式未出团名单仍等钉钉同步。",
+      at: nowISO(),
+      by: currentUser(),
+      result_status: "yitu_check_done",
+    });
+    const res = await saveDrafts(list);
+    workingDraft = cloneDraft(list[idx]);
+    setMsg(
+      res.ok ? "已标记「易途检查完成」。草稿列表徽章已更新。" : saveErrorMsg(res.error),
       res.ok ? "ok" : "err"
     );
     openReviewFromWorking();
@@ -2276,6 +2339,7 @@ const MingdanUpload = (function () {
     const newFields = readFieldsFromForm();
     const alreadyInYitu =
       list[idx].status === "in_yitu" ||
+      list[idx].status === "yitu_check_done" ||
       list[idx].status === "pending_change_sync" ||
       list[idx].status === "yitu_updated";
 
@@ -2389,7 +2453,11 @@ const MingdanUpload = (function () {
     if (d.status === "pending_change_sync") {
       lines.push("请助手按改单说明更新易途；完成后在订单页点「易途已更新」。");
     } else if (d.status === "confirmed_await_yitu") {
-      lines.push("草稿已确认待易途；请助手录入易途。完成后点「标记易途已录入」。");
+      lines.push("草稿已确认待易途；请助手录入易途。完成后点「标记易途已录入」→「已录易途」，再点「易途检查完成」。");
+    } else if (d.status === "in_yitu") {
+      lines.push("已录易途；请核对后点「易途检查完成」。");
+    } else if (d.status === "yitu_check_done") {
+      lines.push("易途检查完成；未出团名单仍等钉钉同步。");
     } else {
       lines.push("草稿仅在上传页；请助手继续处理。");
     }
@@ -2543,7 +2611,7 @@ const MingdanUpload = (function () {
     const host = $("fuzzyOverlay");
     if (!host) return;
     const watch = loadDrafts().filter((d) =>
-      ["confirmed_await_yitu", "in_yitu", "pending_change_sync", "yitu_updated"].includes(d.status)
+      ["confirmed_await_yitu", "in_yitu", "yitu_check_done", "pending_change_sync", "yitu_updated"].includes(d.status)
     );
     if (!watch.length) {
       host.classList.add("hidden");
@@ -4766,6 +4834,14 @@ const MingdanUpload = (function () {
     if (sample) sample.addEventListener("click", fillSample);
     const markYitu = $("fuzzyMarkYituBtn");
     if (markYitu) markYitu.addEventListener("click", markInYitu);
+    const checkDoneBtn = $("fuzzyYituCheckDoneBtn");
+    if (checkDoneBtn) checkDoneBtn.addEventListener("click", function (ev) {
+      try { if (ev && ev.preventDefault) ev.preventDefault(); } catch (e0) {}
+      Promise.resolve(markYituCheckDone()).catch(function (e) {
+        console.error("[fuzzyYituCheckDoneBtn]", e);
+        setMsg("标记易途检查完成出错：" + ((e && e.message) || e), "err");
+      });
+    });
     const changeBtn = $("fuzzyChangeBtn");
     if (changeBtn) changeBtn.addEventListener("click", startChangeMode);
     const submitChangeBtn = $("fuzzySubmitChangeBtn");
