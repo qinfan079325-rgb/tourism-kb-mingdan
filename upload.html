@@ -407,7 +407,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 16:29 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 17:04 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -471,7 +471,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-30 16:29 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-30 17:04 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -491,7 +491,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 16:29 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 17:04 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -775,8 +775,8 @@ const MingdanUpload = (function () {
     return String(ID_OCR_WORKER_URL).replace(/\/$/, "") + "/drafts";
   }
 
-  const DRAFTS_FETCH_MS = 12000;
-  const DRAFTS_PUT_MS = 15000;
+  const DRAFTS_FETCH_MS = 45000;
+  const DRAFTS_PUT_MS = 60000;
 
   function abortErrorName(err) {
     if (!err) return "";
@@ -804,9 +804,29 @@ const MingdanUpload = (function () {
     }
   }
 
+  const DRAFTS_RETRY = 3;
+  const DRAFTS_RETRY_GAP_MS = 1500;
+
+  async function fetchWithRetry(url, options, ms, retries) {
+    const n = typeof retries === "number" ? retries : DRAFTS_RETRY;
+    let lastErr = null;
+    for (let i = 0; i < n; i++) {
+      try {
+        return await fetchWithTimeout(url, options, ms);
+      } catch (e) {
+        lastErr = e;
+        const name = abortErrorName(e);
+        const retryable = name === "timeout" || /network|failed|fetch/i.test(String((e && e.message) || e || ""));
+        if (!retryable || i === n - 1) throw e;
+        await new Promise(function (r) { setTimeout(r, DRAFTS_RETRY_GAP_MS * (i + 1)); });
+      }
+    }
+    throw lastErr || new Error("timeout");
+  }
+
   /** GET 单账号草稿列表（不含共享） */
   async function fetchDraftsCloud(account) {
-    const res = await fetchWithTimeout(
+    const res = await fetchWithRetry(
       draftsBaseUrl() + "?account=" + encodeURIComponent(account),
       { method: "GET", headers: draftsAuthHeaders() },
       DRAFTS_FETCH_MS
@@ -829,7 +849,7 @@ const MingdanUpload = (function () {
       "?account=" +
       encodeURIComponent(account) +
       "&include_shared=1";
-    const res = await fetchWithTimeout(
+    const res = await fetchWithRetry(
       url,
       { method: "GET", headers: draftsAuthHeaders() },
       DRAFTS_FETCH_MS
@@ -854,7 +874,7 @@ const MingdanUpload = (function () {
     if (account === SHARED_ACCOUNT) {
       throw new Error("use_putPersonalAndShared");
     }
-    const res = await fetchWithTimeout(
+    const res = await fetchWithRetry(
       draftsBaseUrl(),
       {
         method: "PUT",
@@ -873,7 +893,7 @@ const MingdanUpload = (function () {
 
   /** 一次 PUT：个人待办 + 全员已确认（body.shared）；避免浏览器请求 account=__shared_confirmed__ */
   async function putPersonalAndShared(account, personal, shared) {
-    const res = await fetchWithTimeout(
+    const res = await fetchWithRetry(
       draftsBaseUrl(),
       {
         method: "PUT",
@@ -1155,7 +1175,7 @@ const MingdanUpload = (function () {
     if (err === "not_configured") return "云端草稿未配置，请联系助手";
     if (err === "unauthorized") return "云端鉴权失败，请联系助手";
     if (err === "timeout" || /timeout|AbortError|aborted/i.test(String(err || ""))) {
-      return "云端草稿请求超时。请检查网络后刷新；确认单在「全员共享」库";
+      return "云端草稿请求超时（已重试）。若在国内网络，请改用中国节点：https://mingdanupload-10m363dc.maozi.io/upload ；确认单在「全员共享」库";
     }
     if (!err || err === "network" || /Failed to fetch|NetworkError|fetch/i.test(err)) {
       return "网络异常，云端保存失败。请联网后重试，或下载 JSON 备份";
@@ -4609,7 +4629,7 @@ const MingdanUpload = (function () {
     const tok = String(ID_OCR_TOKEN || "").trim();
     if (tok && tok.indexOf("__ID_OCR_") < 0) headers.Authorization = "Bearer " + tok;
     const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 22000) : null;
+    const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 45000) : null;
     try {
       const res = await fetch(String(ID_OCR_WORKER_URL).replace(/\/$/, "") + "/ocr/id", {
         method: "POST",
