@@ -4181,7 +4181,7 @@ const MingdanUpload = (function () {
 
   function canvasToJpegBase64(canvas, quality) {
     try {
-      const q = quality == null ? 0.9 : quality;
+      const q = quality == null ? 0.82 : quality;
       return stripDataUrlBase64(canvas.toDataURL("image/jpeg", q));
     } catch (e) {
       return "";
@@ -4197,48 +4197,84 @@ const MingdanUpload = (function () {
     });
   }
 
+  /** Compress for Baidu: max side 1400, target base64 < ~900KB. */
+  function compressCanvasForCloud(canvas, opts) {
+    opts = opts || {};
+    const maxSide = opts.maxSide || 1400;
+    const targetChars = opts.targetChars || 900000; // ~675KB binary
+    const w0 = canvas.width;
+    const h0 = canvas.height;
+    if (!w0 || !h0) return "";
+    let dw = w0, dh = h0;
+    if (Math.max(w0, h0) > maxSide) {
+      const sc = maxSide / Math.max(w0, h0);
+      dw = Math.max(1, Math.round(w0 * sc));
+      dh = Math.max(1, Math.round(h0 * sc));
+    }
+    const out = document.createElement("canvas");
+    out.width = dw;
+    out.height = dh;
+    const ctx = out.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, dw, dh);
+    ctx.drawImage(canvas, 0, 0, dw, dh);
+    const qualities = [0.82, 0.72, 0.62, 0.52];
+    let best = "";
+    for (let i = 0; i < qualities.length; i++) {
+      best = canvasToJpegBase64(out, qualities[i]);
+      if (best && best.length <= targetChars) return best;
+    }
+    return best;
+  }
+
   async function sourceToJpegBase64(source) {
     if (!source) return "";
     if (typeof HTMLCanvasElement !== "undefined" && source instanceof HTMLCanvasElement) {
-      return canvasToJpegBase64(source, 0.9);
+      return compressCanvasForCloud(source);
     }
-    if (typeof Blob !== "undefined" && source instanceof Blob) {
-      // Prefer canvas re-encode to jpeg for size; fallback dataURL
-      try {
-        const img = await loadImageElement(source);
-        const w = img.naturalWidth || img.width;
-        const h = img.naturalHeight || img.height;
-        const maxSide = 2000;
-        let dw = w, dh = h;
-        if (Math.max(w, h) > maxSide) {
-          const sc = maxSide / Math.max(w, h);
-          dw = Math.round(w * sc);
-          dh = Math.round(h * sc);
-        }
-        const c = document.createElement("canvas");
-        c.width = dw;
-        c.height = dh;
-        const ctx = c.getContext("2d");
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, dw, dh);
-        ctx.drawImage(img, 0, 0, dw, dh);
-        return canvasToJpegBase64(c, 0.9);
-      } catch (e) {
-        const du = await blobToDataURL(source);
-        return stripDataUrlBase64(du);
-      }
-    }
-    // dataURL / img element
     try {
       const img = await loadImageElement(source);
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
       const c = document.createElement("canvas");
-      c.width = img.naturalWidth || img.width;
-      c.height = img.naturalHeight || img.height;
-      c.getContext("2d").drawImage(img, 0, 0);
-      return canvasToJpegBase64(c, 0.9);
-    } catch (e2) {
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0);
+      return compressCanvasForCloud(c);
+    } catch (e) {
+      if (typeof Blob !== "undefined" && source instanceof Blob) {
+        try {
+          const du = await blobToDataURL(source);
+          return stripDataUrlBase64(du);
+        } catch (e2) {
+          return "";
+        }
+      }
       return "";
     }
+  }
+
+  function cloudOcrErrorText(data, err) {
+    if (err) {
+      const m = String(err.message || err || "");
+      if (/timeout|AbortError|aborted/i.test(m)) return "证件云识别超时，请压缩图片后重试，或换更清晰单张证件照";
+      if (/Failed to fetch|NetworkError|network/i.test(m)) return "网络异常，证件云识别未完成，请检查网络后重试";
+      return "证件云识别失败：" + m;
+    }
+    const code = data && (data.error || data.detail || "");
+    const http = data && data._http;
+    if (code === "image_too_large" || http === 413) return "图片太大，已尽量压缩仍超限；请裁成单张证件后重试";
+    if (code === "unauthorized" || http === 401) return "证件识别服务鉴权失败，请联系管理员";
+    if (code === "origin_not_allowed" || http === 403) return "当前页面来源不被识别服务允许";
+    if (code === "baidu_keys_not_configured" || http === 503) return "证件识别服务未配置，请联系管理员";
+    if (code === "no_document_recognized") return "云端未识别出证件号；请用单张正面清晰照，或手动填写";
+    if (data && data.error) return "云识别失败：" + String(data.error) + (data.detail && data.detail.error_msg ? "（" + data.detail.error_msg + "）" : "");
+    return "云识别未读出证件";
   }
 
   async function postCloudIdOcr(imageBase64, docType) {
@@ -4246,16 +4282,29 @@ const MingdanUpload = (function () {
     const headers = { "Content-Type": "application/json" };
     const tok = String(ID_OCR_TOKEN || "").trim();
     if (tok && tok.indexOf("__ID_OCR_") < 0) headers.Authorization = "Bearer " + tok;
-    const res = await fetch(String(ID_OCR_WORKER_URL).replace(/\/$/, "") + "/ocr/id", {
-      method: "POST",
-      headers: headers,
-      body: JSON.stringify({ image_base64: imageBase64, doc_type: docType || "auto" }),
-    });
-    let data = null;
-    try { data = await res.json(); } catch (e) { data = { ok: false, error: "bad_json", status: res.status }; }
-    if (!data) data = { ok: false, error: "empty" };
-    data._http = res.status;
-    return data;
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 22000) : null;
+    try {
+      const res = await fetch(String(ID_OCR_WORKER_URL).replace(/\/$/, "") + "/ocr/id", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({ image_base64: imageBase64, doc_type: docType || "auto" }),
+        signal: ctrl ? ctrl.signal : undefined,
+      });
+      let data = null;
+      try { data = await res.json(); } catch (e) { data = { ok: false, error: "bad_json", status: res.status }; }
+      if (!data) data = { ok: false, error: "empty" };
+      data._http = res.status;
+      return data;
+    } catch (err) {
+      const m = String((err && err.message) || err || "");
+      if (err && (err.name === "AbortError" || /abort|timeout/i.test(m))) {
+        return { ok: false, error: "timeout", _http: 408 };
+      }
+      return { ok: false, error: "network_error", detail: m, _http: 0 };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   function cloudResultToIds(data) {
@@ -4321,8 +4370,14 @@ const MingdanUpload = (function () {
     let nameEn = String(g.name_en || "").trim();
     if (isCloudChromeName(nameZh)) nameZh = "";
     if (isCloudChromeName(nameEn)) nameEn = "";
+    // 类型纠偏：纯 8 位→台胞证；字母+数字→护照（避免护照/台胞证互串）
+    if (/^\d{8}$/.test(idNumber) && (idType === "护照" || idType === "证件" || !idType)) {
+      idType = "台胞证";
+    } else if (/[A-Za-z]/.test(idNumber) && /\d/.test(idNumber) && (idType === "台胞证" || idType === "返乡证" || idType === "证件")) {
+      idType = "护照";
+    }
     // 台胞证/返乡证：必须 8 位数字
-    if (idType === "台胞证" || idType === "返乡证" || /^\d{8}$/.test(idNumber)) {
+    if (idType === "台胞证" || idType === "返乡证" || (/^\d{8}$/.test(idNumber) && idType !== "护照")) {
       const m = idNumber.match(/\b(\d{8})\b/);
       idNumber = m && !/^(19|20)\d{6}$/.test(m[1]) ? m[1] : "";
       if (!idNumber) return null;
@@ -4356,7 +4411,7 @@ const MingdanUpload = (function () {
     const outs = [];
 
     function drawColor(sx, sy, sw, sh, maxSide) {
-      maxSide = maxSide || 1600;
+      maxSide = maxSide || 1400;
       const sc = Math.min(1, maxSide / Math.max(sw, sh));
       const cw = Math.max(1, Math.round(sw * sc));
       const ch = Math.max(1, Math.round(sh * sc));
@@ -4443,25 +4498,28 @@ const MingdanUpload = (function () {
       const ey = Math.min(h, regions[ri][1]);
       const sh = ey - sy;
       if (sh < 80) continue;
-      outs.push({ canvas: drawColor(0, sy, w, sh, 1600), kind: "card" });
+      outs.push({ canvas: drawColor(0, sy, w, sh, 1400), kind: "card" });
     }
     return outs;
   }
 
-  async function runCloudIdOcrOnSource(source) {
+  async function runCloudIdOcrOnSource(source, onProgress) {
     if (!idOcrConfigured()) return null;
     const seen = {};
     const allGuests = [];
     const rawBits = [];
-    async function ingest(b64, tag) {
-      if (!b64 || b64.length < 100) return;
-      const data = await postCloudIdOcr(b64, "auto");
+    let lastFail = null;
+
+    function pushGuests(data, tag) {
       if (!data) return;
-      rawBits.push("[" + tag + " http=" + (data._http || "") + " ok=" + !!data.ok + (data.error ? " err=" + data.error : "") + "]");
+      rawBits.push("[" + tag + " http=" + (data._http || "") + " ok=" + !!data.ok + (data.error ? " err=" + data.error : "") + " b64≈" + (data._b64len || "?") + "]");
       if (data.raw_fields) {
         try { rawBits.push(JSON.stringify(data.raw_fields)); } catch (e) {}
       }
-      if (!data.ok) return;
+      if (!data.ok) {
+        lastFail = data;
+        return;
+      }
       const ids = cloudResultToIds(data);
       for (let i = 0; i < ids.guests.length; i++) {
         const g = sanitizeCloudGuest(ids.guests[i]);
@@ -4472,6 +4530,14 @@ const MingdanUpload = (function () {
         allGuests.push(g);
       }
     }
+
+    async function ingestOne(b64, tag) {
+      if (!b64 || b64.length < 100) return;
+      const data = await postCloudIdOcr(b64, "auto");
+      if (data) data._b64len = b64.length;
+      pushGuests(data, tag);
+    }
+
     // Prefer per-card color crops (Baidu = one doc per image). Full collage often mis-maps 身份信息.
     let cardItems = [];
     try {
@@ -4480,19 +4546,55 @@ const MingdanUpload = (function () {
       console.warn("[MingdanUpload.cloudCrop]", eCrop);
       cardItems = [];
     }
+
+    const jobs = [];
     if (cardItems.length) {
       for (let i = 0; i < cardItems.length && i < 4; i++) {
-        const b64 = canvasToJpegBase64(cardItems[i].canvas, 0.92);
-        await ingest(b64, "card" + (i + 1));
+        const b64 = compressCanvasForCloud(cardItems[i].canvas, { maxSide: 1400, targetChars: 850000 });
+        jobs.push({ b64: b64, tag: "card" + (i + 1) });
       }
     }
-    // Fallback: whole image (single-card photos)
-    if (!allGuests.length) {
+    if (!jobs.length) {
       const fullB64 = await sourceToJpegBase64(source);
-      await ingest(fullB64, "full");
+      jobs.push({ b64: fullB64, tag: "full" });
     }
+
+    // Parallel with concurrency 2 (faster multi-card; avoid hammering Baidu)
+    const concurrency = Math.min(2, jobs.length);
+    let done = 0;
+    let cursor = 0;
+    async function worker() {
+      while (cursor < jobs.length) {
+        const my = cursor++;
+        const job = jobs[my];
+        if (typeof onProgress === "function") {
+          try { onProgress(done + 1, jobs.length, job.tag); } catch (eP) {}
+        }
+        await ingestOne(job.b64, job.tag);
+        done++;
+        if (typeof onProgress === "function") {
+          try { onProgress(done, jobs.length, job.tag); } catch (eP2) {}
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: concurrency }, function () { return worker(); }));
+
+    // If card crops found nothing, one more shot with full image
+    if (!allGuests.length && cardItems.length) {
+      if (typeof onProgress === "function") {
+        try { onProgress(1, 1, "full-fallback"); } catch (eP3) {}
+      }
+      const fullB64 = await sourceToJpegBase64(source);
+      await ingestOne(fullB64, "full");
+    }
+
     if (!allGuests.length) {
-      return { ok: false, error: "no_document_recognized", raw: rawBits.join("\n") };
+      return {
+        ok: false,
+        error: (lastFail && lastFail.error) || "no_document_recognized",
+        detail: lastFail,
+        raw: rawBits.join("\n"),
+      };
     }
     const guest_list = allGuests.map(function (g) { return g.line; }).join("\n");
     const names = allGuests.map(function (g) {
@@ -4525,9 +4627,17 @@ const MingdanUpload = (function () {
       }
       // 证件优先走云端专业 OCR；用户明确要填交通时跳过云证件，免误判成证件写入
       if (idOcrConfigured() && !wantTransport) {
-        setOcrMsg("证件云识别中" + (label ? "（" + label + "）" : "") + "…", "");
+        setOcrMsg("证件云识别中" + (label ? "（" + label + "）" : "") + "（压缩后上传）…", "");
         try {
-          const cloud = await runCloudIdOcrOnSource(source);
+          const cloud = await runCloudIdOcrOnSource(source, function (done, total, tag) {
+            setOcrMsg(
+              "证件云识别 " + done + "/" + total +
+                (tag ? " · " + tag : "") +
+                (label ? " · " + label : "") +
+                "…",
+              ""
+            );
+          });
           if (cloud && cloud.ok && cloud.guests && cloud.guests.length) {
             lastOcrText = (cloud.guest_list || "") + "\n—— 云识别 ——\n" + (cloud.raw || "");
             lastOcrMeta = {
@@ -4548,10 +4658,19 @@ const MingdanUpload = (function () {
             return lastOcrMeta;
           }
           if (cloud && cloud.raw) showOcrRaw(cloud.raw);
-          setOcrMsg("云识别未读出证件，改用本地识别（火车票/航班仍可用）…", "");
+          // 证件路径：云失败不再掉进 Tesseract（首次下模型可卡几十秒），直接给出可操作提示
+          const tip = cloudOcrErrorText(cloud, null);
+          setOcrMsg(tip + "。可再贴单张正面清晰照，或手动填名单；火车票/机票请先点「仅填去程/返程」再识别。", "err");
+          lastOcrMeta = { train: null, flight: null, ids: null, kind: "id", summary: "", lookIdStrong: false, cloud_error: tip };
+          refreshOcrActionButtons(lastOcrMeta);
+          return lastOcrMeta;
         } catch (eCloud) {
           console.warn("[MingdanUpload.cloudIdOcr]", eCloud);
-          setOcrMsg("云识别暂不可用，改用本地识别…", "");
+          const tip = cloudOcrErrorText(null, eCloud);
+          setOcrMsg(tip, "err");
+          lastOcrMeta = { train: null, flight: null, ids: null, kind: "id", summary: "", lookIdStrong: false, cloud_error: tip };
+          refreshOcrActionButtons(lastOcrMeta);
+          return lastOcrMeta;
         }
       }
       setOcrMsg("正在加载识别引擎" + (label ? "（" + label + "）" : "") + "…首次需下载中文模型，可能需几十秒", "");
