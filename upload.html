@@ -407,7 +407,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 16:16 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 16:23 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -423,6 +423,10 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       </div>
     </div>
     <div id="fuzzyMsg" class="fuzzy-msg hidden"></div>
+    <div class="fuzzy-list-toolbar" style="display:flex;align-items:center;gap:8px;margin:6px 0 4px;flex-wrap:wrap;">
+      <span style="font-size:13px;color:#64748b;">草稿列表：待办仅本人 · 销售确认后全员可见</span>
+      <button type="button" class="btn" id="fuzzyRefreshListBtn" title="重新拉取本人待办 + 全员已确认">刷新列表</button>
+    </div>
     <div id="fuzzyDraftList" class="fuzzy-draft-list"></div>
     <div id="fuzzyReview" class="fuzzy-review hidden">
       <div class="fuzzy-review-bar">
@@ -467,7 +471,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-30 16:16 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-30 16:23 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -487,7 +491,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 16:16 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 16:23 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -837,26 +841,48 @@ const MingdanUpload = (function () {
     }
     const personal = Array.isArray(data.drafts) ? data.drafts : [];
     let shared = Array.isArray(data.shared) ? data.shared : null;
-    // 旧 worker 无 shared 字段时，再单独拉共享（带超时）
+    // 旧 worker 无 shared 字段：不再请求 account=__shared_confirmed__（会挂死），当作空共享
     if (shared == null) {
-      try {
-        shared = await fetchDraftsCloud(SHARED_ACCOUNT);
-      } catch (e2) {
-        console.warn("[drafts shared fallback]", e2);
-        shared = [];
-        throw e2;
-      }
+      console.warn("[drafts] worker missing shared[]; treat as empty (upgrade worker)");
+      shared = [];
     }
     return { personal: personal, shared: shared };
   }
 
   async function putDraftsCloud(account, list) {
+    // Never PUT account=__shared_confirmed__ from browser (can hang); use putPersonalAndShared
+    if (account === SHARED_ACCOUNT) {
+      throw new Error("use_putPersonalAndShared");
+    }
     const res = await fetchWithTimeout(
       draftsBaseUrl(),
       {
         method: "PUT",
         headers: draftsAuthHeaders(),
         body: JSON.stringify({ account: account, drafts: list }),
+      },
+      DRAFTS_PUT_MS
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      const err = (data && data.error) || ("http_" + res.status);
+      throw new Error(err);
+    }
+    return true;
+  }
+
+  /** 一次 PUT：个人待办 + 全员已确认（body.shared）；避免浏览器请求 account=__shared_confirmed__ */
+  async function putPersonalAndShared(account, personal, shared) {
+    const res = await fetchWithTimeout(
+      draftsBaseUrl(),
+      {
+        method: "PUT",
+        headers: draftsAuthHeaders(),
+        body: JSON.stringify({
+          account: account,
+          drafts: Array.isArray(personal) ? personal : [],
+          shared: Array.isArray(shared) ? shared : [],
+        }),
       },
       DRAFTS_PUT_MS
     );
@@ -918,7 +944,7 @@ const MingdanUpload = (function () {
             }
             if (locShared.length) {
               shared = mergeSharedLists(shared, locShared, new Set());
-              await putDraftsCloud(SHARED_ACCOUNT, shared);
+              await putPersonalAndShared(user, personal || [], shared);
             }
             migrated = true;
           }
@@ -934,8 +960,7 @@ const MingdanUpload = (function () {
         shared = mergeSharedLists(shared, stuck, new Set());
         personal = (personal || []).filter((d) => !belongsOnShared(d));
         try {
-          await putDraftsCloud(SHARED_ACCOUNT, shared);
-          await putDraftsCloud(user, personal);
+          await putPersonalAndShared(user, personal, shared);
           migrated = true;
         } catch (mig2) {
           console.warn("[drafts migrate shared]", mig2);
@@ -974,7 +999,7 @@ const MingdanUpload = (function () {
     if (!draftsApiConfigured()) return { ok: false, error: "not_configured" };
 
     const incoming = Array.isArray(list) ? list.slice() : [];
-    const personal = incoming.filter((d) => !belongsOnShared(d));
+    let personal = incoming.filter((d) => !belongsOnShared(d));
     const sharedLocal = incoming.filter(belongsOnShared);
     const localSharedIds = new Set(sharedLocal.map((d) => d && d.id).filter(Boolean));
     const deletedIds = new Set();
@@ -985,26 +1010,40 @@ const MingdanUpload = (function () {
     });
 
     try {
+      // 用 include_shared=1 拉共享（走当前账号），禁止请求 account=__shared_confirmed__
       let cloudShared = [];
       try {
-        cloudShared = await fetchDraftsCloud(SHARED_ACCOUNT);
+        const bundle = await fetchPersonalAndShared(user);
+        cloudShared = bundle.shared || [];
       } catch (eFetch) {
-        // 读共享失败时仍写个人库，避免整单丢失；共享稍后再试
-        console.warn("[drafts shared fetch]", eFetch);
-        await putDraftsCloud(user, personal);
-        memDrafts = sortDraftsNewest([...personal, ...sharedLocal]);
+        console.warn("[drafts shared fetch via include_shared]", eFetch);
+        // 共享读失败：确认单暂留个人库，避免只留在内存、刷新即丢
+        const fallbackPersonal = sortDraftsNewest([...personal, ...sharedLocal]);
+        try {
+          await putDraftsCloud(user, fallbackPersonal);
+        } catch (ePut) {
+          console.warn("[drafts personal fallback]", ePut);
+        }
+        memDrafts = fallbackPersonal;
+        memSharedIdSet = new Set(sharedLocal.map((d) => d && d.id).filter(Boolean));
         return { ok: false, error: String((eFetch && eFetch.message) || eFetch || "shared_fetch_failed") };
       }
       const mergedShared = mergeSharedLists(cloudShared, sharedLocal, deletedIds);
-      await putDraftsCloud(user, personal);
-      await putDraftsCloud(SHARED_ACCOUNT, mergedShared);
+      // 一次 PUT 写个人 + 共享（worker 先写共享）
+      await putPersonalAndShared(user, personal, mergedShared);
       memSharedIdSet = new Set(mergedShared.map((d) => d && d.id).filter(Boolean));
       memDrafts = sortDraftsNewest([...personal, ...mergedShared]);
       return { ok: true };
     } catch (e) {
       const err = String((e && e.message) || e || "network");
-      // 失败时仍更新内存视图，便于用户下载 JSON
-      memDrafts = sortDraftsNewest(incoming);
+      // 失败时：确认单并入个人库再试写，防止「已确认」只在内存
+      const fallbackPersonal = sortDraftsNewest([...personal, ...sharedLocal]);
+      try {
+        await putDraftsCloud(user, fallbackPersonal);
+        memDrafts = fallbackPersonal;
+      } catch (e2) {
+        memDrafts = sortDraftsNewest(incoming);
+      }
       return { ok: false, error: err };
     }
   }
@@ -1681,6 +1720,32 @@ const MingdanUpload = (function () {
           );
         })
         .join("");
+  }
+
+  async function refreshListCloud(opts) {
+    const silent = !!(opts && opts.silent);
+    if (!currentUser()) {
+      if (!silent) setMsg("请先登录", "err");
+      return { ok: false, error: "not_logged_in" };
+    }
+    if (!silent) setMsg("正在刷新列表…", "ok");
+    let sync = { ok: false, error: "unknown" };
+    try {
+      sync = await syncDraftsFromCloud();
+    } catch (e) {
+      sync = { ok: false, error: String((e && e.message) || e || "network") };
+    }
+    try { renderList(); } catch (eR) { console.error(eR); }
+    if (!silent) {
+      if (sync.ok) {
+        const p = typeof sync.personal === "number" ? sync.personal : "?";
+        const s = typeof sync.shared === "number" ? sync.shared : "?";
+        setMsg("列表已刷新（本人待办 " + p + " · 全员已确认 " + s + "）", "ok");
+      } else {
+        setMsg("刷新失败：" + saveErrorMsg(sync.error), "err");
+      }
+    }
+    return sync;
   }
 
   function renderList() {
@@ -2483,12 +2548,41 @@ const MingdanUpload = (function () {
     if (!Array.isArray(d.change_history)) d.change_history = [];
     workingDraft = d;
     const res = await upsertPersisted(cloneDraft(d));
-    setMsg(
-      res.ok
-        ? "已保存为「已确认待易途」（全员可见）。未出团钉钉名单未改动；易途录完后再同步。"
-        : "已确认（内存）。" + saveErrorMsg(res.error),
-      res.ok ? "ok" : "err"
-    );
+    if (res.ok) {
+      try {
+        const sync = await syncDraftsFromCloud();
+        if (sync && sync.ok) {
+          const still = (loadDrafts() || []).find((x) => x && x.id === d.id);
+          if (still && belongsOnShared(still)) {
+            workingDraft = cloneDraft(still);
+            setMsg(
+              "已保存为「已确认待易途」（已写入全员共享，其他账号点「刷新列表」可见）。未出团钉钉名单未改动。",
+              "ok"
+            );
+          } else {
+            setMsg(
+              "确认已提交，但全员共享校验未看到该单。请再点一次「销售确认」或「刷新列表」。",
+              "err"
+            );
+          }
+        } else {
+          setMsg(
+            "已保存为「已确认待易途」。同步校验失败，请点「刷新列表」确认是否全员可见。",
+            "ok"
+          );
+        }
+      } catch (eSync) {
+        setMsg(
+          "已保存为「已确认待易途」。请点「刷新列表」；其他账号刷新后应能看到。",
+          "ok"
+        );
+      }
+    } else {
+      setMsg(
+        "销售确认未写入全员共享：" + saveErrorMsg(res.error) + "。草稿仍保留，请联网后重试「销售确认」。",
+        "err"
+      );
+    }
     openReviewFromWorking();
   }
 
@@ -5535,6 +5629,23 @@ const MingdanUpload = (function () {
 
     wireCsWidget();
 
+    const refreshBtn = $("fuzzyRefreshListBtn");
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", function () {
+        refreshListCloud({ silent: false });
+      });
+    }
+    // 切回页面时静默拉一次全员共享，避免别人刚确认自己看不到
+    let lastVisSync = 0;
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState !== "visible") return;
+      if (!currentUser() || !draftsReady) return;
+      const now = Date.now();
+      if (now - lastVisSync < 8000) return;
+      lastVisSync = now;
+      refreshListCloud({ silent: true });
+    });
+
     setMsg("正在加载账号草稿…", "ok");
     let sync = { ok: false, error: "unknown" };
     try {
@@ -5573,7 +5684,7 @@ const MingdanUpload = (function () {
     }
   }
 
-  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, keepDraft, startNewOrder, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport, pickOcrImage, onIdBtn, onTransportBtn };
+  const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, keepDraft, startNewOrder, refreshListCloud, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport, pickOcrImage, onIdBtn, onTransportBtn };
   try {
     if (typeof window !== "undefined") window.MingdanUpload = api;
   } catch (e) {}
