@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- mingdan-upload v=20261030-1608 passport-universal-mrz -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"/>
@@ -291,12 +290,12 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
 .fuzzy-ocr-pick-hint{font-size:12px;color:var(--muted)}
 
 
-/* 客人名单：易途顺序 姓名/电话/证件类型/证件号码/性别/年龄/类型 + 删 */
+/* 客人名单：每人一行四框（姓名/证件类型/证件号/电话） */
 .fuzzy-field.guest-list-field{grid-column:1/-1}
 .fuzzy-field.span-2{grid-column:1/-1}
-.guest-list-wrap{display:flex;flex-direction:column;gap:8px;overflow-x:auto}
-.guest-list-head{display:grid;grid-template-columns:minmax(72px,1fr) minmax(96px,1.05fr) minmax(84px,.95fr) minmax(110px,1.25fr) minmax(56px,.55fr) minmax(52px,.5fr) minmax(72px,.7fr) 36px;gap:6px;font-size:12px;font-weight:700;color:#e2e8f0;padding:4px 6px;background:rgba(51,65,85,.45);border-radius:8px;letter-spacing:.02em;min-width:720px}
-.guest-row{display:grid;grid-template-columns:minmax(72px,1fr) minmax(96px,1.05fr) minmax(84px,.95fr) minmax(110px,1.25fr) minmax(56px,.55fr) minmax(52px,.5fr) minmax(72px,.7fr) 36px;gap:6px;align-items:center;min-width:720px}
+.guest-list-wrap{display:flex;flex-direction:column;gap:8px}
+.guest-list-head{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;font-size:12.5px;font-weight:700;color:#e2e8f0;padding:4px 6px;background:rgba(51,65,85,.45);border-radius:8px;letter-spacing:.02em}
+.guest-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;align-items:center}
 .guest-row input,.guest-row select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
   border-radius:8px;padding:7px 8px;font-size:13px;font-family:inherit;box-sizing:border-box}
 .guest-row input:focus,.guest-row select:focus{border-color:var(--accent);outline:none}
@@ -305,11 +304,50 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
 .guest-list-actions{display:flex;gap:8px;align-items:center;margin-top:2px}
 .guest-list-hint{font-size:11px;font-weight:500;color:#94a3b8;letter-spacing:0}
 .guest-list-hidden{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
-.fuzzy-money-hint{font-size:11px;font-weight:500;color:#94a3b8;margin-left:4px}
 @media(max-width:720px){
   .guest-list-head{display:none}
-  .guest-row{grid-template-columns:1fr 1fr;gap:6px;min-width:0}
+  .guest-row{grid-template-columns:1fr 1fr;gap:6px}
   .guest-row .guest-del{grid-column:1/-1;justify-self:start;width:auto;padding:6px 12px}
+}
+
+/* —— 浮动客服对接 —— */
+.cs-fab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));
+  z-index:8500;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none}
+.cs-fab>*{pointer-events:auto}
+.cs-fab-btn{border:none;cursor:pointer;border-radius:999px;padding:12px 18px;font-size:14px;font-weight:750;
+  letter-spacing:.02em;color:#fff;background:linear-gradient(135deg,#ea580c,#c2410c);
+  box-shadow:0 8px 24px rgba(194,65,12,.45),0 0 0 1px rgba(251,146,60,.35);
+  font-family:inherit;display:inline-flex;align-items:center;gap:8px}
+.cs-fab-btn:hover{filter:brightness(1.08)}
+.cs-fab-btn:active{transform:scale(.98)}
+.cs-fab-btn .cs-fab-dot{width:8px;height:8px;border-radius:50%;background:#86efac;
+  box-shadow:0 0 0 3px rgba(134,239,172,.25);flex-shrink:0}
+.cs-panel{width:min(360px,calc(100vw - 28px));background:#0f172a;border:1px solid #334155;border-radius:16px;
+  box-shadow:0 16px 48px rgba(0,0,0,.45);padding:14px 14px 12px;display:none}
+.cs-panel.open{display:block}
+.cs-panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.cs-panel-h strong{font-size:14px;color:#ffedd5}
+.cs-panel-close{background:transparent;border:1px solid #475569;color:#cbd5e1;border-radius:8px;
+  width:30px;height:30px;cursor:pointer;font-size:16px;line-height:1}
+.cs-panel-close:hover{border-color:#f97316;color:#fdba74}
+.cs-panel-hint{margin:0 0 10px;font-size:12px;color:#94a3b8;line-height:1.45}
+.cs-panel label{display:block;font-size:12px;color:#94a3b8;font-weight:650;margin-bottom:5px}
+.cs-panel textarea{width:100%;min-height:96px;resize:vertical;background:#020617;border:1px solid #334155;
+  color:#e2e8f0;border-radius:10px;padding:10px 12px;font-size:13.5px;font-family:inherit;outline:none;
+  box-sizing:border-box}
+.cs-panel textarea:focus{border-color:#f97316;box-shadow:0 0 0 3px rgba(249,115,22,.15)}
+.cs-meta{margin:8px 0 10px;padding:8px 10px;border-radius:10px;background:#1e293b;border:1px solid #334155;
+  font-size:11.5px;color:#94a3b8;line-height:1.5;word-break:break-all}
+.cs-meta b{color:#cbd5e1;font-weight:650}
+.cs-panel-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cs-copy{background:#9a3412;border:1px solid #ea580c;color:#ffedd5;font-weight:700;
+  border-radius:10px;padding:9px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+.cs-copy:hover{filter:brightness(1.08)}
+.cs-feedback{margin:8px 0 0;font-size:12px;font-weight:650;min-height:1.2em;color:#86efac}
+.cs-feedback.err{color:#fecaca}
+@media(max-width:720px){
+  .cs-fab{right:12px;bottom:14px}
+  .cs-fab-btn{padding:11px 14px;font-size:13px}
 }
 
 </style>
@@ -369,7 +407,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 14:53 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 16:15 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -429,7 +467,27 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 16:08 Asia/Shanghai</div>
+  <div class="cs-fab" id="csFab" data-build="2026-10-30 16:15 Asia/Shanghai" aria-live="polite">
+    <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
+      <div class="cs-panel-h">
+        <strong id="csTitle">客服对接 · 报错/不清楚</strong>
+        <button type="button" class="cs-panel-close" id="csClose" title="关闭" aria-label="关闭">×</button>
+      </div>
+      <p class="cs-panel-hint">写清问题后点「复制发给助手」，粘贴到与 Grok Bot 的聊天即可。会带上页面、账号、草稿与版本信息。</p>
+      <label for="csIssue">问题描述</label>
+      <textarea id="csIssue" rows="4" placeholder="例如：代收算错了 / 打开草稿没有边框 / 不明白「已确认待易途」下一步点哪…"></textarea>
+      <div class="cs-meta" id="csMeta">打开面板后自动填上下文</div>
+      <div class="cs-panel-actions">
+        <button type="button" class="cs-copy" id="csCopyBtn">复制发给助手</button>
+      </div>
+      <div class="cs-feedback" id="csFeedback"></div>
+    </div>
+    <button type="button" class="cs-fab-btn" id="csFabBtn" title="客服对接">
+      <span class="cs-fab-dot" aria-hidden="true"></span>
+      客服对接
+    </button>
+  </div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 16:15 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1741,13 +1799,9 @@ const MingdanUpload = (function () {
 
   function guestDisplayName(g) {
     if (!g) return "";
-    const zh = String(g.name_zh || "").trim();
-    const en = String(g.name_en || "").trim();
-    // Han Chinese first; else Latin (易途); Hangul alone only if no Latin
+    const zh = String(g.name_zh || g.name || "").trim();
     if (zh && /[\u4e00-\u9fff]/.test(zh)) return zh.replace(/\s+/g, "");
-    if (en) return en;
-    if (zh) return zh.replace(/\s+/g, "");
-    return String(g.name || "").trim();
+    return String(g.name_en || g.name || "").trim();
   }
 
   /** 年龄：有年月日则按今天算周岁；无效返回 "" */
@@ -4312,59 +4366,17 @@ const MingdanUpload = (function () {
     }
   }
 
-  function latinFromMrzFields(wr) {
-    if (!wr || typeof wr !== "object") return "";
-    function wof(field) {
-      if (!field) return "";
-      if (typeof field === "string") return field.trim();
-      if (Array.isArray(field) && field[0]) return String(field[0].word || field[0].words || "").trim();
-      if (field.word != null) return String(field.word).trim();
-      if (field.words != null) return String(field.words).trim();
-      return "";
-    }
-    let raw = wof(wr.MRZCode1) || wof(wr.mrz_code1) || wof(wr.MRZ1) || "";
-    if (!raw) {
-      const keys = Object.keys(wr);
-      for (let i = 0; i < keys.length; i++) {
-        if (!/MRZ|机读/i.test(keys[i])) continue;
-        const t = wof(wr[keys[i]]);
-        if (t && t.indexOf("<<") >= 0) { raw = t; break; }
-      }
-    }
-    if (!raw) return "";
-    const L = String(raw).replace(/\s+/g, "").toUpperCase();
-    // PMKORKIM<<MIYEON<<<  or  P<USASMITH<<JOHN<MICHAEL
-    let surname = "";
-    let given = "";
-    let m = L.match(/^P[A-Z0-9<][A-Z]{3}([A-Z]+)<<([A-Z<]+)/);
-    if (m) { surname = m[1]; given = m[2]; }
-    else {
-      m = L.match(/^P<[A-Z]{3}([A-Z]+)<<([A-Z<]+)/);
-      if (m) { surname = m[1]; given = m[2]; }
-      else {
-        m = L.match(/([A-Z]{2,})<<([A-Z<]+)/);
-        if (m) { surname = m[1]; given = m[2]; }
-      }
-    }
-    if (!surname) return "";
-    surname = surname.replace(/</g, " ").replace(/\s+/g, " ").trim();
-    given = String(given || "").replace(/</g, " ").replace(/\s+/g, " ").trim();
-    return (surname + (given ? " " + given : "")).trim();
-  }
-
   function cloudResultToIds(data) {
     const guests = [];
     const names = [];
     const list = (data && data.guests) || [];
-    const mrzFallback = latinFromMrzFields(data && data.raw_fields);
     for (let i = 0; i < list.length; i++) {
       const g = list[i] || {};
       let nameZh = String(g.name_zh || "").trim().replace(/\s+/g, "");
       let nameEn = String(g.name_en || "").trim();
       if (/身份信息|出入境管理|签发机关|台湾居民|来往大陆|通行证|返乡证|证件号码|有效期限|出生日期/i.test(nameZh)) nameZh = "";
       if (/身份信息|出入境管理|Immigration|Authority|PERMIT/i.test(nameEn)) nameEn = "";
-      if (!nameEn && mrzFallback && !/[\u4e00-\u9fff]/.test(nameZh)) nameEn = mrzFallback;
-      const name = nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : (nameEn || nameZh);
+      const name = nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : nameEn;
       const idType = String(g.id_type || "证件").trim();
       let idNumber = String(g.id_number || "").trim();
       if (!idNumber) continue;
@@ -5406,25 +5418,15 @@ const MingdanUpload = (function () {
   return api;
 })();
 
+
 </script>
 <script>
 MingdanAuth.require(function () {
   // const 不会挂到 window；用全局词法绑定 + window 兜底
   var mod = (typeof MingdanUpload !== "undefined" && MingdanUpload) || window.MingdanUpload;
   if (mod && typeof mod.init === "function") {
-    try {
-      var p = mod.init();
-      if (p && typeof p.then === "function") {
-        p.catch(function (e) {
-          console.error("[MingdanUpload.init async]", e);
-          var m = document.getElementById("fuzzyMsg");
-          if (m) {
-            m.textContent = "上传模块初始化失败：" + ((e && e.message) || e);
-            m.className = "fuzzy-msg err";
-          }
-        });
-      }
-    } catch (e) {
+    try { mod.init(); }
+    catch (e) {
       console.error("[MingdanUpload.init]", e);
       var m = document.getElementById("fuzzyMsg");
       if (m) { m.textContent = "上传模块初始化失败：" + (e && e.message || e); m.className = "fuzzy-msg err"; }
