@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- mingdan-upload v=20261030-1605 passport-latin-mrz -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"/>
@@ -1740,9 +1741,13 @@ const MingdanUpload = (function () {
 
   function guestDisplayName(g) {
     if (!g) return "";
-    const zh = String(g.name_zh || g.name || "").trim();
+    const zh = String(g.name_zh || "").trim();
+    const en = String(g.name_en || "").trim();
+    // Han Chinese first; else Latin (易途); Hangul alone only if no Latin
     if (zh && /[\u4e00-\u9fff]/.test(zh)) return zh.replace(/\s+/g, "");
-    return String(g.name_en || g.name || "").trim();
+    if (en) return en;
+    if (zh) return zh.replace(/\s+/g, "");
+    return String(g.name || "").trim();
   }
 
   /** 年龄：有年月日则按今天算周岁；无效返回 "" */
@@ -4307,17 +4312,59 @@ const MingdanUpload = (function () {
     }
   }
 
+  function latinFromMrzFields(wr) {
+    if (!wr || typeof wr !== "object") return "";
+    function wof(field) {
+      if (!field) return "";
+      if (typeof field === "string") return field.trim();
+      if (Array.isArray(field) && field[0]) return String(field[0].word || field[0].words || "").trim();
+      if (field.word != null) return String(field.word).trim();
+      if (field.words != null) return String(field.words).trim();
+      return "";
+    }
+    let raw = wof(wr.MRZCode1) || wof(wr.mrz_code1) || wof(wr.MRZ1) || "";
+    if (!raw) {
+      const keys = Object.keys(wr);
+      for (let i = 0; i < keys.length; i++) {
+        if (!/MRZ|机读/i.test(keys[i])) continue;
+        const t = wof(wr[keys[i]]);
+        if (t && t.indexOf("<<") >= 0) { raw = t; break; }
+      }
+    }
+    if (!raw) return "";
+    const L = String(raw).replace(/\s+/g, "").toUpperCase();
+    // PMKORKIM<<MIYEON<<<  or  P<USASMITH<<JOHN<MICHAEL
+    let surname = "";
+    let given = "";
+    let m = L.match(/^P[A-Z0-9<][A-Z]{3}([A-Z]+)<<([A-Z<]+)/);
+    if (m) { surname = m[1]; given = m[2]; }
+    else {
+      m = L.match(/^P<[A-Z]{3}([A-Z]+)<<([A-Z<]+)/);
+      if (m) { surname = m[1]; given = m[2]; }
+      else {
+        m = L.match(/([A-Z]{2,})<<([A-Z<]+)/);
+        if (m) { surname = m[1]; given = m[2]; }
+      }
+    }
+    if (!surname) return "";
+    surname = surname.replace(/</g, " ").replace(/\s+/g, " ").trim();
+    given = String(given || "").replace(/</g, " ").replace(/\s+/g, " ").trim();
+    return (surname + (given ? " " + given : "")).trim();
+  }
+
   function cloudResultToIds(data) {
     const guests = [];
     const names = [];
     const list = (data && data.guests) || [];
+    const mrzFallback = latinFromMrzFields(data && data.raw_fields);
     for (let i = 0; i < list.length; i++) {
       const g = list[i] || {};
       let nameZh = String(g.name_zh || "").trim().replace(/\s+/g, "");
       let nameEn = String(g.name_en || "").trim();
       if (/身份信息|出入境管理|签发机关|台湾居民|来往大陆|通行证|返乡证|证件号码|有效期限|出生日期/i.test(nameZh)) nameZh = "";
       if (/身份信息|出入境管理|Immigration|Authority|PERMIT/i.test(nameEn)) nameEn = "";
-      const name = nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : nameEn;
+      if (!nameEn && mrzFallback && !/[\u4e00-\u9fff]/.test(nameZh)) nameEn = mrzFallback;
+      const name = nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : (nameEn || nameZh);
       const idType = String(g.id_type || "证件").trim();
       let idNumber = String(g.id_number || "").trim();
       if (!idNumber) continue;
