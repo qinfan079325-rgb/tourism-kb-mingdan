@@ -407,7 +407,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 16:23 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 16:29 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -471,7 +471,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-30 16:23 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-30 16:29 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -491,7 +491,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 16:23 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 16:29 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1082,7 +1082,7 @@ const MingdanUpload = (function () {
     return Date.parse((d && (d.updated_at || d.confirmed_at || d.created_at)) || 0) || 0;
   }
 
-  /** 合并云端共享列表：本地 upsert 覆盖同 id；deletedIds 从云端去掉；其余云端项保留 */
+  /** 合并云端共享列表：较新 updated/confirmed 覆盖同 id；deletedIds 去掉；confirmed_by 跟点「销售确认」的账号，不被旧本机稿盖掉 */
   function mergeSharedLists(cloudShared, localShared, deletedIds) {
     const byId = new Map();
     for (const d of cloudShared || []) {
@@ -1093,11 +1093,37 @@ const MingdanUpload = (function () {
     for (const d of localShared || []) {
       if (!d || !d.id) continue;
       const prev = byId.get(d.id);
-      if (!prev || draftTouchTime(d) >= draftTouchTime(prev)) byId.set(d.id, d);
-      else {
-        // 本地无更新时间时仍以本地为准（本机刚改的状态）
+      if (!prev) {
         byId.set(d.id, d);
+        continue;
       }
+      const tLocal = draftTouchTime(d);
+      const tPrev = draftTouchTime(prev);
+      // 仅当本机更新时间 >= 云端时才用本机整单；旧本机稿不再强行覆盖云端
+      let winner = tLocal >= tPrev ? d : prev;
+      // confirmed_by：取 confirmed_at 更新的一侧（真正点过销售确认的账号）
+      const prevC = Date.parse((prev && prev.confirmed_at) || 0) || 0;
+      const locC = Date.parse((d && d.confirmed_at) || 0) || 0;
+      let confBy = winner.confirmed_by || "";
+      let confAt = winner.confirmed_at || "";
+      if (prev.confirmed_by || d.confirmed_by) {
+        if (d.confirmed_by && (!prev.confirmed_by || locC > prevC || (locC === prevC && tLocal >= tPrev))) {
+          confBy = d.confirmed_by;
+          confAt = d.confirmed_at || confAt;
+        } else if (prev.confirmed_by) {
+          confBy = prev.confirmed_by;
+          confAt = prev.confirmed_at || confAt;
+        }
+      }
+      if (confBy) {
+        try {
+          winner = Object.assign({}, winner, { confirmed_by: confBy, confirmed_at: confAt || winner.confirmed_at });
+        } catch (eMerge) {
+          winner.confirmed_by = confBy;
+          if (confAt) winner.confirmed_at = confAt;
+        }
+      }
+      byId.set(d.id, winner);
     }
     return Array.from(byId.values());
   }
@@ -1765,9 +1791,12 @@ const MingdanUpload = (function () {
         const draftBadge = isDraftLike(d.status)
           ? '<span class="fuzzy-draft-badge" title="仅当前登录账号可见">仅为草稿·待办</span>'
           : '<span class="fuzzy-shared-badge" title="销售确认后全员账号可见">全员</span>';
-        const byLine = d.confirmed_by
+        // 确认人只展示 confirmed_by（点销售确认的账号）；未确认不拿 created_by/updated_by 冒充
+        const byLine = (!isDraftLike(d.status) && d.confirmed_by)
           ? `<span class="fuzzy-by">确认：${esc(d.confirmed_by)}</span>`
-          : (d.updated_by ? `<span class="fuzzy-by">更新：${esc(d.updated_by)}</span>` : "");
+          : (isDraftLike(d.status) && d.created_by
+            ? `<span class="fuzzy-by">创建：${esc(d.created_by)}</span>`
+            : "");
         return `<div class="fuzzy-draft ${isDraftLike(d.status) ? "is-draft-todo" : "is-shared"} ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
           <div class="fuzzy-draft-h">
             ${draftBadge}
@@ -2543,8 +2572,12 @@ const MingdanUpload = (function () {
     d.sales_confirmed = true;
     d.status = "confirmed_await_yitu";
     d.status_label = STATUS.confirmed_await_yitu;
+    // 确认人 = 当前登录账号（点「销售确认」的人），全员列表展示「确认：xxx」
+    const confirmer = currentUser();
     d.confirmed_at = nowISO();
-    d.confirmed_by = currentUser();
+    d.confirmed_by = confirmer;
+    d.updated_at = d.confirmed_at;
+    d.updated_by = confirmer;
     if (!Array.isArray(d.change_history)) d.change_history = [];
     workingDraft = d;
     const res = await upsertPersisted(cloneDraft(d));
