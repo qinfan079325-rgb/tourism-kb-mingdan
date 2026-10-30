@@ -407,7 +407,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 16:15 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 16:16 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -467,7 +467,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-30 16:15 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-30 16:16 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -487,7 +487,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 16:15 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 16:16 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1832,7 +1832,21 @@ const MingdanUpload = (function () {
   function demographicsFromDob(dobRaw) {
     const raw = String(dobRaw || "").trim();
     if (!raw) return { gender: "", age: "", birth: "" };
-    let m = raw.match(/^(19|20)(\d{2})[-\/.年]?(0?[1-9]|1[0-2])[-\/.月]?(0?[1-9]|[12]\d|3[01])/);
+    // Bare YYYYMMDD first (optional-sep pattern below must not eat check digits)
+    let m = raw.match(/^(19|20)\d{6}$/);
+    if (m) {
+      const y = +raw.slice(0, 4), mo = +raw.slice(4, 6), d = +raw.slice(6, 8);
+      const age = ageFromYmd(y, mo, d);
+      if (age) {
+        return {
+          gender: "",
+          age: age,
+          birth: y + "-" + String(mo).padStart(2, "0") + "-" + String(d).padStart(2, "0"),
+        };
+      }
+    }
+    // Require separators so check digits are not misread as Y-M-D
+    m = raw.match(/^(19|20)(\d{2})[-\/.年](0?[1-9]|1[0-2])[-\/.月](0?[1-9]|[12]\d|3[01])/);
     if (m) {
       const y = +(m[1] + m[2]), mo = +m[3], d = +m[4];
       const age = ageFromYmd(y, mo, d);
@@ -1943,8 +1957,10 @@ const MingdanUpload = (function () {
     out.age = String(out.age || "").trim();
     out.guest_kind = String(out.guest_kind || out.kind || out.party_type || "").trim();
     const dobDemo = demographicsFromDob(out.birth_date || out.dob || out.birthday || "");
-    if (!out.age && dobDemo.age) out.age = dobDemo.age;
     if (!out.birth_date && dobDemo.birth) out.birth_date = dobDemo.birth;
+    // Always prefer DOB-derived age; drop 1-digit ages without birth (MRZ check digit)
+    if (dobDemo.age) out.age = dobDemo.age;
+    else if (out.age && !out.birth_date && /^\d$/.test(String(out.age))) out.age = "";
     const demo = demographicsFromIdNumber(out.id_number);
     if (!out.gender && demo.gender) out.gender = demo.gender;
     if (!out.age && demo.age) out.age = demo.age;
@@ -2621,6 +2637,127 @@ const MingdanUpload = (function () {
     a.click();
     URL.revokeObjectURL(a.href);
     setMsg("已下载草稿 JSON（含字段与变更记录；请勿发到公开群）", "ok");
+  }
+
+
+  function csBuildStamp() {
+    const fab = $("csFab");
+    if (fab && fab.getAttribute("data-build")) return fab.getAttribute("data-build");
+    const foot = document.querySelector(".footer");
+    if (foot) {
+      const m = (foot.textContent || "").match(/build\s+(.+)$/i);
+      if (m) return m[1].trim();
+    }
+    return "";
+  }
+
+  function csContextLines() {
+    const user = currentUser() || "(未登录)";
+    const d = getActiveDraft();
+    let draftId = "(无打开草稿)";
+    let status = "-";
+    let guest = "";
+    let depart = "";
+    if (d) {
+      draftId = d.id || "(无id)";
+      status = STATUS[d.status] || d.status_label || d.status || "-";
+      try {
+        const f = (d.fields && typeof d.fields === "object") ? d.fields : {};
+        guest = f.guest_name || "";
+        depart = f.depart_date || "";
+      } catch (e) {}
+    }
+    return [
+      "[客服对接·散客看板上传页]",
+      "页面=" + (location.href || ""),
+      "账号=" + user,
+      "草稿id=" + draftId,
+      "状态=" + status,
+      "出团=" + (depart || "-"),
+      "代表人=" + (guest || "-"),
+      "build=" + (csBuildStamp() || "-"),
+      "时间=" + new Date().toISOString(),
+    ];
+  }
+
+  function refreshCsMeta() {
+    const meta = $("csMeta");
+    if (!meta) return;
+    const lines = csContextLines();
+    meta.innerHTML = lines
+      .map((ln) => {
+        const i = ln.indexOf("=");
+        if (i < 0) return "<div>" + esc(ln) + "</div>";
+        return "<div><b>" + esc(ln.slice(0, i)) + "</b>=" + esc(ln.slice(i + 1)) + "</div>";
+      })
+      .join("");
+  }
+
+  function setCsFeedback(text, kind) {
+    const el = $("csFeedback");
+    if (!el) return;
+    el.textContent = text || "";
+    el.className = "cs-feedback" + (kind === "err" ? " err" : "");
+  }
+
+  function openCsPanel(open) {
+    const panel = $("csPanel");
+    if (!panel) return;
+    if (open) {
+      panel.classList.add("open");
+      panel.setAttribute("aria-hidden", "false");
+      refreshCsMeta();
+      setCsFeedback("", "");
+      const ta = $("csIssue");
+      if (ta) setTimeout(() => ta.focus(), 50);
+    } else {
+      panel.classList.remove("open");
+      panel.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function copyCsReport() {
+    const ta = $("csIssue");
+    const issue = ((ta && ta.value) || "").trim();
+    if (!issue) {
+      setCsFeedback("请先填写问题描述", "err");
+      if (ta) ta.focus();
+      return;
+    }
+    const lines = csContextLines();
+    lines.push("问题描述=");
+    lines.push(issue);
+    lines.push("");
+    lines.push("（请粘贴到与助手的聊天）");
+    const text = lines.join("\n");
+    const done = () => {
+      setCsFeedback("已复制，请粘贴到与助手的聊天", "");
+      setMsg("客服对接文案已复制，请粘贴发给助手", "ok");
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, () => {
+        prompt("复制以下内容发给助手：", text);
+        done();
+      });
+    } else {
+      prompt("复制以下内容发给助手：", text);
+      done();
+    }
+  }
+
+  function wireCsWidget() {
+    const fabBtn = $("csFabBtn");
+    const closeBtn = $("csClose");
+    const copyBtn = $("csCopyBtn");
+    if (fabBtn) {
+      fabBtn.addEventListener("click", function () {
+        const panel = $("csPanel");
+        const open = !(panel && panel.classList.contains("open"));
+        openCsPanel(open);
+      });
+    }
+    if (closeBtn) closeBtn.addEventListener("click", function () { openCsPanel(false); });
+    if (copyBtn) copyBtn.addEventListener("click", copyCsReport);
   }
 
   function copyNotify() {
@@ -4375,7 +4512,7 @@ const MingdanUpload = (function () {
       let nameZh = String(g.name_zh || "").trim().replace(/\s+/g, "");
       let nameEn = String(g.name_en || "").trim();
       if (/身份信息|出入境管理|签发机关|台湾居民|来往大陆|通行证|返乡证|证件号码|有效期限|出生日期/i.test(nameZh)) nameZh = "";
-      if (/身份信息|出入境管理|Immigration|Authority|PERMIT/i.test(nameEn)) nameEn = "";
+      if (/身份信息|出入境管理|Immigration|Authority|PERMIT/i.test(nameEn) || isJunkMrzLatinName(nameEn)) nameEn = "";
       const name = nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : nameEn;
       const idType = String(g.id_type || "证件").trim();
       let idNumber = String(g.id_number || "").trim();
@@ -4386,12 +4523,19 @@ const MingdanUpload = (function () {
       let age = String(g.age || "").trim();
       let birth = String(g.birth_date || g.dob || g.birthday || "").trim();
       const dobDemo = demographicsFromDob(birth);
-      if (!age && dobDemo.age) age = dobDemo.age;
+      // Prefer DOB-derived age over cloud age (cloud may keep MRZ check digit as "5")
+      if (dobDemo.age) age = dobDemo.age;
+      else if (!age || /^\d$/.test(age)) age = dobDemo.age || "";
       if (!birth && dobDemo.birth) birth = dobDemo.birth;
+      if (age && !birth && /^\d$/.test(age)) age = "";
       const idDemo = demographicsFromIdNumber(idNumber);
       const genderF = gender || idDemo.gender || "";
-      const ageF = age || idDemo.age || "";
       const birthF = birth || idDemo.birth || "";
+      let ageF = age || idDemo.age || "";
+      if (birthF) {
+        const re = demographicsFromDob(birthF);
+        if (re.age) ageF = re.age;
+      }
       const kind = inferGuestKind(ageF, g.guest_kind || g.kind || "");
       const enriched = enrichGuestFields({
         name_zh: nameZh,
@@ -4410,9 +4554,25 @@ const MingdanUpload = (function () {
     return { guests: guests, guest_list: guest_list, names: names, provider: (data && data.provider) || "baidu", doc_type: (data && data.doc_type) || "" };
   }
 
+  function isJunkMrzLatinName(s) {
+    const raw = String(s || "").trim();
+    if (!raw) return true;
+    const compact = raw.replace(/\s+/g, "").toUpperCase();
+    if (/^P?O?CHN$|^P?KOR$|^PCHN$|^POCHN$|^PKOR$|^POKOR$/.test(compact)) return true;
+    const parts = raw.toUpperCase().split(/[\s,\/]+/).filter(Boolean);
+    if (parts.length === 1) {
+      const p = parts[0].replace(/[^A-Z]/g, "");
+      if (/^(CHN|KOR|USA|GBR|JPN|FRA|DEU|ITA|ESP|CAN|AUS|NZL|SGP|HKG|MAC|TWN|NLD|BEL|CHE|AUT|SWE|NOR|DNK|FIN|IRL|PRT|POL)$/.test(p)) return true;
+      if (/^P[A-Z]{3}$/.test(p) && /^(CHN|KOR|USA|GBR|JPN|FRA|DEU|ITA|ESP|CAN|AUS)$/.test(p.slice(1))) return true;
+    }
+    if (/^(CHINA|KOREA|JAPAN|AMERICA|FRANCE|GERMANY|PASSPORT|REPUBLIC|NATIONALITY|NATIONAL)$/i.test(compact)) return true;
+    return false;
+  }
+
   function isCloudChromeName(s) {
     const raw = String(s || "").trim();
     if (!raw) return true;
+    if (isJunkMrzLatinName(raw)) return true;
     const t = raw.replace(/\s+/g, "");
     if (/身份信息|出入境管理|签发机关|签发地点|台湾居民|来往大陆|来往内地|通行证|返乡证|港澳|台胞证|证件号码|有效期限|出生日期|姓名拼音|性别|National|Immigration|Authority|PERMIT|PASSPORT/i.test(t)) {
       return true;
@@ -5372,6 +5532,8 @@ const MingdanUpload = (function () {
     }
     const newOrderBtn = $("fuzzyNewOrderBtn");
     if (newOrderBtn) newOrderBtn.addEventListener("click", startNewOrder);
+
+    wireCsWidget();
 
     setMsg("正在加载账号草稿…", "ok");
     let sync = { ok: false, error: "unknown" };
