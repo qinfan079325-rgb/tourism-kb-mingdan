@@ -104,6 +104,27 @@ python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --today 2026-10
 ## 中国大陆访问（帽子云）
 
 - 上传页（大陆可达）：https://mingdanupload-10m363dc.maozi.io/upload
-- 草稿/OCR 仍指向 Cloudflare Worker；已放行 maozi Origin，客户端超时 45s/60s、重试×3。
-- 同域 `/drafts` `/ocr` 网关反代：控制台规则 API 暂未能用脚本创建（需在 应用详情→规则→反向代理 手工添加，或付费 Web 反代）。
+- **前端**：在 `*.maozi.io` 上草稿/OCR 走**同源** `/drafts`、`/ocr`（不再直连 `workers.dev`，避免国内拦截）。GitHub Pages 仍直连 Worker。
+- **必须配置网关反代**（保存后立即生效，无需重新部署应用；前端改完仍需点一次「重新部署」拉新页面）：
+
+### 帽子云反向代理（一次性）
+
+1. 打开 [帽子云控制台](https://maozi.io) → 登录 → 进入应用 **mingdanupload**
+2. 应用详情 → **规则** → **反向代理规则** → **添加反向代理规则**
+3. 填写：
+   - 规则名称：`drafts-ocr-worker`（≤30 字）
+   - 匹配规则：**自定义筛选**
+     - 条件组 1：请求路径 **开头是** `/drafts`
+     - 点「或者」加条件组 2：请求路径 **开头是** `/ocr`
+   - 协议：**HTTPS**
+   - Host 透传：**使用 Upstream 节点 Host**（重要，否则 Worker 证书/Host 会挂）
+   - 节点：Host = `tourism-kb-id-ocr.qinfan079325.workers.dev`，Port = `443`，Weight = `100`
+   - 超时：连接 15、发送 30、**读取 90**（OCR 可能较慢）
+4. 保存并确认规则开关为**启用**。不必重新部署应用。
+5. 本机验证（或让助手验）：  
+   `GET https://mingdanupload-10m363dc.maozi.io/drafts?account=测试`  
+   带 `Authorization: Bearer <SHARED_SECRET>` 应返回 Worker JSON（`{"ok":true,...}`），而不是 `bad_auth_token` / `not_found`。
+6. 同事打开上传页强制刷新（Ctrl+Shift+R / Cmd+Shift+R）。
+
+> 控制台规则 API 暂无法用脚本可靠创建（Scheme/PassHost/Nodes 常绑不上）。不要开通付费 Web 反代，除非主人明确同意花钱。
 

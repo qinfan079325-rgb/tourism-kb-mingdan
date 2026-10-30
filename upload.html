@@ -418,7 +418,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 19:08 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 20:11 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -482,7 +482,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-30 19:08 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-30 20:11 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -502,7 +502,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 19:08 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 20:11 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -770,9 +770,30 @@ const MingdanUpload = (function () {
     return a + "|" + d + "|" + g;
   }
 
-  function draftsApiConfigured() {
+  function isMaoziMirrorHost() {
+    try {
+      return typeof location !== "undefined" && /\.maozi\.io$/i.test(String(location.hostname || ""));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function configuredWorkerUrl() {
     const u = String(typeof ID_OCR_WORKER_URL !== "undefined" ? ID_OCR_WORKER_URL : "").trim();
-    return !!(u && u.indexOf("__ID_OCR_") < 0 && /^https?:\/\//i.test(u));
+    if (!u || u.indexOf("__ID_OCR_") >= 0) return "";
+    return u.replace(/\/$/, "");
+  }
+
+  /** Base for /drafts and /ocr. On 帽子云 mirror use same-origin (gateway reverse-proxy to Worker). */
+  function workerBaseUrl() {
+    if (isMaoziMirrorHost()) return "";
+    return configuredWorkerUrl();
+  }
+
+  function draftsApiConfigured() {
+    if (isMaoziMirrorHost()) return true; // expects 帽子云 /drafts + /ocr reverse-proxy
+    const u = configuredWorkerUrl();
+    return !!(u && /^https?:\/\//i.test(u));
   }
 
   function draftsAuthHeaders() {
@@ -783,7 +804,7 @@ const MingdanUpload = (function () {
   }
 
   function draftsBaseUrl() {
-    return String(ID_OCR_WORKER_URL).replace(/\/$/, "") + "/drafts";
+    return workerBaseUrl() + "/drafts";
   }
 
   const DRAFTS_FETCH_MS = 45000;
@@ -835,6 +856,18 @@ const MingdanUpload = (function () {
     throw lastErr || new Error("timeout");
   }
 
+
+  function draftsResponseError(res, data) {
+    const d = data || {};
+    // 帽子云静态站未配反代时常见：bad_auth_token / not_found / HTML
+    if (d.code === "bad_auth_token" || d.code === "not_found") return "proxy_missing";
+    if (typeof d === "string" && /<!DOCTYPE|<html/i.test(d)) return "proxy_missing";
+    if (d.error) return String(d.error);
+    if (res && res.status === 404) return isMaoziMirrorHost() ? "proxy_missing" : "http_404";
+    if (res && res.status === 401 && isMaoziMirrorHost() && !d.ok && !d.error) return "proxy_missing";
+    return "http_" + ((res && res.status) || "0");
+  }
+
   /** GET 单账号草稿列表（不含共享） */
   async function fetchDraftsCloud(account) {
     const res = await fetchWithRetry(
@@ -844,8 +877,7 @@ const MingdanUpload = (function () {
     );
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
-      const err = (data && data.error) || ("http_" + res.status);
-      throw new Error(err);
+      throw new Error(draftsResponseError(res, data));
     }
     return Array.isArray(data.drafts) ? data.drafts : [];
   }
@@ -867,8 +899,7 @@ const MingdanUpload = (function () {
     );
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
-      const err = (data && data.error) || ("http_" + res.status);
-      throw new Error(err);
+      throw new Error(draftsResponseError(res, data));
     }
     const personal = Array.isArray(data.drafts) ? data.drafts : [];
     let shared = Array.isArray(data.shared) ? data.shared : null;
@@ -896,8 +927,7 @@ const MingdanUpload = (function () {
     );
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
-      const err = (data && data.error) || ("http_" + res.status);
-      throw new Error(err);
+      throw new Error(draftsResponseError(res, data));
     }
     return true;
   }
@@ -919,8 +949,7 @@ const MingdanUpload = (function () {
     );
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
-      const err = (data && data.error) || ("http_" + res.status);
-      throw new Error(err);
+      throw new Error(draftsResponseError(res, data));
     }
     return true;
   }
@@ -1185,11 +1214,20 @@ const MingdanUpload = (function () {
     if (err === "not_logged_in") return "请先登录后再保存草稿";
     if (err === "not_configured") return "云端草稿未配置，请联系助手";
     if (err === "unauthorized") return "云端鉴权失败，请联系助手";
-    if (err === "timeout" || /timeout|AbortError|aborted/i.test(String(err || ""))) {
-      return "云端草稿请求超时（已重试）。若在国内网络，请改用中国节点：https://mingdanupload-10m363dc.maozi.io/upload ；确认单在「全员共享」库";
+    if (err === "proxy_missing" || err === "bad_gateway_html") {
+      return "草稿接口未接通（帽子云需配置 /drafts、/ocr 反向代理到 Worker）。保存规则后无需重新部署，强制刷新即可";
     }
-    if (!err || err === "network" || /Failed to fetch|NetworkError|fetch/i.test(err)) {
-      return "网络异常，云端保存失败。请联网后重试，或下载 JSON 备份";
+    if (err === "timeout" || /timeout|AbortError|aborted/i.test(String(err || ""))) {
+      if (isMaoziMirrorHost()) {
+        return "云端草稿请求超时（已重试）。请稍后刷新；若刚配反代，把读取超时调到 90 秒；确认单在「全员共享」库";
+      }
+      return "云端草稿请求超时（已重试）。国内请用 https://mingdanupload-10m363dc.maozi.io/upload ；确认单在「全员共享」库";
+    }
+    if (!err || err === "network" || /Failed to fetch|NetworkError|fetch/i.test(String(err || ""))) {
+      if (isMaoziMirrorHost()) {
+        return "网络异常：本页草稿走同源 /drafts。若红条反复出现，请在帽子云为 mingdanupload 配置 /drafts 与 /ocr 反向代理，或联系助手";
+      }
+      return "网络异常，云端保存失败。国内请用 https://mingdanupload-10m363dc.maozi.io/upload ；或下载 JSON 备份";
     }
     return "云端保存失败（" + err + "）。请重试或下载 JSON 备份";
   }
@@ -4526,8 +4564,12 @@ const MingdanUpload = (function () {
 
 
   function idOcrConfigured() {
-    const u = String(ID_OCR_WORKER_URL || "").trim();
-    return !!(u && u.indexOf("__ID_OCR_") < 0 && /^https?:\/\//i.test(u));
+    if (isMaoziMirrorHost()) {
+      const tok = String(ID_OCR_TOKEN || "").trim();
+      return !!(tok && tok.indexOf("__ID_OCR_") < 0);
+    }
+    const u = configuredWorkerUrl();
+    return !!(u && /^https?:\/\//i.test(u));
   }
 
   function stripDataUrlBase64(dataUrl) {
@@ -4620,7 +4662,10 @@ const MingdanUpload = (function () {
     if (err) {
       const m = String(err.message || err || "");
       if (/timeout|AbortError|aborted/i.test(m)) return "证件云识别超时，请压缩图片后重试，或换更清晰单张证件照";
-      if (/Failed to fetch|NetworkError|network/i.test(m)) return "网络异常，证件云识别未完成，请检查网络后重试";
+      if (/Failed to fetch|NetworkError|network/i.test(m)) {
+        if (isMaoziMirrorHost()) return "网络异常：证件识别走同源 /ocr。请确认帽子云已配 /ocr 反向代理后强制刷新";
+        return "网络异常，证件云识别未完成；国内请用帽子云上传页后重试";
+      }
       return "证件云识别失败：" + m;
     }
     const code = data && (data.error || data.detail || "");
@@ -4642,7 +4687,7 @@ const MingdanUpload = (function () {
     const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 45000) : null;
     try {
-      const res = await fetch(String(ID_OCR_WORKER_URL).replace(/\/$/, "") + "/ocr/id", {
+      const res = await fetch(workerBaseUrl() + "/ocr/id", {
         method: "POST",
         headers: headers,
         body: JSON.stringify({ image_base64: imageBase64, doc_type: docType || "auto" }),
