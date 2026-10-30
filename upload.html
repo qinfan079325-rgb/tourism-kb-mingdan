@@ -1101,18 +1101,21 @@ const MingdanUpload = (function () {
       const tPrev = draftTouchTime(prev);
       // 仅当本机更新时间 >= 云端时才用本机整单；旧本机稿不再强行覆盖云端
       let winner = tLocal >= tPrev ? d : prev;
-      // confirmed_by：取 confirmed_at 更新的一侧（真正点过销售确认的账号）
+      // confirmed_by：仅当本机 confirmed_at 严格更新才覆盖云端（避免旧本机稿把确认人改回）
       const prevC = Date.parse((prev && prev.confirmed_at) || 0) || 0;
       const locC = Date.parse((d && d.confirmed_at) || 0) || 0;
       let confBy = winner.confirmed_by || "";
       let confAt = winner.confirmed_at || "";
       if (prev.confirmed_by || d.confirmed_by) {
-        if (d.confirmed_by && (!prev.confirmed_by || locC > prevC || (locC === prevC && tLocal >= tPrev))) {
+        if (d.confirmed_by && (!prev.confirmed_by || locC > prevC)) {
           confBy = d.confirmed_by;
           confAt = d.confirmed_at || confAt;
         } else if (prev.confirmed_by) {
           confBy = prev.confirmed_by;
           confAt = prev.confirmed_at || confAt;
+        } else if (d.confirmed_by) {
+          confBy = d.confirmed_by;
+          confAt = d.confirmed_at || confAt;
         }
       }
       if (confBy) {
