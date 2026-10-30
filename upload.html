@@ -290,12 +290,12 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
 .fuzzy-ocr-pick-hint{font-size:12px;color:var(--muted)}
 
 
-/* 客人名单：每人一行四框（姓名/证件类型/证件号/电话） */
+/* 客人名单：易途顺序 姓名/电话/证件类型/证件号码/性别/年龄/类型 + 删 */
 .fuzzy-field.guest-list-field{grid-column:1/-1}
 .fuzzy-field.span-2{grid-column:1/-1}
-.guest-list-wrap{display:flex;flex-direction:column;gap:8px}
-.guest-list-head{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;font-size:12.5px;font-weight:700;color:#e2e8f0;padding:4px 6px;background:rgba(51,65,85,.45);border-radius:8px;letter-spacing:.02em}
-.guest-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;align-items:center}
+.guest-list-wrap{display:flex;flex-direction:column;gap:8px;overflow-x:auto}
+.guest-list-head{display:grid;grid-template-columns:minmax(72px,1fr) minmax(96px,1.05fr) minmax(84px,.95fr) minmax(110px,1.25fr) minmax(56px,.55fr) minmax(52px,.5fr) minmax(72px,.7fr) 36px;gap:6px;font-size:12px;font-weight:700;color:#e2e8f0;padding:4px 6px;background:rgba(51,65,85,.45);border-radius:8px;letter-spacing:.02em;min-width:720px}
+.guest-row{display:grid;grid-template-columns:minmax(72px,1fr) minmax(96px,1.05fr) minmax(84px,.95fr) minmax(110px,1.25fr) minmax(56px,.55fr) minmax(52px,.5fr) minmax(72px,.7fr) 36px;gap:6px;align-items:center;min-width:720px}
 .guest-row input,.guest-row select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
   border-radius:8px;padding:7px 8px;font-size:13px;font-family:inherit;box-sizing:border-box}
 .guest-row input:focus,.guest-row select:focus{border-color:var(--accent);outline:none}
@@ -304,50 +304,11 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
 .guest-list-actions{display:flex;gap:8px;align-items:center;margin-top:2px}
 .guest-list-hint{font-size:11px;font-weight:500;color:#94a3b8;letter-spacing:0}
 .guest-list-hidden{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
+.fuzzy-money-hint{font-size:11px;font-weight:500;color:#94a3b8;margin-left:4px}
 @media(max-width:720px){
   .guest-list-head{display:none}
-  .guest-row{grid-template-columns:1fr 1fr;gap:6px}
+  .guest-row{grid-template-columns:1fr 1fr;gap:6px;min-width:0}
   .guest-row .guest-del{grid-column:1/-1;justify-self:start;width:auto;padding:6px 12px}
-}
-
-/* —— 浮动客服对接 —— */
-.cs-fab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));
-  z-index:8500;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none}
-.cs-fab>*{pointer-events:auto}
-.cs-fab-btn{border:none;cursor:pointer;border-radius:999px;padding:12px 18px;font-size:14px;font-weight:750;
-  letter-spacing:.02em;color:#fff;background:linear-gradient(135deg,#ea580c,#c2410c);
-  box-shadow:0 8px 24px rgba(194,65,12,.45),0 0 0 1px rgba(251,146,60,.35);
-  font-family:inherit;display:inline-flex;align-items:center;gap:8px}
-.cs-fab-btn:hover{filter:brightness(1.08)}
-.cs-fab-btn:active{transform:scale(.98)}
-.cs-fab-btn .cs-fab-dot{width:8px;height:8px;border-radius:50%;background:#86efac;
-  box-shadow:0 0 0 3px rgba(134,239,172,.25);flex-shrink:0}
-.cs-panel{width:min(360px,calc(100vw - 28px));background:#0f172a;border:1px solid #334155;border-radius:16px;
-  box-shadow:0 16px 48px rgba(0,0,0,.45);padding:14px 14px 12px;display:none}
-.cs-panel.open{display:block}
-.cs-panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-.cs-panel-h strong{font-size:14px;color:#ffedd5}
-.cs-panel-close{background:transparent;border:1px solid #475569;color:#cbd5e1;border-radius:8px;
-  width:30px;height:30px;cursor:pointer;font-size:16px;line-height:1}
-.cs-panel-close:hover{border-color:#f97316;color:#fdba74}
-.cs-panel-hint{margin:0 0 10px;font-size:12px;color:#94a3b8;line-height:1.45}
-.cs-panel label{display:block;font-size:12px;color:#94a3b8;font-weight:650;margin-bottom:5px}
-.cs-panel textarea{width:100%;min-height:96px;resize:vertical;background:#020617;border:1px solid #334155;
-  color:#e2e8f0;border-radius:10px;padding:10px 12px;font-size:13.5px;font-family:inherit;outline:none;
-  box-sizing:border-box}
-.cs-panel textarea:focus{border-color:#f97316;box-shadow:0 0 0 3px rgba(249,115,22,.15)}
-.cs-meta{margin:8px 0 10px;padding:8px 10px;border-radius:10px;background:#1e293b;border:1px solid #334155;
-  font-size:11.5px;color:#94a3b8;line-height:1.5;word-break:break-all}
-.cs-meta b{color:#cbd5e1;font-weight:650}
-.cs-panel-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.cs-copy{background:#9a3412;border:1px solid #ea580c;color:#ffedd5;font-weight:700;
-  border-radius:10px;padding:9px 14px;font-size:13px;cursor:pointer;font-family:inherit}
-.cs-copy:hover{filter:brightness(1.08)}
-.cs-feedback{margin:8px 0 0;font-size:12px;font-weight:650;min-height:1.2em;color:#86efac}
-.cs-feedback.err{color:#fecaca}
-@media(max-width:720px){
-  .cs-fab{right:12px;bottom:14px}
-  .cs-fab-btn{padding:11px 14px;font-size:13px}
 }
 
 </style>
@@ -407,7 +368,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 15:44 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-30 14:53 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -467,27 +428,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-30 15:44 Asia/Shanghai" aria-live="polite">
-    <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
-      <div class="cs-panel-h">
-        <strong id="csTitle">客服对接 · 报错/不清楚</strong>
-        <button type="button" class="cs-panel-close" id="csClose" title="关闭" aria-label="关闭">×</button>
-      </div>
-      <p class="cs-panel-hint">写清问题后点「复制发给助手」，粘贴到与 Grok Bot 的聊天即可。会带上页面、账号、草稿与版本信息。</p>
-      <label for="csIssue">问题描述</label>
-      <textarea id="csIssue" rows="4" placeholder="例如：代收算错了 / 打开草稿没有边框 / 不明白「已确认待易途」下一步点哪…"></textarea>
-      <div class="cs-meta" id="csMeta">打开面板后自动填上下文</div>
-      <div class="cs-panel-actions">
-        <button type="button" class="cs-copy" id="csCopyBtn">复制发给助手</button>
-      </div>
-      <div class="cs-feedback" id="csFeedback"></div>
-    </div>
-    <button type="button" class="cs-fab-btn" id="csFabBtn" title="客服对接">
-      <span class="cs-fab-dot" aria-hidden="true"></span>
-      客服对接
-    </button>
-  </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 15:44 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-30 14:53 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -665,7 +606,7 @@ const MingdanUpload = (function () {
     ["rooms", "用房"],
     ["full_amount", "全款"],
     ["deposit", "定金"],
-    ["collect_on_tour", "代收"],
+    ["collect_on_tour", "代收"],  /* 显示时加「全款−定金」提示 */
     ["settlement", "结算"],
     ["rebate", "返款"],
     ["kb", "kb值"],
@@ -771,11 +712,42 @@ const MingdanUpload = (function () {
     return String(ID_OCR_WORKER_URL).replace(/\/$/, "") + "/drafts";
   }
 
+  const DRAFTS_FETCH_MS = 12000;
+  const DRAFTS_PUT_MS = 15000;
+
+  function abortErrorName(err) {
+    if (!err) return "";
+    if (err.name === "AbortError" || err.name === "TimeoutError") return "timeout";
+    const m = String(err.message || err || "");
+    if (/aborted|timeout|TimeoutError|AbortError/i.test(m)) return "timeout";
+    return m;
+  }
+
+  async function fetchWithTimeout(url, options, ms) {
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = setTimeout(function () {
+      try { if (ctrl) ctrl.abort(); } catch (e) {}
+    }, ms);
+    try {
+      const opts = Object.assign({}, options || {});
+      if (ctrl) opts.signal = ctrl.signal;
+      return await fetch(url, opts);
+    } catch (e) {
+      const name = abortErrorName(e);
+      if (name === "timeout") throw new Error("timeout");
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** GET 单账号草稿列表（不含共享） */
   async function fetchDraftsCloud(account) {
-    const res = await fetch(draftsBaseUrl() + "?account=" + encodeURIComponent(account), {
-      method: "GET",
-      headers: draftsAuthHeaders(),
-    });
+    const res = await fetchWithTimeout(
+      draftsBaseUrl() + "?account=" + encodeURIComponent(account),
+      { method: "GET", headers: draftsAuthHeaders() },
+      DRAFTS_FETCH_MS
+    );
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
       const err = (data && data.error) || ("http_" + res.status);
@@ -784,12 +756,51 @@ const MingdanUpload = (function () {
     return Array.isArray(data.drafts) ? data.drafts : [];
   }
 
+  /**
+   * 一次 GET：个人待办 + 全员已确认（worker ?include_shared=1）
+   * 避免浏览器二次请求 account=__shared_confirmed__（部分网络会挂死）
+   */
+  async function fetchPersonalAndShared(account) {
+    const url =
+      draftsBaseUrl() +
+      "?account=" +
+      encodeURIComponent(account) +
+      "&include_shared=1";
+    const res = await fetchWithTimeout(
+      url,
+      { method: "GET", headers: draftsAuthHeaders() },
+      DRAFTS_FETCH_MS
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      const err = (data && data.error) || ("http_" + res.status);
+      throw new Error(err);
+    }
+    const personal = Array.isArray(data.drafts) ? data.drafts : [];
+    let shared = Array.isArray(data.shared) ? data.shared : null;
+    // 旧 worker 无 shared 字段时，再单独拉共享（带超时）
+    if (shared == null) {
+      try {
+        shared = await fetchDraftsCloud(SHARED_ACCOUNT);
+      } catch (e2) {
+        console.warn("[drafts shared fallback]", e2);
+        shared = [];
+        throw e2;
+      }
+    }
+    return { personal: personal, shared: shared };
+  }
+
   async function putDraftsCloud(account, list) {
-    const res = await fetch(draftsBaseUrl(), {
-      method: "PUT",
-      headers: draftsAuthHeaders(),
-      body: JSON.stringify({ account, drafts: list }),
-    });
+    const res = await fetchWithTimeout(
+      draftsBaseUrl(),
+      {
+        method: "PUT",
+        headers: draftsAuthHeaders(),
+        body: JSON.stringify({ account: account, drafts: list }),
+      },
+      DRAFTS_PUT_MS
+    );
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
       const err = (data && data.error) || ("http_" + res.status);
@@ -829,8 +840,9 @@ const MingdanUpload = (function () {
       return { ok: false, error: "not_configured" };
     }
     try {
-      let personal = await fetchDraftsCloud(user);
-      let shared = await fetchDraftsCloud(SHARED_ACCOUNT);
+      const bundle = await fetchPersonalAndShared(user);
+      let personal = bundle.personal || [];
+      let shared = bundle.shared || [];
       let migrated = false;
 
       // 一次性：本机旧草稿 → 当前账号个人库（仅空库时）
@@ -947,6 +959,7 @@ const MingdanUpload = (function () {
   }
 
   function isDraftLike(status) {
+    if (status == null || status === "") return true;
     return DRAFT_LIKE.has(status);
   }
 
@@ -1014,6 +1027,9 @@ const MingdanUpload = (function () {
     if (err === "not_logged_in") return "请先登录后再保存草稿";
     if (err === "not_configured") return "云端草稿未配置，请联系助手";
     if (err === "unauthorized") return "云端鉴权失败，请联系助手";
+    if (err === "timeout" || /timeout|AbortError|aborted/i.test(String(err || ""))) {
+      return "云端草稿请求超时。请检查网络后刷新；确认单在「全员共享」库";
+    }
     if (!err || err === "network" || /Failed to fetch|NetworkError|fetch/i.test(err)) {
       return "网络异常，云端保存失败。请联网后重试，或下载 JSON 备份";
     }
@@ -1173,6 +1189,81 @@ const MingdanUpload = (function () {
   function cleanTransportField(s) {
     const v = String(s || "").trim();
     return isTransportLine(v) ? v : "";
+  }
+
+  function moneyNumber(s) {
+    const m = String(s || "").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+    return m ? parseFloat(m[0]) : NaN;
+  }
+
+  /** 代收 = 全款 − 定金；任一空则不编造，返回 ""。展示公式 full-deposit=result */
+  function formatCollectFromMoney(fullStr, depStr) {
+    const fullRaw = String(fullStr || "").trim();
+    const depRaw = String(depStr || "").trim();
+    if (!fullRaw || !depRaw) return "";
+    const f = moneyNumber(fullRaw);
+    const d = moneyNumber(depRaw);
+    if (!isFinite(f) || !isFinite(d)) return "";
+    const result = Math.round((f - d) * 100) / 100;
+    function disp(n) {
+      return Math.round(n) === n ? String(Math.round(n)) : String(n);
+    }
+    return disp(f) + "-" + disp(d) + "=" + disp(result);
+  }
+
+  function shouldAutoFillCollect(currentCollect, fullStr, depStr) {
+    const auto = formatCollectFromMoney(fullStr, depStr);
+    if (!auto) return "";
+    const cur = String(currentCollect || "").trim();
+    if (!cur) return auto;
+    const cNum = moneyNumber(cur);
+    const fNum = moneyNumber(fullStr);
+    const expected = moneyNumber(auto.split("=").pop());
+    // 常见误填：代收写成了全款
+    if (isFinite(cNum) && isFinite(fNum) && cNum === fNum && moneyNumber(depStr)) return auto;
+    // 已是结果数字 → 升级为公式便于核对
+    if (isFinite(cNum) && isFinite(expected) && cNum === expected && cur.indexOf("=") < 0) return auto;
+    // 已有公式则保留
+    return cur;
+  }
+
+  function refreshCollectFromMoneyFields() {
+    const box = $("fuzzyFields");
+    if (!box) return;
+    const fullEl = box.querySelector('textarea[data-k="full_amount"]');
+    const depEl = box.querySelector('textarea[data-k="deposit"]');
+    const colEl = box.querySelector('textarea[data-k="collect_on_tour"]');
+    if (!fullEl || !depEl || !colEl) return;
+    const next = shouldAutoFillCollect(colEl.value, fullEl.value, depEl.value);
+    const auto = formatCollectFromMoney(fullEl.value, depEl.value);
+    if (!auto) return; // 不全不改
+    // 空、或等于全款、或仅为结果数 → 写入公式；用户手写其它内容不覆盖
+    const cur = String(colEl.value || "").trim();
+    const cNum = moneyNumber(cur);
+    const fNum = moneyNumber(fullEl.value);
+    const expected = moneyNumber(auto.split("=").pop());
+    if (!cur || (isFinite(cNum) && isFinite(fNum) && cNum === fNum) || (isFinite(cNum) && cNum === expected)) {
+      colEl.value = auto;
+    }
+  }
+
+  function bindCollectAuto() {
+    const box = $("fuzzyFields");
+    if (!box) return;
+    if (box.dataset.collectBound === "1") return;
+    box.dataset.collectBound = "1";
+    box.addEventListener("input", function (ev) {
+      const t = ev && ev.target;
+      if (!t || !t.getAttribute) return;
+      const k = t.getAttribute("data-k");
+      if (k === "full_amount" || k === "deposit") refreshCollectFromMoneyFields();
+    });
+    box.addEventListener("change", function (ev) {
+      const t = ev && ev.target;
+      if (!t || !t.getAttribute) return;
+      const k = t.getAttribute("data-k");
+      if (k === "full_amount" || k === "deposit") refreshCollectFromMoneyFields();
+    });
   }
 
   function parseText(raw) {
@@ -1379,7 +1470,7 @@ const MingdanUpload = (function () {
       rooms: (rooms || "").trim(),
       full_amount: (full_amount || "").trim(),
       deposit: (deposit || "").trim(),
-      collect_on_tour: (collect_on_tour || "").trim(),
+      collect_on_tour: shouldAutoFillCollect((collect_on_tour || "").trim(), (full_amount || "").trim(), (deposit || "").trim()),
       settlement,
       rebate: (rebate || "").trim(),
       kb: kb === "" ? "" : kb,
@@ -1644,6 +1735,8 @@ const MingdanUpload = (function () {
 
 
   const GUEST_ID_TYPES = ["台胞证", "护照", "身份证", "通行证", "返乡证", "港澳通行证", "证件"];
+  const GUEST_SEX_TYPES = ["", "男", "女"];
+  const GUEST_KIND_TYPES = ["成人", "儿童"];
 
   function guestDisplayName(g) {
     if (!g) return "";
@@ -1652,12 +1745,166 @@ const MingdanUpload = (function () {
     return String(g.name_en || g.name || "").trim();
   }
 
+  /** 年龄：有年月日则按今天算周岁；无效返回 "" */
+  function ageFromYmd(y, m, d) {
+    y = +y; m = +m; d = +d;
+    if (!(y >= 1900 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return "";
+    const today = new Date();
+    let age = today.getFullYear() - y;
+    const tm = today.getMonth() + 1, td = today.getDate();
+    if (tm < m || (tm === m && td < d)) age -= 1;
+    if (age < 0 || age > 120) return "";
+    return String(age);
+  }
+
+  function normalizeSexValue(s) {
+    const t = String(s || "").trim();
+    if (!t) return "";
+    if (/^(男|M|MALE)$/i.test(t)) return "男";
+    if (/^(女|F|FEMALE)$/i.test(t)) return "女";
+    if (/^SEX\s*[:：]?\s*M(ALE)?$/i.test(t)) return "男";
+    if (/^SEX\s*[:：]?\s*F(EMALE)?$/i.test(t)) return "女";
+    if (/男/.test(t) && !/女/.test(t)) return "男";
+    if (/女/.test(t) && !/男/.test(t)) return "女";
+    return "";
+  }
+
+  /** 护照/台胞证/文本出生日期 → { age, birth }；无有效 DOB 则空（不把台胞证号当生日） */
+  function demographicsFromDob(dobRaw) {
+    const raw = String(dobRaw || "").trim();
+    if (!raw) return { gender: "", age: "", birth: "" };
+    let m = raw.match(/^(19|20)(\d{2})[-\/.年]?(0?[1-9]|1[0-2])[-\/.月]?(0?[1-9]|[12]\d|3[01])/);
+    if (m) {
+      const y = +(m[1] + m[2]), mo = +m[3], d = +m[4];
+      const age = ageFromYmd(y, mo, d);
+      if (age) {
+        return {
+          gender: "",
+          age: age,
+          birth: y + "-" + String(mo).padStart(2, "0") + "-" + String(d).padStart(2, "0"),
+        };
+      }
+    }
+    m = raw.match(/^(0?[1-9]|[12]\d|3[01])[-\/.](0?[1-9]|1[0-2])[-\/.]((?:19|20)\d{2})/);
+    if (m) {
+      const d = +m[1], mo = +m[2], y = +m[3];
+      const age = ageFromYmd(y, mo, d);
+      if (age) {
+        return {
+          gender: "",
+          age: age,
+          birth: y + "-" + String(mo).padStart(2, "0") + "-" + String(d).padStart(2, "0"),
+        };
+      }
+    }
+    const months = {
+      JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6,
+      JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12,
+    };
+    m = raw.match(/\b(\d{1,2})\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[.,\s]*((?:19|20)?\d{2})\b/i);
+    if (m) {
+      let y = +m[3];
+      if (y < 100) y += y >= 30 ? 1900 : 2000;
+      const mo = months[m[2].toUpperCase().slice(0, 3)];
+      const d = +m[1];
+      const age = ageFromYmd(y, mo, d);
+      if (age) {
+        return {
+          gender: "",
+          age: age,
+          birth: y + "-" + String(mo).padStart(2, "0") + "-" + String(d).padStart(2, "0"),
+        };
+      }
+    }
+    m = raw.match(/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[.,\s]*(\d{1,2})[,.\s]+((?:19|20)?\d{2})\b/i);
+    if (m) {
+      let y = +m[3];
+      if (y < 100) y += y >= 30 ? 1900 : 2000;
+      const mo = months[m[1].toUpperCase().slice(0, 3)];
+      const d = +m[2];
+      const age = ageFromYmd(y, mo, d);
+      if (age) {
+        return {
+          gender: "",
+          age: age,
+          birth: y + "-" + String(mo).padStart(2, "0") + "-" + String(d).padStart(2, "0"),
+        };
+      }
+    }
+    // MRZ birth YYMMDD（仅在明确标注时用；单独 6 位不猜世纪）
+    m = raw.match(/^(?:MRZ|DOB|BIRTH)?[:：\s]*(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/i);
+    if (m && /MRZ|DOB|BIRTH/i.test(raw)) {
+      let y = +m[1];
+      y += y >= 30 ? 1900 : 2000;
+      const age = ageFromYmd(y, +m[2], +m[3]);
+      if (age) {
+        return {
+          gender: "",
+          age: age,
+          birth: y + "-" + m[2] + "-" + m[3],
+        };
+      }
+    }
+    return { gender: "", age: "", birth: "" };
+  }
+
+  /** 从 18 位身份证推性别/年龄；其它证件不强推（台胞证 8 位不是生日） */
+  function demographicsFromIdNumber(idNumber) {
+    const id = String(idNumber || "").trim().toUpperCase();
+    if (!/^\d{17}[\dX]$/.test(id)) return { gender: "", age: "", birth: "" };
+    const y = +id.slice(6, 10), m = +id.slice(10, 12), d = +id.slice(12, 14);
+    if (!(y >= 1900 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) {
+      return { gender: "", age: "", birth: "" };
+    }
+    const sexDigit = +id.charAt(16);
+    const gender = sexDigit % 2 === 1 ? "男" : "女";
+    const age = ageFromYmd(y, m, d);
+    const birth = age
+      ? y + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0")
+      : "";
+    return { gender: gender, age: age, birth: birth };
+  }
+
+  /** 有年龄：<12 儿童，否则成人；无年龄：保留已有，默认成人 */
+  function inferGuestKind(ageStr, existing) {
+    const age = parseInt(String(ageStr || "").trim(), 10);
+    if (!isNaN(age) && age >= 0 && age <= 120) return age < 12 ? "儿童" : "成人";
+    const ex = String(existing || "").trim();
+    if (ex === "成人" || ex === "儿童") return ex;
+    return "成人";
+  }
+
+  function enrichGuestFields(g) {
+    const out = Object.assign({}, g || {});
+    out.name = guestDisplayName(out);
+    out.id_type = String(out.id_type || out.type || "").trim() || "证件";
+    out.id_number = String(out.id_number || out.number || "").trim();
+    out.phone = String(out.phone || "").trim();
+    out.gender = normalizeSexValue(out.gender || out.sex || "");
+    out.age = String(out.age || "").trim();
+    out.guest_kind = String(out.guest_kind || out.kind || out.party_type || "").trim();
+    const dobDemo = demographicsFromDob(out.birth_date || out.dob || out.birthday || "");
+    if (!out.age && dobDemo.age) out.age = dobDemo.age;
+    if (!out.birth_date && dobDemo.birth) out.birth_date = dobDemo.birth;
+    const demo = demographicsFromIdNumber(out.id_number);
+    if (!out.gender && demo.gender) out.gender = demo.gender;
+    if (!out.age && demo.age) out.age = demo.age;
+    if (!out.birth_date && demo.birth) out.birth_date = demo.birth;
+    out.guest_kind = inferGuestKind(out.age, out.guest_kind);
+    out.line = serializeGuestObj(out);
+    return out;
+  }
+
   function serializeGuestObj(g) {
     const name = guestDisplayName(g);
+    const phone = String((g && g.phone) || "").trim();
     const idType = String((g && (g.id_type || g.type)) || "").trim();
     const idNumber = String((g && (g.id_number || g.number)) || "").trim();
-    const phone = String((g && g.phone) || "").trim();
-    return [name, idType, idNumber, phone].filter(Boolean).join(" ");
+    const gender = String((g && (g.gender || g.sex)) || "").trim();
+    const age = String((g && g.age) || "").trim();
+    const kind = String((g && (g.guest_kind || g.kind)) || "").trim();
+    // 易途顺序：姓名 电话 证件类型 证件号码 性别 年龄 类型
+    return [name, phone, idType, idNumber, gender, age, kind].filter(function (x) { return x !== ""; }).join(" ");
   }
 
   function parseGuestLine(line) {
@@ -1669,6 +1916,20 @@ const MingdanUpload = (function () {
       phone = phoneM[1];
       s = (s.slice(0, phoneM.index) + " " + s.slice(phoneM.index + phoneM[0].length)).replace(/\s+/g, " ").trim();
     }
+    let guest_kind = "";
+    const kindM = s.match(/(?:^|[\s,，])(成人|儿童)(?:[\s,，]|$)/);
+    if (kindM) {
+      guest_kind = kindM[1];
+      s = (s.slice(0, kindM.index) + " " + s.slice(kindM.index + kindM[0].length)).replace(/\s+/g, " ").trim();
+    }
+    let gender = "";
+    const sexM = s.match(/(?:^|[\s,，])([男女])(?:[\s,，]|$)/);
+    if (sexM) {
+      gender = sexM[1];
+      s = (s.slice(0, sexM.index) + " " + s.slice(sexM.index + sexM[0].length)).replace(/\s+/g, " ").trim();
+    }
+    let age = "";
+    // 年龄：避免误吃证件号；先抽证件后再取剩余 1–3 位数
     let id_type = "";
     let id_number = "";
     const typeM = s.match(/(台胞证|护照|身份证|返乡证|港澳通行证|通行证|证件)/);
@@ -1698,17 +1959,30 @@ const MingdanUpload = (function () {
         else id_type = "护照";
       }
     }
+    // 抽完证件后再取年龄（避免 8 位台胞证被当年龄）
+    if (!age) {
+      const ageM2 = s.match(/(?:^|[\s,，])(\d{1,3})(?:岁)?(?:[\s,，]|$)/);
+      if (ageM2) {
+        const n = +ageM2[1];
+        if (n >= 0 && n <= 120) {
+          age = String(n);
+          s = (s.slice(0, ageM2.index) + " " + s.slice(ageM2.index + ageM2[0].length)).replace(/\s+/g, " ").trim();
+        }
+      }
+    }
     const name = s.replace(/\s+/g, " ").trim();
     if (!name && !id_number && !phone) return null;
-    return {
+    return enrichGuestFields({
       name: name,
       name_zh: /[\u4e00-\u9fff]/.test(name) ? name.replace(/\s+/g, "") : "",
       name_en: /[\u4e00-\u9fff]/.test(name) ? "" : name,
+      phone: phone,
       id_type: id_type || "证件",
       id_number: id_number,
-      phone: phone,
-      line: serializeGuestObj({ name: name, id_type: id_type || "证件", id_number: id_number, phone: phone }),
-    };
+      gender: gender,
+      age: age,
+      guest_kind: guest_kind,
+    });
   }
 
   function parseGuestListText(text) {
@@ -1729,11 +2003,38 @@ const MingdanUpload = (function () {
       .join("");
   }
 
+  function guestSexOptionsHtml(selected) {
+    const sel = String(selected || "").trim();
+    return GUEST_SEX_TYPES.map(function (t) {
+      const lab = t || "性别";
+      return '<option value="' + esc(t) + '"' + (t === sel ? " selected" : "") + ">" + esc(lab) + "</option>";
+    }).join("");
+  }
+
+  function guestKindOptionsHtml(selected) {
+    const sel = String(selected || "").trim() || "成人";
+    const opts = GUEST_KIND_TYPES.slice();
+    if (sel && opts.indexOf(sel) < 0) opts.unshift(sel);
+    return opts
+      .map(function (t) {
+        return '<option value="' + esc(t) + '"' + (t === sel ? " selected" : "") + ">" + esc(t) + "</option>";
+      })
+      .join("");
+  }
+
+  function emptyGuest() {
+    return { name: "", phone: "", id_type: "台胞证", id_number: "", gender: "", age: "", guest_kind: "成人" };
+  }
+
   function guestRowHtml(g, idx) {
-    const name = guestDisplayName(g);
-    const idType = String((g && (g.id_type || g.type)) || "证件").trim() || "证件";
-    const idNumber = String((g && (g.id_number || g.number)) || "").trim();
-    const phone = String((g && g.phone) || "").trim();
+    const eg = enrichGuestFields(g || emptyGuest());
+    const name = guestDisplayName(eg);
+    const phone = String(eg.phone || "").trim();
+    const idType = String(eg.id_type || "证件").trim() || "证件";
+    const idNumber = String(eg.id_number || "").trim();
+    const gender = String(eg.gender || "").trim();
+    const age = String(eg.age || "").trim();
+    const kind = String(eg.guest_kind || "成人").trim() || "成人";
     return (
       '<div class="guest-row" data-guest-idx="' +
       idx +
@@ -1741,15 +2042,24 @@ const MingdanUpload = (function () {
       '<input type="text" class="guest-name" data-guest-field="name" placeholder="姓名" value="' +
       esc(name) +
       '" autocomplete="off"/>' +
+      '<input type="tel" class="guest-phone" data-guest-field="phone" placeholder="电话" value="' +
+      esc(phone) +
+      '" autocomplete="off"/>' +
       '<select class="guest-id-type" data-guest-field="id_type" aria-label="证件类型">' +
       guestTypeOptionsHtml(idType) +
       "</select>" +
       '<input type="text" class="guest-id-number" data-guest-field="id_number" placeholder="证件号码" value="' +
       esc(idNumber) +
       '" autocomplete="off" spellcheck="false"/>' +
-      '<input type="tel" class="guest-phone" data-guest-field="phone" placeholder="电话" value="' +
-      esc(phone) +
+      '<select class="guest-gender" data-guest-field="gender" aria-label="性别">' +
+      guestSexOptionsHtml(gender) +
+      "</select>" +
+      '<input type="number" class="guest-age" data-guest-field="age" placeholder="年龄" min="0" max="120" value="' +
+      esc(age) +
       '" autocomplete="off"/>' +
+      '<select class="guest-kind" data-guest-field="guest_kind" aria-label="类型">' +
+      guestKindOptionsHtml(kind) +
+      "</select>" +
       '<button type="button" class="guest-del" title="删除此行" aria-label="删除此行">×</button>' +
       "</div>"
     );
@@ -1757,7 +2067,7 @@ const MingdanUpload = (function () {
 
   function guestListFieldHtml(label, need, val) {
     let guests = parseGuestListText(val);
-    if (!guests.length) guests = [{ name: "", id_type: "台胞证", id_number: "", phone: "" }];
+    if (!guests.length) guests = [emptyGuest()];
     const rows = guests.map(guestRowHtml).join("");
     const hiddenVal = guests
       .map(function (g) {
@@ -1772,9 +2082,9 @@ const MingdanUpload = (function () {
       '<span class="fuzzy-field-lab">' +
       esc(label) +
       (need ? " <em>需核对</em>" : "") +
-      ' <span class="guest-list-hint">姓名 · 类型 · 证件号 · 电话</span></span>' +
+      ' <span class="guest-list-hint">姓名 · 电话 · 证件类型 · 证件号码 · 性别 · 年龄 · 类型</span></span>' +
       '<div class="guest-list-wrap" id="guestListWrap">' +
-      '<div class="guest-list-head"><span>姓名</span><span>证件类型</span><span>证件号码</span><span>电话</span><span></span></div>' +
+      '<div class="guest-list-head"><span>姓名</span><span>电话</span><span>证件类型</span><span>证件号码</span><span>性别</span><span>年龄</span><span>类型</span><span></span></div>' +
       '<div class="guest-list-rows" id="guestListRows">' +
       rows +
       "</div>" +
@@ -1792,16 +2102,26 @@ const MingdanUpload = (function () {
     const out = [];
     rows.forEach(function (row) {
       const name = (row.querySelector('[data-guest-field="name"]') || {}).value || "";
+      const phone = (row.querySelector('[data-guest-field="phone"]') || {}).value || "";
       const id_type = (row.querySelector('[data-guest-field="id_type"]') || {}).value || "";
       const id_number = (row.querySelector('[data-guest-field="id_number"]') || {}).value || "";
-      const phone = (row.querySelector('[data-guest-field="phone"]') || {}).value || "";
-      const g = {
+      const gender = (row.querySelector('[data-guest-field="gender"]') || {}).value || "";
+      const age = (row.querySelector('[data-guest-field="age"]') || {}).value || "";
+      const guest_kind = (row.querySelector('[data-guest-field="guest_kind"]') || {}).value || "";
+      const g = enrichGuestFields({
         name: String(name).trim(),
         name_zh: /[\u4e00-\u9fff]/.test(String(name)) ? String(name).trim().replace(/\s+/g, "") : "",
+        phone: String(phone).trim(),
         id_type: String(id_type).trim() || "证件",
         id_number: String(id_number).trim(),
-        phone: String(phone).trim(),
-      };
+        gender: String(gender).trim(),
+        age: String(age).trim(),
+        guest_kind: String(guest_kind).trim(),
+      });
+      // 用户手填优先：若 DOM 已有性别/年龄/类型，不要被 enrich 覆盖已有值之外的推断即可（enrich 仅补空）
+      if (String(gender).trim()) g.gender = String(gender).trim();
+      if (String(age).trim()) g.age = String(age).trim();
+      if (String(guest_kind).trim()) g.guest_kind = String(guest_kind).trim();
       g.line = serializeGuestObj(g);
       if (g.name || g.id_number || g.phone) out.push(g);
     });
@@ -1825,7 +2145,7 @@ const MingdanUpload = (function () {
     const box = $("guestListRows");
     if (!box) return;
     let list = Array.isArray(guests) ? guests.slice() : [];
-    if (!list.length) list = [{ name: "", id_type: "台胞证", id_number: "", phone: "" }];
+    if (!list.length) list = [emptyGuest()];
     box.innerHTML = list.map(guestRowHtml).join("");
     syncGuestListHidden();
   }
@@ -1845,33 +2165,28 @@ const MingdanUpload = (function () {
     }
     function add(g) {
       if (!g) return;
-      const id = String(g.id_number || g.number || "").trim().toUpperCase();
-      const line = serializeGuestObj(g);
+      const enriched = enrichGuestFields(g);
+      const id = String(enriched.id_number || "").trim().toUpperCase();
+      const line = serializeGuestObj(enriched);
       if (!line && !id) return;
       const key = id || line;
       if (seen[key] !== undefined) {
         const prev = lines[seen[key]];
-        const merged = {
-          name: nameScore(g) > nameScore(prev) ? guestDisplayName(g) : guestDisplayName(prev),
-          name_zh: nameScore(g) > nameScore(prev) ? g.name_zh || "" : prev.name_zh || "",
-          id_type: g.id_type || g.type || prev.id_type || prev.type || "证件",
-          id_number: id || String(prev.id_number || prev.number || "").trim(),
-          phone: String(g.phone || "").trim() || String(prev.phone || "").trim(),
-        };
-        merged.line = serializeGuestObj(merged);
+        const merged = enrichGuestFields({
+          name: nameScore(enriched) > nameScore(prev) ? guestDisplayName(enriched) : guestDisplayName(prev),
+          name_zh: nameScore(enriched) > nameScore(prev) ? enriched.name_zh || "" : prev.name_zh || "",
+          id_type: enriched.id_type || prev.id_type || "证件",
+          id_number: id || String(prev.id_number || "").trim(),
+          phone: enriched.phone || prev.phone || "",
+          gender: enriched.gender || prev.gender || "",
+          age: enriched.age || prev.age || "",
+          guest_kind: enriched.guest_kind || prev.guest_kind || "",
+        });
         lines[seen[key]] = merged;
         return;
       }
-      const obj = {
-        name: guestDisplayName(g),
-        name_zh: g.name_zh || "",
-        id_type: g.id_type || g.type || "证件",
-        id_number: String(g.id_number || g.number || "").trim(),
-        phone: String(g.phone || "").trim(),
-      };
-      obj.line = serializeGuestObj(obj);
       seen[key] = lines.length;
-      lines.push(obj);
+      lines.push(enriched);
     }
     (existingGuests || []).forEach(add);
     (addGuests || []).forEach(add);
@@ -1882,7 +2197,27 @@ const MingdanUpload = (function () {
     const wrap = $("guestListWrap");
     if (!wrap || wrap.dataset.bound === "1") return;
     wrap.dataset.bound = "1";
-    wrap.addEventListener("input", function () {
+    wrap.addEventListener("input", function (ev) {
+      const t = ev && ev.target;
+      // 证件号变更时尝试补性别/年龄
+      if (t && t.getAttribute) {
+        const field = t.getAttribute("data-guest-field");
+        const row = t.closest(".guest-row");
+        if (row && field === "id_number") {
+          const demo = demographicsFromIdNumber(t.value);
+          const sexEl = row.querySelector('[data-guest-field="gender"]');
+          const ageEl = row.querySelector('[data-guest-field="age"]');
+          const kindEl = row.querySelector('[data-guest-field="guest_kind"]');
+          if (sexEl && demo.gender && !sexEl.value) sexEl.value = demo.gender;
+          if (ageEl && demo.age && !String(ageEl.value || "").trim()) ageEl.value = demo.age;
+          if (kindEl && demo.age) kindEl.value = inferGuestKind(demo.age, "");
+        }
+        if (row && field === "age") {
+          const kindEl = row.querySelector('[data-guest-field="guest_kind"]');
+          const ageVal = String(t.value || "").trim();
+          if (kindEl && ageVal !== "") kindEl.value = inferGuestKind(ageVal, "");
+        }
+      }
       syncGuestListHidden();
     });
     wrap.addEventListener("change", function () {
@@ -1895,7 +2230,7 @@ const MingdanUpload = (function () {
         ev.preventDefault();
         const box = $("guestListRows");
         if (!box) return;
-        box.insertAdjacentHTML("beforeend", guestRowHtml({ name: "", id_type: "台胞证", id_number: "", phone: "" }, box.children.length));
+        box.insertAdjacentHTML("beforeend", guestRowHtml(emptyGuest(), box.children.length));
         syncGuestListHidden();
         const last = box.querySelector(".guest-row:last-child .guest-name");
         if (last) last.focus();
@@ -1908,7 +2243,7 @@ const MingdanUpload = (function () {
         if (row && box) {
           row.remove();
           if (!box.querySelector(".guest-row")) {
-            box.insertAdjacentHTML("beforeend", guestRowHtml({ name: "", id_type: "台胞证", id_number: "", phone: "" }, 0));
+            box.insertAdjacentHTML("beforeend", guestRowHtml(emptyGuest(), 0));
           }
           syncGuestListHidden();
         }
@@ -1932,18 +2267,24 @@ const MingdanUpload = (function () {
     if (raw) raw.textContent = d.raw_text || d.file_name || "（无原文）";
     $("fuzzyFields").innerHTML = FIELD_KEYS.map(([k, label]) => {
       const need = (d.needs_human_confirm || []).includes(k);
-      const val = f[k] == null ? "" : String(f[k]);
+      let val = f[k] == null ? "" : String(f[k]);
       if (k === "guest_list") return guestListFieldHtml(label, need, val);
+      if (k === "collect_on_tour") {
+        val = shouldAutoFillCollect(val, f.full_amount, f.deposit);
+      }
       const wide = k === "settlement_detail" || k === "remarks" || k === "outbound_transport" || k === "return_transport";
       const keyKind = KEY_FIELDS[k];
       const keyCls = keyKind ? ` key ${keyKind === "key" ? "" : keyKind}`.trimEnd() : "";
+      const hint = k === "collect_on_tour" ? ' <span class="fuzzy-money-hint">全款−定金</span>' : "";
       return `<label class="fuzzy-field${keyCls}${need ? " need" : ""}${wide ? " span-2" : ""}">
-        <span class="fuzzy-field-lab">${esc(label)}${need ? " <em>需核对</em>" : ""}</span>
+        <span class="fuzzy-field-lab">${esc(label)}${hint}${need ? " <em>需核对</em>" : ""}</span>
         <textarea data-k="${esc(k)}" rows="${k === "remarks" || k === "settlement_detail" ? 3 : 1}">${esc(val)}</textarea>
       </label>`;
     }).join("");
     bindGuestListUi();
+    bindCollectAuto();
     syncGuestListHidden();
+    refreshCollectFromMoneyFields();
     const notes = $("fuzzyChangeNotes");
     if (notes) notes.value = "";
     const persisted = loadDrafts().some((x) => x.id === d.id);
@@ -2221,128 +2562,6 @@ const MingdanUpload = (function () {
     a.click();
     URL.revokeObjectURL(a.href);
     setMsg("已下载草稿 JSON（含字段与变更记录；请勿发到公开群）", "ok");
-  }
-
-
-  function csBuildStamp() {
-    const fab = $("csFab");
-    if (fab && fab.getAttribute("data-build")) return fab.getAttribute("data-build");
-    const foot = document.querySelector(".footer");
-    if (foot) {
-      const m = (foot.textContent || "").match(/build\s+(.+)$/i);
-      if (m) return m[1].trim();
-    }
-    return "";
-  }
-
-  function csContextLines() {
-    const user = currentUser() || "(未登录)";
-    const d = getActiveDraft();
-    let draftId = "(无打开草稿)";
-    let status = "-";
-    let guest = "";
-    let depart = "";
-    if (d) {
-      draftId = d.id || "(无id)";
-      status = STATUS[d.status] || d.status_label || d.status || "-";
-      try {
-        const f = (d.fields && typeof d.fields === "object") ? d.fields : {};
-        guest = f.guest_name || "";
-        depart = f.depart_date || "";
-      } catch (e) {}
-    }
-    return [
-      "[客服对接·散客看板上传页]",
-      "页面=" + (location.href || ""),
-      "账号=" + user,
-      "草稿id=" + draftId,
-      "状态=" + status,
-      "出团=" + (depart || "-"),
-      "代表人=" + (guest || "-"),
-      "build=" + (csBuildStamp() || "-"),
-      "时间=" + new Date().toISOString(),
-    ];
-  }
-
-  function refreshCsMeta() {
-    const meta = $("csMeta");
-    if (!meta) return;
-    const lines = csContextLines();
-    meta.innerHTML = lines
-      .map((ln) => {
-        const i = ln.indexOf("=");
-        if (i < 0) return "<div>" + esc(ln) + "</div>";
-        return "<div><b>" + esc(ln.slice(0, i)) + "</b>=" + esc(ln.slice(i + 1)) + "</div>";
-      })
-      .join("");
-  }
-
-  function setCsFeedback(text, kind) {
-    const el = $("csFeedback");
-    if (!el) return;
-    el.textContent = text || "";
-    el.className = "cs-feedback" + (kind === "err" ? " err" : "");
-  }
-
-  function openCsPanel(open) {
-    const panel = $("csPanel");
-    const fab = $("csFab");
-    if (!panel) return;
-    if (open) {
-      panel.classList.add("open");
-      panel.setAttribute("aria-hidden", "false");
-      refreshCsMeta();
-      setCsFeedback("", "");
-      const ta = $("csIssue");
-      if (ta) setTimeout(() => ta.focus(), 50);
-    } else {
-      panel.classList.remove("open");
-      panel.setAttribute("aria-hidden", "true");
-    }
-  }
-
-  function copyCsReport() {
-    const ta = $("csIssue");
-    const issue = ((ta && ta.value) || "").trim();
-    if (!issue) {
-      setCsFeedback("请先填写问题描述", "err");
-      if (ta) ta.focus();
-      return;
-    }
-    const lines = csContextLines();
-    lines.push("问题描述=");
-    lines.push(issue);
-    lines.push("");
-    lines.push("（请粘贴到与助手的聊天）");
-    const text = lines.join("\n");
-    const done = () => {
-      setCsFeedback("已复制，请粘贴到与助手的聊天", "");
-      setMsg("客服对接文案已复制，请粘贴发给助手", "ok");
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, () => {
-        prompt("复制以下内容发给助手：", text);
-        done();
-      });
-    } else {
-      prompt("复制以下内容发给助手：", text);
-      done();
-    }
-  }
-
-  function wireCsWidget() {
-    const fabBtn = $("csFabBtn");
-    const closeBtn = $("csClose");
-    const copyBtn = $("csCopyBtn");
-    if (fabBtn) {
-      fabBtn.addEventListener("click", function () {
-        const panel = $("csPanel");
-        const open = !(panel && panel.classList.contains("open"));
-        openCsPanel(open);
-      });
-    }
-    if (closeBtn) closeBtn.addEventListener("click", function () { openCsPanel(false); });
-    if (copyBtn) copyBtn.addEventListener("click", copyCsReport);
   }
 
   function copyNotify() {
@@ -3243,11 +3462,153 @@ const MingdanUpload = (function () {
       }
     }
 
+    // 从 OCR 文本补性别/出生日期→年龄（身份证已由号内推；台胞证无 DOB 则年龄留空）
+    attachIdDocDemographics(found, text, flat, lines);
+
     return {
       guests: found,
       guest_list: found.map((g) => g.line).join("\n"),
       names: found.map((g) => g.name).filter(Boolean),
     };
+  }
+
+  /** 护照 MRZ / 标签「出生日期」「性别」→ 填入 guests；无 DOB 不强填年龄 */
+  function attachIdDocDemographics(guests, text, flat, lines) {
+    if (!guests || !guests.length) return;
+    flat = flat || String(text || "").replace(/\s+/g, " ");
+    lines = lines || String(text || "").split(/\n+/);
+
+    function sexNear(idx, hay) {
+      const win = hay.slice(Math.max(0, idx - 60), Math.min(hay.length, idx + 80));
+      let m = win.match(/(?:性别|Sex|Gender)\s*[:：]?\s*([男女MF]|Male|Female)/i);
+      if (m) return normalizeSexValue(m[1]);
+      m = win.match(/\b([MF])\b/);
+      if (m && /Sex|Gender|性别/i.test(win)) return normalizeSexValue(m[1]);
+      return "";
+    }
+    function dobNear(idx, hay) {
+      const win = hay.slice(Math.max(0, idx - 80), Math.min(hay.length, idx + 100));
+      let m = win.match(
+        /(?:出生日期|出生|生日|Date\s*of\s*Birth|Birth(?:day)?|DOB)\s*[:：]?\s*((?:19|20)\d{2}[-\/.年]?(?:0?[1-9]|1[0-2])[-\/.月]?(?:0?[1-9]|[12]\d|3[01])(?:日)?|\d{1,2}\s*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[.,\s]*(?:19|20)?\d{2}|(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[.,\s]*\d{1,2}[,.\s]+(?:19|20)?\d{2})/i
+      );
+      if (m) return demographicsFromDob(m[1]);
+      // 紧邻出生标签的 YYYYMMDD（可能是台胞证出生栏）
+      m = win.match(/(?:出生日期|出生|生日|Date\s*of\s*Birth|Birth)\s*[:：]?\s*((?:19|20)\d{6})\b/i);
+      if (m) return demographicsFromDob(m[1]);
+      return { gender: "", age: "", birth: "" };
+    }
+
+    // MRZ 第二行：证件号(9) 校验 国籍(3) 出生YYMMDD 校验 性别 有效期…
+    const mrzLines = String(text || "")
+      .split(/\n+/)
+      .map(function (l) {
+        return l.replace(/\s+/g, "").toUpperCase();
+      });
+    const mrzByPassport = {};
+    for (let i = 0; i < mrzLines.length; i++) {
+      const L = mrzLines[i];
+      if (!/^P<[A-Z]{3}/.test(L) && i + 1 >= mrzLines.length) continue;
+      const row = /^P<[A-Z]{3}/.test(L) && i + 1 < mrzLines.length ? mrzLines[i + 1] : L;
+      const mm = row.match(/^([A-Z0-9<]{9})\d([A-Z]{3})(\d{6})\d([MFX])(\d{6})/);
+      if (!mm) continue;
+      const num = mm[1].replace(/</g, "");
+      let yy = +mm[3].slice(0, 2);
+      const mo = +mm[3].slice(2, 4);
+      const dd = +mm[3].slice(4, 6);
+      yy += yy >= 30 ? 1900 : 2000;
+      const age = ageFromYmd(yy, mo, dd);
+      mrzByPassport[num] = {
+        gender: normalizeSexValue(mm[4]),
+        age: age,
+        birth: age
+          ? yy + "-" + String(mo).padStart(2, "0") + "-" + String(dd).padStart(2, "0")
+          : "",
+      };
+      // 也按去尾校验位后的前缀匹配
+      if (num.length >= 8) mrzByPassport[num.slice(0, 8)] = mrzByPassport[num];
+    }
+
+    // 单人页全局性别/出生（多卡时优先用证号附近窗口）
+    let globalSex = "";
+    let globalDob = { gender: "", age: "", birth: "" };
+    {
+      const sm = flat.match(/(?:性别|Sex|Gender)\s*[:：]?\s*([男女MF]|Male|Female)/i);
+      if (sm) globalSex = normalizeSexValue(sm[1]);
+      const dm = flat.match(
+        /(?:出生日期|出生|生日|Date\s*of\s*Birth|Birth(?:day)?|DOB)\s*[:：]?\s*((?:19|20)\d{2}[-\/.年]?(?:0?[1-9]|1[0-2])[-\/.月]?(?:0?[1-9]|[12]\d|3[01])(?:日)?|\d{1,2}\s*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[.,\s]*(?:19|20)?\d{2}|(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[.,\s]*\d{1,2}[,.\s]+(?:19|20)?\d{2}|(?:19|20)\d{6})/i
+      );
+      if (dm) globalDob = demographicsFromDob(dm[1]);
+    }
+
+    const multi = guests.length > 1;
+    for (let gi = 0; gi < guests.length; gi++) {
+      const g = guests[gi];
+      const id = String(g.number || g.id_number || "").trim().toUpperCase();
+      let gender = String(g.gender || g.sex || "").trim();
+      let age = String(g.age || "").trim();
+      let birth = String(g.birth_date || g.dob || "").trim();
+
+      const idDemo = demographicsFromIdNumber(id);
+      if (!gender && idDemo.gender) gender = idDemo.gender;
+      if (!age && idDemo.age) age = idDemo.age;
+      if (!birth && idDemo.birth) birth = idDemo.birth;
+
+      if (id && mrzByPassport[id]) {
+        const md = mrzByPassport[id];
+        if (!gender && md.gender) gender = md.gender;
+        if (!age && md.age) age = md.age;
+        if (!birth && md.birth) birth = md.birth;
+      } else if (id) {
+        // 护照号前缀匹配 MRZ
+        for (const k of Object.keys(mrzByPassport)) {
+          if (k && id.indexOf(k) === 0) {
+            const md = mrzByPassport[k];
+            if (!gender && md.gender) gender = md.gender;
+            if (!age && md.age) age = md.age;
+            if (!birth && md.birth) birth = md.birth;
+            break;
+          }
+        }
+      }
+
+      const idx = id ? flat.toUpperCase().indexOf(id) : -1;
+      if (idx >= 0) {
+        if (!gender) gender = sexNear(idx, flat);
+        if (!age) {
+          const near = dobNear(idx, flat);
+          if (near.age) {
+            age = near.age;
+            if (!birth) birth = near.birth;
+          }
+        }
+      }
+
+      // 单卡页可用全局标签；多卡无邻近 DOB 则不强填（台胞证无出生栏就留空）
+      if (!multi) {
+        if (!gender && globalSex) gender = globalSex;
+        if (!age && globalDob.age) {
+          age = globalDob.age;
+          if (!birth) birth = globalDob.birth;
+        }
+      }
+
+      g.gender = normalizeSexValue(gender);
+      g.sex = g.gender;
+      g.age = age || "";
+      g.birth_date = birth || "";
+      g.guest_kind = inferGuestKind(g.age, g.guest_kind || g.kind || "");
+      g.id_type = g.type || g.id_type;
+      g.id_number = id || g.id_number;
+      g.line = serializeGuestObj({
+        name: g.name,
+        phone: g.phone || "",
+        id_type: g.type || g.id_type,
+        id_number: id,
+        gender: g.gender,
+        age: g.age,
+        guest_kind: g.guest_kind,
+      });
+    }
   }
 
   /** 12306 火车票截图 */
@@ -3913,8 +4274,28 @@ const MingdanUpload = (function () {
       if (!idNumber) continue;
       // Soft filter here; sanitizeCloudGuest does strict 台胞证 rules
       if (/[\u4e00-\u9fff]/.test(idNumber) || /身份信息|出入境/.test(idNumber)) continue;
-      const line = g.line || [name, idType, idNumber].filter(Boolean).join(" ");
-      guests.push({ name_zh: nameZh, name_en: nameZh ? "" : nameEn, id_type: idType, id_number: idNumber, line: line });
+      const gender = normalizeSexValue(g.gender || g.sex || "");
+      let age = String(g.age || "").trim();
+      let birth = String(g.birth_date || g.dob || g.birthday || "").trim();
+      const dobDemo = demographicsFromDob(birth);
+      if (!age && dobDemo.age) age = dobDemo.age;
+      if (!birth && dobDemo.birth) birth = dobDemo.birth;
+      const idDemo = demographicsFromIdNumber(idNumber);
+      const genderF = gender || idDemo.gender || "";
+      const ageF = age || idDemo.age || "";
+      const birthF = birth || idDemo.birth || "";
+      const kind = inferGuestKind(ageF, g.guest_kind || g.kind || "");
+      const enriched = enrichGuestFields({
+        name_zh: nameZh,
+        name_en: nameZh ? "" : nameEn,
+        id_type: idType,
+        id_number: idNumber,
+        gender: genderF,
+        age: ageF,
+        birth_date: birthF,
+        guest_kind: kind,
+      });
+      guests.push(enriched);
       if (name) names.push(name);
     }
     const guest_list = guests.map(function (g) { return g.line; }).join("\n");
@@ -3952,14 +4333,18 @@ const MingdanUpload = (function () {
     // 拒绝把机关名/UI 当证件号
     if (/[\u4e00-\u9fff]/.test(idNumber) || /身份信息|出入境/.test(idNumber)) return null;
     const name = nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : nameEn;
-    const line = [name, idType, idNumber].filter(Boolean).join(" ");
-    return {
+    return enrichGuestFields({
       name_zh: nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? nameZh : "",
       name_en: nameZh && /[\u4e00-\u9fff]/.test(nameZh) ? "" : nameEn,
+      name: name,
       id_type: idType,
       id_number: idNumber,
-      line: line,
-    };
+      gender: g.gender || g.sex || "",
+      age: g.age || "",
+      birth_date: g.birth_date || g.dob || g.birthday || "",
+      guest_kind: g.guest_kind || g.kind || "",
+      phone: g.phone || "",
+    });
   }
 
   /** Color full-card crops for Baidu (do NOT send grayscale ID strips). */
@@ -4516,14 +4901,18 @@ const MingdanUpload = (function () {
       ? readGuestsFromDom()
       : parseGuestListText(readField("guest_list"));
     const addGuests = (ids.guests || []).map(function (g) {
-      return {
+      return enrichGuestFields({
         name: guestDisplayName(g),
         name_zh: g.name_zh || "",
         name_en: g.name_en || "",
         id_type: g.id_type || g.type || "证件",
         id_number: g.id_number || g.number || "",
         phone: g.phone || "",
-      };
+        gender: g.gender || g.sex || "",
+        age: g.age || "",
+        birth_date: g.birth_date || g.dob || g.birthday || "",
+        guest_kind: g.guest_kind || g.kind || "",
+      });
     });
     const mergedGuests = mergeGuestObjects(existingGuests, addGuests);
     const mergedText = mergedGuests.map(function (g) { return g.line; }).filter(Boolean).join("\n");
@@ -4532,7 +4921,7 @@ const MingdanUpload = (function () {
     if (!readField("guest_name") && ids.names[0]) writeField("guest_name", ids.names[0]);
     if (!readField("party_size") && ids.guests.length) writeField("party_size", ids.guests.length + "大");
     persistActiveFromForm();
-    setOcrMsg("已写入客人名单 " + mergedGuests.length + " 人（姓名/证件类型/证件号/电话分栏，按证件号去重）。请再核对。", "ok");
+    setOcrMsg("已写入客人名单 " + mergedGuests.length + " 人（姓名/电话/证件类型/证件号码/性别/年龄/类型，按证件号去重）。请再核对。", "ok");
     const review = $("fuzzyReview");
     if (review) review.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
@@ -4806,23 +5195,42 @@ const MingdanUpload = (function () {
     const newOrderBtn = $("fuzzyNewOrderBtn");
     if (newOrderBtn) newOrderBtn.addEventListener("click", startNewOrder);
 
-    wireCsWidget();
-
     setMsg("正在加载账号草稿…", "ok");
-    const sync = await syncDraftsFromCloud();
-    if (!sync.ok) {
-      setMsg(
-        sync.error === "not_logged_in"
-          ? "请先登录"
-          : "账号草稿加载失败：" + saveErrorMsg(sync.error) + "。可稍后刷新；保留草稿需联网。",
-        "err"
-      );
-    } else if (sync.migrated) {
-      setMsg("已将本机旧草稿迁入云端（一次性）：待办跟账号，已确认进全员共享。", "ok");
-    } else {
-      setMsg("账号草稿已同步（" + sync.count + " 条）", "ok");
+    let sync = { ok: false, error: "unknown" };
+    try {
+      sync = await syncDraftsFromCloud();
+    } catch (eSync) {
+      console.error("[drafts sync]", eSync);
+      sync = { ok: false, error: String((eSync && eSync.message) || eSync || "network") };
+      if (!memDrafts) memDrafts = [];
+      draftsReady = false;
+      draftsSyncError = sync.error;
+    } finally {
+      // 无论成功/超时/异常，都必须清掉「正在加载」并渲染列表
+      try {
+        if (!sync.ok) {
+          setMsg(
+            sync.error === "not_logged_in"
+              ? "请先登录"
+              : "账号草稿加载失败：" + saveErrorMsg(sync.error) + "。可稍后刷新；保留草稿需联网。",
+            "err"
+          );
+        } else if (sync.migrated) {
+          setMsg("已将本机旧草稿迁入云端（一次性）：待办跟账号，已确认进全员共享。", "ok");
+        } else {
+          const p = typeof sync.personal === "number" ? sync.personal : "?";
+          const s = typeof sync.shared === "number" ? sync.shared : "?";
+          setMsg("账号草稿已同步（共 " + sync.count + " 条：本人待办 " + p + " · 全员已确认 " + s + "）", "ok");
+        }
+      } catch (eMsg) {
+        setMsg("账号草稿加载结束（界面刷新异常，请强制刷新）", "err");
+      }
+      try {
+        renderList();
+      } catch (eList) {
+        console.error("[drafts renderList]", eList);
+      }
     }
-    renderList();
   }
 
   const api = { init, submitParse, parseText, kbFromDetail, loadDrafts, keepDraft, startNewOrder, SAMPLE_TEXT, STATUS, parseIdDoc, parseTrainTicket, parseFlightTicket, analyzeOcrText, applyOcrIds, applyOcrTransport, pickOcrImage, onIdBtn, onTransportBtn };
@@ -4838,8 +5246,19 @@ MingdanAuth.require(function () {
   // const 不会挂到 window；用全局词法绑定 + window 兜底
   var mod = (typeof MingdanUpload !== "undefined" && MingdanUpload) || window.MingdanUpload;
   if (mod && typeof mod.init === "function") {
-    try { mod.init(); }
-    catch (e) {
+    try {
+      var p = mod.init();
+      if (p && typeof p.then === "function") {
+        p.catch(function (e) {
+          console.error("[MingdanUpload.init async]", e);
+          var m = document.getElementById("fuzzyMsg");
+          if (m) {
+            m.textContent = "上传模块初始化失败：" + ((e && e.message) || e);
+            m.className = "fuzzy-msg err";
+          }
+        });
+      }
+    } catch (e) {
       console.error("[MingdanUpload.init]", e);
       var m = document.getElementById("fuzzyMsg");
       if (m) { m.textContent = "上传模块初始化失败：" + (e && e.message || e); m.className = "fuzzy-msg err"; }
