@@ -428,7 +428,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 16:07 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 16:15 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -492,7 +492,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 16:07 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 16:15 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -512,7 +512,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 16:07 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 16:15 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1727,7 +1727,8 @@ const MingdanUpload = (function () {
     const staffPhone = (staff.match(/(1\d{10})/) || [])[1] || "";
     let contact_phone = staffPhone;
     if (!contact_phone) {
-      contact_phone = pick([/联系人手机\s*[：:]\s*(1\d{10})/, /对接人手机\s*[：:]\s*(1\d{10})/, /业务员手机\s*[：:]\s*(1\d{10})/], t) || "";
+      // 联系人手机/电话属游客侧，不进业务员联系人手机
+      contact_phone = pick([/对接人手机\s*[：:]\s*(1\d{10})/, /业务员手机\s*[：:]\s*(1\d{10})/, /联系人员手机\s*[：:]\s*(1\d{10})/], t) || "";
     }
     // 【联系电话】后补/见图 → 不编造；有 11 位手机才写入
     if (!contact_phone) {
@@ -1752,6 +1753,7 @@ const MingdanUpload = (function () {
         /【?\s*客人姓名及联系方式\s*[】\]]?\s*：?\s*([^\n]+)/,
         /客人姓名\s*[：:]\s*([^\n]+)/,
         /代表人\s*[：:]\s*([^\n]+)/,
+        /联系人\s*[：:]\s*([^\n]+)/,
         /【\s*客人\s*】\s*[：:]?\s*([^\n]+)/,
       ],
       t
@@ -1933,7 +1935,7 @@ const MingdanUpload = (function () {
           if (nm && isStaffOnlyName(nm, t)) return false;
           return !!(nm || num);
         });
-        attachGuestPhonesFromOrderText(idParsed.guests, t);
+        attachGuestPhonesFromOrderText(idParsed.guests, t, guest_name);
         idParsed.guest_list = idParsed.guests
           .map(function (g) {
             return (
@@ -3592,33 +3594,64 @@ const MingdanUpload = (function () {
     return staffRe.test(t);
   }
 
-  /** 从正文给已识别客人补手机：联系人/姓名旁的 11 位号 */
-  function attachGuestPhonesFromOrderText(guests, raw) {
+  /** 从正文给已识别客人补手机：姓名旁号、身份证后紧跟手机、客人电话等标签→代表人 */
+  function attachGuestPhonesFromOrderText(guests, raw, representativeName) {
     if (!guests || !guests.length) return guests;
     const t = String(raw || "");
     const lines = t.split(/\n+/);
     const phoneByName = {};
+    const phoneById = {};
+
+    function isStaffPhoneLine(line) {
+      // 业务员/客服/对接人/销售行不往客人挂电话；「联系人员」亦然
+      if (/(?:业务员|客服|对接人|销售)/.test(line)) return true;
+      if (/联系人员/.test(line)) return true;
+      return false;
+    }
+
     for (const line of lines) {
-      if (/(?:业务员|客服|对接人|销售|联系人员)/.test(line) && !/联系人/.test(line)) continue;
+      if (isStaffPhoneLine(line)) continue;
+
+      // 18 位身份证后紧跟 11 位手机（可无空格）
+      const idPhone = line.match(
+        /([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\s*(1\d{10})/i
+      );
+      if (idPhone) phoneById[idPhone[1].toUpperCase()] = idPhone[2];
+
+      // 姓名紧贴/空格+手机（联系人万成荣1877…）
       const m =
         line.match(/([\u4e00-\u9fff]{2,4})\s*(1\d{10})/) ||
         line.match(/(?:联系人|客人|代表人)[^\u4e00-\u9fff]{0,4}([\u4e00-\u9fff]{2,4})[^\d]{0,8}(1\d{10})/);
-      if (!m) continue;
-      const nm = cleanPersonNameForPhone(m[1]);
-      if (nm) phoneByName[nm] = m[2];
+      if (m) {
+        const nm = cleanPersonNameForPhone(m[1]);
+        if (nm) phoneByName[nm] = m[2];
+      }
     }
-    // fallback: global「联系人 姓名 手机」
-    const gm = t.match(/联系人[^\u4e00-\u9fff]{0,4}([\u4e00-\u9fff]{2,4})[^\d]{0,8}(1\d{10})/);
+
+    // fallback: global「联系人 姓名 手机」（忌匹配「联系人员」）
+    const gm = t.match(/联系人(?!员)[^\u4e00-\u9fff]{0,4}([\u4e00-\u9fff]{2,4})[^\d]{0,8}(1\d{10})/);
     if (gm) {
       const nm = cleanPersonNameForPhone(gm[1]);
       if (nm && !phoneByName[nm]) phoneByName[nm] = gm[2];
     }
-    for (const g of guests) {
-      const nm = String(g.name || "").trim();
-      if (!nm) continue;
-      if (!g.phone && phoneByName[nm]) g.phone = phoneByName[nm];
-      if (g.phone) {
-        g.line = (typeof serializeGuestObj === "function")
+
+    // 标签：客人电话/客人手机/联系人电话/联系人手机 → 代表人行（非业务员）
+    let labeledGuestPhone = "";
+    const labelRe = /(?:客人电话|客人手机|联系人电话|联系人手机)\s*[：:]\s*(1\d{10})/g;
+    let lm;
+    while ((lm = labelRe.exec(t))) {
+      const lineStart = t.lastIndexOf("\n", lm.index) + 1;
+      const lineEnd = t.indexOf("\n", lm.index);
+      const line = t.slice(lineStart, lineEnd === -1 ? t.length : lineEnd);
+      if (isStaffPhoneLine(line) && !/(?:客人电话|客人手机)/.test(line)) continue;
+      labeledGuestPhone = lm[1];
+      break;
+    }
+
+    function reserializeGuestPhone(g) {
+      if (!g.phone) return;
+      g.line =
+        typeof serializeGuestObj === "function"
           ? serializeGuestObj({
               name: g.name,
               phone: g.phone,
@@ -3628,15 +3661,45 @@ const MingdanUpload = (function () {
               age: g.age || "",
               guest_kind: g.guest_kind || "",
             })
-          : ((g.name ? g.name + " " : "") + (g.phone ? g.phone + " " : "") + (g.type || "身份证") + " " + (g.number || ""));
-      }
+          : (g.name ? g.name + " " : "") +
+            (g.phone ? g.phone + " " : "") +
+            (g.type || "身份证") +
+            " " +
+            (g.number || "");
     }
+
+    for (const g of guests) {
+      const nm = String(g.name || "").trim();
+      const idn = String(g.number || g.id_number || "")
+        .trim()
+        .toUpperCase();
+      if (!g.phone && idn && phoneById[idn]) g.phone = phoneById[idn];
+      if (!g.phone && nm && phoneByName[nm]) g.phone = phoneByName[nm];
+    }
+
+    if (labeledGuestPhone) {
+      let rep = cleanPersonNameForPhone(representativeName) || "";
+      if (!rep) {
+        const cm = t.match(/(?:客人姓名|代表人|联系人(?!员))\s*[：:]\s*([\u4e00-\u9fff]{2,4})/);
+        if (cm) rep = cleanPersonNameForPhone(cm[1]);
+      }
+      let target = null;
+      if (rep) {
+        target = guests.find(function (g) {
+          return String(g.name || "").trim() === rep;
+        });
+      }
+      if (!target && guests.length === 1) target = guests[0];
+      if (target && !target.phone) target.phone = labeledGuestPhone;
+    }
+
+    for (const g of guests) reserializeGuestPhone(g);
     return guests;
   }
   function cleanPersonNameForPhone(name) {
     let nm = String(name || "").replace(/[^\u4e00-\u9fff]/g, "");
     if (nm.length < 2 || nm.length > 4) return "";
-    if (/身份|证件|护照|台胞|通行|联系|业务|客服/.test(nm)) return "";
+    if (/身份|证件|护照|台胞|通行|联系|业务|客服|电话|手机|客人|代表/.test(nm)) return "";
     return nm;
   }
 
