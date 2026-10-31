@@ -418,7 +418,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 14:31 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 14:41 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -482,7 +482,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 14:31 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 14:41 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -502,7 +502,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 14:31 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 14:41 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1318,13 +1318,25 @@ const MingdanUpload = (function () {
     t = t.replace(/【\s*/g, "【").replace(/\s*】/g, "】");
     t = t.replace(/【([^】\]\n]{1,20})\]/g, "【$1】"); // 【label] → 【label】
     t = t.replace(/\[([^\]\n]{1,20})】/g, "【$1】");
-    // 结算/返款/备注可能粘在同一行
+    // 行首装饰 emoji/符号 + 【标签】→【标签】（⏰【出行日期】/❤【预定姓名】等）
+    t = t.replace(/(^|\n)[^\S\n]*[^【\n\w\u4e00-\u9fff]{1,8}[^\S\n]*(【)/g, "$1$2");
+    // 结算/返款/备注/金额行可能粘在同一行
     t = t.replace(/([^\n])(结算明细\s*：)/g, "$1\n$2");
     t = t.replace(/([^\n])(结算\s*：)/g, "$1\n$2");
     t = t.replace(/([^\n])(返款\s*：)/g, "$1\n$2");
     t = t.replace(/([^\n])(备注\s*：)/g, "$1\n$2");
     t = t.replace(/([^\n])(【定金】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【代收)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【预定金额】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【到付尾款】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【总团款】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【出行日期】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【预定姓名】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【出行人数】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【房间要求】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【来航班号】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【预定行程】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【联系电话】)/g, "$1\n$2");
     return t;
   }
 
@@ -1342,6 +1354,27 @@ const MingdanUpload = (function () {
     return `${y}-${String(m[1]).padStart(2, "0")}-${String(m[2]).padStart(2, "0")}`;
   }
 
+  /** 见图/后补等占位，不写入真实字段 */
+  function isPlaceholder(v) {
+    const s = String(v || "").trim();
+    if (!s) return true;
+    return /^(见图|见图片|见证件(?:图片)?|后补|待补|暂无|无|没有|—|－|-{1,2}|／|\/)$/i.test(s);
+  }
+
+  /** 从「重庆四天」「九武5天4晚」等提取行程天数；失败返回 0 */
+  function tripDaysFromText(s) {
+    const t = String(s || "");
+    const arab = t.match(/(\d{1,2})\s*天/);
+    if (arab) {
+      const n = parseInt(arab[1], 10);
+      if (n >= 1 && n <= 30) return n;
+    }
+    const cnMap = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+    const cn = t.match(/([一二两三四五六七八九十])\s*天/);
+    if (cn && cnMap[cn[1]]) return cnMap[cn[1]];
+    return 0;
+  }
+
   /** ISO YYYY-MM-DD + N calendar days（按本地日历，避免时区漂移） */
   function addDaysISO(iso, days) {
     const s = String(iso || "").trim();
@@ -1356,13 +1389,15 @@ const MingdanUpload = (function () {
     return y + "-" + mo + "-" + da;
   }
 
-  /** 无明确返程日时：默认 4 天行程（出团后第 4 天 = depart + 3） */
+  /** 无明确返程日时：按线路天数推算（N天 → depart+(N-1)）；否则默认 4 天 */
   function ensureDefaultReturnDate(fields) {
     const f = fields || {};
     const dep = String(f.depart_date || "").trim();
     const ret = String(f.return_date || "").trim();
     if (!dep || ret) return f;
-    const next = addDaysISO(dep, 3);
+    let days = tripDaysFromText(f.line_name);
+    if (days < 1) days = 4;
+    const next = addDaysISO(dep, days - 1);
     if (next) f.return_date = next;
     return f;
   }
@@ -1371,7 +1406,7 @@ const MingdanUpload = (function () {
   function isTransportLine(s) {
     const v = String(s || "").trim();
     if (!v) return false;
-    if (/客人人数|参团人数|几大|几小|合同金额|定金|代收金额|结算明细|返款|备注|客服|业务员|房间类型|团型天数|客人证件|姓名及联系|组团社/.test(v)) return false;
+    if (/客人人数|参团人数|出行人数|几大|几小|合同金额|总团款|定金|预定金额|到付尾款|代收金额|结算明细|返款|备注|客服|业务员|房间类型|房间要求|团型天数|预定行程|出行日期|预定姓名|来航班号|客人证件|姓名及联系|组团社|联系电话/.test(v)) return false;
     if (/^\d{1,3}\s*[大人位小](?:\s*\d{0,3}\s*[小人位])?$/.test(v)) return false;
     if (/^【/.test(v) && /人数|客人|合同|定金|代收|结算|返款|备注|客服|房间/.test(v)) return false;
     if (/\b(?:CX|CA|MU|CZ|HU|3U|FM|HO|9C|ZH|SC|MF|TV|PN|G5|JD|KN|HX|KA|SQ|TG|NH|JL|KE|OZ|QR|EK|AA|UA|DL|BA|AF|LH|GJ|RY|EU|GY|A6|UQ|CN|NX|BK|NS)\s*-?\s*\d{2,4}\b/i.test(v)) return true;
@@ -1478,6 +1513,9 @@ const MingdanUpload = (function () {
     );
     const departRaw = pick(
       [
+        /【\s*出行日期\s*】\s*[：:]?\s*([^\n]+)/,
+        /出行日期\s*[：:]\s*([^\n]+)/,
+        /【\s*预定日期\s*】\s*[：:]?\s*([^\n]+)/,
         /【\s*时间\s*】\s*[：:]?\s*([^\n]+)/,
         /出团时间\s*[：:]\s*([^\n]+)/,
         /出团日(?:期)?\s*[：:]\s*([^\n]+)/,
@@ -1501,6 +1539,8 @@ const MingdanUpload = (function () {
     }
     const line_name = pick(
       [
+        /【\s*预定行程\s*】\s*[：:]?\s*([^\n]+)/,
+        /预定行程\s*[：:]\s*([^\n]+)/,
         /【\s*团型天数\s*】\s*[：:]?\s*([^\n]+)/,
         /线路名称\s*[：:]\s*([^\n]+)/,
         /行程\s*[：:]\s*([^\n]+)/,
@@ -1509,6 +1549,8 @@ const MingdanUpload = (function () {
     );
     const rooms = pick(
       [
+        /【\s*房间要求\s*】\s*[：:]?\s*([^\n]+)/,
+        /房间要求\s*[：:]\s*([^\n]+)/,
         /【\s*房间类型\s*】\s*[：:]?\s*([^\n]+)/,
         /用房\s*[：:]\s*([^\n]+)/,
         /酒店\s*[：:]\s*([^\n]+)/,
@@ -1517,6 +1559,10 @@ const MingdanUpload = (function () {
     );
     let outbound_transport = pick(
       [
+        /【\s*来航班号\s*】\s*[：:]?\s*([^\n【]+)/,
+        /【\s*来航班\s*】\s*[：:]?\s*([^\n【]+)/,
+        /来航班号\s*[：:]\s*([^\n【]+)/,
+        /来航班\s*[：:]\s*([^\n【]+)/,
         /【\s*抵达日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n【]+)/,
         /【\s*去程[^】]*】\s*[：:]?\s*([^\n【]+)/,
         /去程交通\s*[：:]\s*([^\n【]+)/,
@@ -1536,10 +1582,14 @@ const MingdanUpload = (function () {
       ],
       t
     );
+    if (isPlaceholder(outbound_transport)) outbound_transport = "";
+    if (isPlaceholder(return_transport)) return_transport = "";
     outbound_transport = cleanTransportField(outbound_transport);
     return_transport = cleanTransportField(return_transport);
     const party_size = pick(
       [
+        /【\s*出行人数\s*[】\]]\s*：?\s*([^\n]+)/,
+        /出行人数\s*[：:]\s*([^\n]+)/,
         /【\s*客人人数\s*[】\]]\s*：?\s*([^\n]+)/,
         /【\s*人数\s*[】\]]\s*：?\s*([^\n]+)/,
         /参团人数\s*[：:]\s*([^\n]+)/,
@@ -1575,10 +1625,26 @@ const MingdanUpload = (function () {
     if (!contact_phone) {
       contact_phone = pick([/联系人手机\s*[：:]\s*(1\d{10})/, /对接人手机\s*[：:]\s*(1\d{10})/, /业务员手机\s*[：:]\s*(1\d{10})/], t) || "";
     }
+    // 【联系电话】后补/见图 → 不编造；有 11 位手机才写入
+    if (!contact_phone) {
+      const phoneRaw = pick(
+        [
+          /【\s*联系电话\s*】\s*[：:]?\s*([^\n]+)/,
+          /联系电话\s*[：:]\s*([^\n]+)/,
+        ],
+        t
+      );
+      if (phoneRaw && !isPlaceholder(phoneRaw)) {
+        const pm = phoneRaw.match(/(1\d{10})/);
+        contact_phone = pm ? pm[1] : "";
+      }
+    }
 
     // 第9条：客人姓名 = 代表人（可从「客人姓名及联系方式」取）
     let guestRaw = pick(
       [
+        /【\s*预定姓名\s*】\s*[：:]?\s*([^\n]+)/,
+        /预定姓名\s*[：:]\s*([^\n]+)/,
         /【?\s*客人姓名及联系方式\s*[】\]]?\s*：?\s*([^\n]+)/,
         /客人姓名\s*[：:]\s*([^\n]+)/,
         /代表人\s*[：:]\s*([^\n]+)/,
@@ -1587,26 +1653,44 @@ const MingdanUpload = (function () {
       t
     );
     guestRaw = (guestRaw || "").replace(/^[^\u4e00-\u9fffA-Za-z]*/, "").trim();
-    let guest_name = guestRaw ? guestRaw.split(/[，,；;、（(]/)[0].trim() : "";
-    if (guest_name && (guest_name.length > 8 || /电话|微信|台湾|没有/.test(guest_name))) {
-      const gn = guestRaw.match(/([\u4e00-\u9fff]{2,4})/);
-      if (gn) guest_name = gn[1];
+    let guest_name = "";
+    if (guestRaw && !isPlaceholder(guestRaw)) {
+      guest_name = guestRaw.split(/[，,；;、（(]/)[0].trim();
+      if (guest_name && (guest_name.length > 8 || /电话|微信|台湾|没有/.test(guest_name))) {
+        const gn = guestRaw.match(/([\u4e00-\u9fff]{2,4})/);
+        if (gn) guest_name = gn[1];
+      }
+      if (isPlaceholder(guest_name)) guest_name = "";
     }
     // 客人行里的手机不算第6条联系人手机（那是业务员/对接人）
     const full_amount = pick(
       [
+        /【\s*总团款\s*】\s*[：:]?\s*([^\n]+)/,
+        /总团款\s*[：:]\s*([^\n]+)/,
         /【\s*合同金额\s*[】\]]\s*：?\s*([^\n]+)/,
         /全款\s*[：:]\s*([^\n]+)/,
-        /总团款\s*[：:]\s*([^\n]+)/,
       ],
       t
     );
     const deposit = pick(
-      [/【\s*定金\s*[】\]]\s*：?\s*([^\n]+)/, /定金\s*：\s*([^\n]+)/],
+      [
+        /【\s*预定金额\s*】\s*[：:]?\s*([^\n]+)/,
+        /预定金额\s*[：:]\s*([^\n]+)/,
+        /【\s*定金\s*[】\]]\s*：?\s*([^\n]+)/,
+        /定金\s*：\s*([^\n]+)/,
+      ],
       t
     );
     const collect_on_tour = pick(
       [/【\s*代收金额\s*[】\]]\s*：?\s*([^\n]+)/, /代收(?:金额)?\s*：\s*([^\n]+)/],
+      t
+    );
+    // 到付尾款：用于核对代收=全款−定金；不单独占字段
+    const balance_due = pick(
+      [
+        /【\s*到付尾款\s*】\s*[：:]?\s*([^\n]+)/,
+        /到付尾款\s*[：:]\s*([^\n]+)/,
+      ],
       t
     );
     let settle = pick(
