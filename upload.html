@@ -428,7 +428,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 15:50 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 16:00 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -492,7 +492,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 15:50 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 16:00 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -512,7 +512,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 15:50 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 16:00 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1340,6 +1340,12 @@ const MingdanUpload = (function () {
     t = t.replace(/([^\n])(【预定金额】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【到付尾款】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【总团款】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【总团费】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【团费】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【报名费】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【团款】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【全款】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【合同金额】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【出行日期】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【预定姓名】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【出行人数】)/g, "$1\n$2");
@@ -1427,7 +1433,7 @@ const MingdanUpload = (function () {
   function isTransportLine(s) {
     const v = String(s || "").trim();
     if (!v) return false;
-    if (/客人人数|参团人数|出行人数|几大|几小|合同金额|总团款|定金|预定金额|到付尾款|代收金额|结算明细|返款|备注|客服|业务员|房间类型|房间要求|团型天数|预定行程|出行日期|预定姓名|来航班号|客人证件|姓名及联系|组团社|联系电话/.test(v)) return false;
+    if (/客人人数|参团人数|出行人数|几大|几小|合同金额|总团款|总团费|团费|报名费|团款|全款|定金|预定金额|到付尾款|尾款|代收金额|结算明细|返款|备注|客服|业务员|房间类型|房间要求|团型天数|预定行程|出行日期|预定姓名|来航班号|客人证件|姓名及联系|组团社|联系电话/.test(v)) return false;
     if (/^\d{1,3}\s*[大人位小](?:\s*\d{0,3}\s*[小人位])?$/.test(v)) return false;
     if (/^【/.test(v) && /人数|客人|合同|定金|代收|结算|返款|备注|客服|房间/.test(v)) return false;
     if (/\b(?:CX|CA|MU|CZ|HU|3U|FM|HO|9C|ZH|SC|MF|TV|PN|G5|JD|KN|HX|KA|SQ|TG|NH|JL|KE|OZ|QR|EK|AA|UA|DL|BA|AF|LH|GJ|RY|EU|GY|A6|UQ|CN|NX|BK|NS)\s*-?\s*\d{2,4}\b/i.test(v)) return true;
@@ -1448,6 +1454,27 @@ const MingdanUpload = (function () {
     return m ? parseFloat(m[0]) : NaN;
   }
 
+  /** 从标签值取出可展示金额；拒身份证号等长数字，避免编造垃圾代收公式 */
+  function cleanMoneyValue(s) {
+    const raw = String(s || "").trim();
+    if (!raw || isPlaceholder(raw)) return "";
+    let t = raw.replace(/\d{15,18}[\dXx]?/g, " ");
+    const eq = t.match(/=\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (eq) {
+      const n = parseFloat(eq[1]);
+      if (isFinite(n) && Math.abs(n) < 1e8) {
+        return Math.round(n) === n ? String(Math.round(n)) : String(n);
+      }
+    }
+    const m = t.replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+    if (!m) return "";
+    if (/^\d{15,}$/.test(m[0].replace(/^-/, ""))) return "";
+    const n = parseFloat(m[0]);
+    if (!isFinite(n) || Math.abs(n) >= 1e8) return "";
+    return Math.round(n) === n ? String(Math.round(n)) : String(n);
+  }
+
+
   /** 代收 = 全款 − 定金；任一空则不编造，返回 ""。展示公式 full-deposit=result */
   function formatCollectFromMoney(fullStr, depStr) {
     const fullRaw = String(fullStr || "").trim();
@@ -1456,6 +1483,8 @@ const MingdanUpload = (function () {
     const f = moneyNumber(fullRaw);
     const d = moneyNumber(depRaw);
     if (!isFinite(f) || !isFinite(d)) return "";
+    // 拒「9-999」这类：全款位数明显残缺且远小于定金
+    if (Math.abs(f) < 10 && Math.abs(d) >= 100) return "";
     const result = Math.round((f - d) * 100) / 100;
     function disp(n) {
       return Math.round(n) === n ? String(Math.round(n)) : String(n);
@@ -1689,36 +1718,82 @@ const MingdanUpload = (function () {
       if (isPlaceholder(guest_name) || isBadGuestName(guest_name)) guest_name = "";
     }
     // 客人行里的手机不算第6条联系人手机（那是业务员/对接人）
-    const full_amount = pick(
+    // 全款别名：总团费/团费/报名费/总团款/全款/团款/合同金额
+    let full_amount = cleanMoneyValue(
+      pick(
+        [
+          /【\s*总团费\s*】\s*[：:]?\s*([^\n]+)/,
+          /总团费\s*[：:]\s*([^\n]+)/,
+          /【\s*团费\s*】\s*[：:]?\s*([^\n]+)/,
+          /(?:^|\n)\s*团费\s*[：:]\s*([^\n]+)/,
+          /【\s*报名费\s*】\s*[：:]?\s*([^\n]+)/,
+          /报名费\s*[：:]\s*([^\n]+)/,
+          /【\s*总团款\s*】\s*[：:]?\s*([^\n]+)/,
+          /总团款\s*[：:]\s*([^\n]+)/,
+          /【\s*全款\s*】\s*[：:]?\s*([^\n]+)/,
+          /全款\s*[：:]\s*([^\n]+)/,
+          /【\s*团款\s*】\s*[：:]?\s*([^\n]+)/,
+          /(?:^|\n)\s*团款\s*[：:]\s*([^\n]+)/,
+          /【\s*合同金额\s*[】\]]\s*：?\s*([^\n]+)/,
+          /合同金额\s*[：:]\s*([^\n]+)/,
+        ],
+        t
+      )
+    );
+    const deposit = cleanMoneyValue(
+      pick(
+        [
+          /【\s*预定金额\s*】\s*[：:]?\s*([^\n]+)/,
+          /预定金额\s*[：:]\s*([^\n]+)/,
+          /【\s*定金\s*[】\]]\s*：?\s*([^\n]+)/,
+          /定金\s*[：:]\s*([^\n]+)/,
+        ],
+        t
+      )
+    );
+    // 代收标签；「尾款：0（代收）」仅括注，不视为代收字段
+    let collect_on_tour = pick(
       [
-        /【\s*总团款\s*】\s*[：:]?\s*([^\n]+)/,
-        /总团款\s*[：:]\s*([^\n]+)/,
-        /【\s*合同金额\s*[】\]]\s*：?\s*([^\n]+)/,
-        /全款\s*[：:]\s*([^\n]+)/,
+        /【\s*代收金额\s*[】\]]\s*：?\s*([^\n]+)/,
+        /(?:^|\n)\s*代收(?:金额)?\s*[：:]\s*([^\n]+)/,
       ],
       t
     );
-    const deposit = pick(
-      [
-        /【\s*预定金额\s*】\s*[：:]?\s*([^\n]+)/,
-        /预定金额\s*[：:]\s*([^\n]+)/,
-        /【\s*定金\s*[】\]]\s*：?\s*([^\n]+)/,
-        /定金\s*：\s*([^\n]+)/,
-      ],
-      t
+    if (/[（(]\s*代收\s*[）)]/.test(collect_on_tour) && !/\d/.test(collect_on_tour.replace(/[（(]\s*代收\s*[）)]/g, ""))) {
+      collect_on_tour = "";
+    }
+    if (collect_on_tour && !/[=]/.test(collect_on_tour)) {
+      collect_on_tour = cleanMoneyValue(collect_on_tour);
+    } else if (collect_on_tour) {
+      collect_on_tour = String(collect_on_tour).trim();
+    }
+    // 到付尾款：代收核对；普通尾款仅在缺全款时参与 定金+尾款
+    const balance_due = cleanMoneyValue(
+      pick(
+        [
+          /【\s*到付尾款\s*】\s*[：:]?\s*([^\n]+)/,
+          /到付尾款\s*[：:]\s*([^\n]+)/,
+        ],
+        t
+      )
     );
-    const collect_on_tour = pick(
-      [/【\s*代收金额\s*[】\]]\s*：?\s*([^\n]+)/, /代收(?:金额)?\s*：\s*([^\n]+)/],
-      t
+    const weikuan = cleanMoneyValue(
+      pick(
+        [
+          /【\s*尾款\s*】\s*[：:]?\s*([^\n]+)/,
+          /(?:^|\n)\s*尾款\s*[：:]\s*([^\n]+)/,
+        ],
+        t
+      )
     );
-    // 到付尾款：用于核对代收=全款−定金；不单独占字段
-    const balance_due = pick(
-      [
-        /【\s*到付尾款\s*】\s*[：:]?\s*([^\n]+)/,
-        /到付尾款\s*[：:]\s*([^\n]+)/,
-      ],
-      t
-    );
+    if (!full_amount && deposit) {
+      const tail = weikuan !== "" ? weikuan : balance_due;
+      if (tail !== "") {
+        const f = moneyNumber(deposit) + moneyNumber(tail);
+        if (isFinite(f)) full_amount = Math.round(f) === f ? String(Math.round(f)) : String(f);
+      }
+    }
+    if (!collect_on_tour && balance_due !== "") collect_on_tour = balance_due;
     let settle = pick(
       [
         /结算明细\s*：\s*([^\n]+)/,
