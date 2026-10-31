@@ -428,7 +428,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 16:15 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 16:22 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -492,7 +492,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 16:15 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 16:22 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -512,7 +512,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 16:15 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 16:22 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -3594,7 +3594,7 @@ const MingdanUpload = (function () {
     return staffRe.test(t);
   }
 
-  /** 从正文给已识别客人补手机：姓名旁号、身份证后紧跟手机、客人电话等标签→代表人 */
+  /** 从正文给已识别客人补手机：姓名旁号、身份证后手机（可夹「电话/手机」）、客人电话等标签→代表人 */
   function attachGuestPhonesFromOrderText(guests, raw, representativeName) {
     if (!guests || !guests.length) return guests;
     const t = String(raw || "");
@@ -3609,20 +3609,49 @@ const MingdanUpload = (function () {
       return false;
     }
 
+    // 18 位身份证；与手机之间可无分隔，或夹空白/逗号 + 可选「电话/手机」标签
+    const ID18 =
+      "([1-9]\\d{5}(?:19|20)\\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx])";
+    const PHONE_GAP =
+      "\\s*[,，;；、]?\\s*(?:电话|手机(?:号码)?|联系电话)?\\s*[：:=\\-]?\\s*";
+    const idPhoneRe = new RegExp(ID18 + PHONE_GAP + "(1\\d{10})", "gi");
+    const nameIdPhoneRe = new RegExp(
+      "([\\u4e00-\\u9fff]{2,4})\\s*" + ID18 + PHONE_GAP + "(1\\d{10})",
+      "gi"
+    );
+    // 同 guest 行：姓名 … 电话/手机 177…（中间可夹证件号、逗号）
+    const nameLabeledPhoneRe =
+      /([\u4e00-\u9fff]{2,4})[^\n]{0,48}(?:电话|手机(?:号码)?)\s*[：:=\-]?\s*(1\d{10})/g;
+
     for (const line of lines) {
       if (isStaffPhoneLine(line)) continue;
 
-      // 18 位身份证后紧跟 11 位手机（可无空格）
-      const idPhone = line.match(
-        /([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\s*(1\d{10})/i
-      );
-      if (idPhone) phoneById[idPhone[1].toUpperCase()] = idPhone[2];
+      let m;
+      idPhoneRe.lastIndex = 0;
+      while ((m = idPhoneRe.exec(line))) {
+        phoneById[m[1].toUpperCase()] = m[2];
+      }
+
+      nameIdPhoneRe.lastIndex = 0;
+      while ((m = nameIdPhoneRe.exec(line))) {
+        const nm = cleanPersonNameForPhone(m[1]);
+        const idn = String(m[2] || "").toUpperCase();
+        const ph = m[3];
+        if (idn && ph) phoneById[idn] = ph;
+        if (nm && ph) phoneByName[nm] = ph;
+      }
 
       // 姓名紧贴/空格+手机（联系人万成荣1877…）
-      const m =
+      m =
         line.match(/([\u4e00-\u9fff]{2,4})\s*(1\d{10})/) ||
         line.match(/(?:联系人|客人|代表人)[^\u4e00-\u9fff]{0,4}([\u4e00-\u9fff]{2,4})[^\d]{0,8}(1\d{10})/);
       if (m) {
+        const nm = cleanPersonNameForPhone(m[1]);
+        if (nm) phoneByName[nm] = m[2];
+      }
+
+      nameLabeledPhoneRe.lastIndex = 0;
+      while ((m = nameLabeledPhoneRe.exec(line))) {
         const nm = cleanPersonNameForPhone(m[1]);
         if (nm) phoneByName[nm] = m[2];
       }
