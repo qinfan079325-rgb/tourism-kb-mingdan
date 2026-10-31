@@ -428,7 +428,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 16:03 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 16:07 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -492,7 +492,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 16:03 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 16:07 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -512,7 +512,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 16:03 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 16:07 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1333,6 +1333,38 @@ const MingdanUpload = (function () {
     return false;
   }
 
+  /** 结算字段：优先等号右侧；否则对明细算术求值（保留正负；中文后缀项仍计数字） */
+  function settlementFromDetail(detail) {
+    if (!detail || !String(detail).trim()) return "";
+    const raw = String(detail).trim();
+    if (raw.indexOf("=") >= 0) {
+      const tail = raw.split("=").pop().trim();
+      const n = parseFloat(tail);
+      if (!isNaN(n)) return Math.round(n);
+    }
+    let s = raw.split("=")[0].trim();
+    s = s.replace(/[Ｋｋ]/g, "k").replace(/[×ｘxX]/g, "*");
+    if (/^[-+]?\d+(?:\.\d+)?$/.test(s)) return Math.round(parseFloat(s));
+    const re = /([+-]?)(\d+(?:\.\d+)?(?:\s*\*\s*\d+(?:\.\d+)?)?)([^\d+\-]*)/g;
+    let total = 0;
+    let any = false;
+    let m;
+    while ((m = re.exec(s))) {
+      let numexpr = m[2].replace(/\s+/g, "");
+      if (!numexpr) continue;
+      let v;
+      if (numexpr.indexOf("*") >= 0) {
+        const [a, b] = numexpr.split("*");
+        v = parseFloat(a) * parseFloat(b);
+      } else v = parseFloat(numexpr);
+      if (isNaN(v)) continue;
+      if (m[1] === "-") v = -v;
+      total += v;
+      any = true;
+    }
+    return any ? Math.round(total) : "";
+  }
+
   function normalizeText(raw) {
     let t = String(raw || "");
     t = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -1621,7 +1653,10 @@ const MingdanUpload = (function () {
         /【\s*房间要求\s*】\s*[：:]?\s*([^\n]+)/,
         /房间要求\s*[：:]\s*([^\n]+)/,
         /【\s*房间类型\s*】\s*[：:]?\s*([^\n]+)/,
+        /房间类型\s*[：:]\s*([^\n]+)/,
+        /房型\s*[：:]\s*([^\n]+)/,
         /用房\s*[：:]\s*([^\n]+)/,
+        /房间\s*[：:]\s*([^\n]+)/,
         /酒店\s*[：:]\s*([^\n]+)/,
       ],
       t
@@ -1860,12 +1895,7 @@ const MingdanUpload = (function () {
     let remarks = pick([/备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*明细|\n\s*回传|\n\s*返款|$)/], t);
     remarks = (remarks || "").trim();
     const { kb, pure } = kbFromDetail(settle);
-    let settlement = "";
-    if (settle.indexOf("=") >= 0) {
-      const tail = settle.split("=").pop().trim();
-      const n = parseFloat(tail);
-      if (!isNaN(n)) settlement = Math.round(n);
-    }
+    let settlement = settlementFromDetail(settle);
     const fields = {
       line_name,
       depart_date,
@@ -2824,6 +2854,8 @@ const MingdanUpload = (function () {
     if (detail) {
       fields.kb = kb === "" ? fields.kb : String(kb);
       fields.gendan_pure = pure || fields.gendan_pure;
+      const sn = settlementFromDetail(detail);
+      if (sn !== "" && sn !== null && sn !== undefined) fields.settlement = String(sn);
     }
     return fields;
   }
