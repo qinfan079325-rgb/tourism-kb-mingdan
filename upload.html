@@ -205,6 +205,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-keep:hover{filter:brightness(1.08)}
 
 .fuzzy-st.st-confirmed_await_yitu{background:#14532d;color:#86efac}
+.fuzzy-st.st-notified_await_yitu{background:#1e3a8a;color:#93c5fd}
 .fuzzy-st.st-in_yitu{background:#064e3b;color:#6ee7b7}
 .fuzzy-st.st-pending_change_sync{background:#7c2d12;color:#fdba74}
 .fuzzy-st.st-yitu_updated{background:#312e81;color:#c7d2fe}
@@ -428,7 +429,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 17:16 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 17:32 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -492,7 +493,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 17:16 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 17:32 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -512,7 +513,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 17:16 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 17:32 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -661,6 +662,7 @@ const MingdanUpload = (function () {
     pending_parse: "待解析",
     pending_sales_confirm: "待销售确认",
     confirmed_await_yitu: "已确认待易途",
+    notified_await_yitu: "已通知待易途",
     in_yitu: "已进易途",
     pending_change_sync: "待同步易途",
     yitu_updated: "易途已更新",
@@ -670,6 +672,7 @@ const MingdanUpload = (function () {
   const SHARED_ACCOUNT = "__shared_confirmed__";
   const SHARED_STATUSES = new Set([
     "confirmed_await_yitu",
+    "notified_await_yitu",
     "in_yitu",
     "pending_change_sync",
     "yitu_updated",
@@ -2234,7 +2237,7 @@ const MingdanUpload = (function () {
     const yituUpdated = $("fuzzyYituUpdatedBtn");
     const changeBox = $("fuzzyChangeBox");
 
-    const confirmed = !!d.sales_confirmed || d.status === "confirmed_await_yitu" || d.status === "in_yitu" || d.status === "pending_change_sync" || d.status === "yitu_updated";
+    const confirmed = !!d.sales_confirmed || d.status === "confirmed_await_yitu" || d.status === "notified_await_yitu" || d.status === "in_yitu" || d.status === "pending_change_sync" || d.status === "yitu_updated";
     const awaitingFirstConfirm = isDraftLike(d.status);
     const keepBtn = $("fuzzyKeepDraftBtn");
 
@@ -2256,7 +2259,7 @@ const MingdanUpload = (function () {
       }
     }
     if (markYitu) {
-      markYitu.style.display = d.status === "confirmed_await_yitu" ? "" : "none";
+      markYitu.style.display = (d.status === "confirmed_await_yitu" || d.status === "notified_await_yitu") ? "" : "none";
     }
     if (changeBtn) {
       changeBtn.style.display = confirmed && !changeMode ? "" : "none";
@@ -2993,10 +2996,30 @@ const MingdanUpload = (function () {
           if (still && belongsOnShared(still)) {
             workingDraft = cloneDraft(still);
             if (wq > 0) {
+              // 已排队：本地先标已通知（Worker 2xx 后写回共享）
+              still.status = "notified_await_yitu";
+              still.status_label = STATUS.notified_await_yitu;
+              still.yitu_notified_at = still.yitu_notified_at || nowISO();
+              workingDraft = cloneDraft(still);
+              const listS = loadDrafts();
+              const ixS = listS.findIndex((x) => x && x.id === still.id);
+              if (ixS >= 0) {
+                listS[ixS].status = "notified_await_yitu";
+                listS[ixS].status_label = STATUS.notified_await_yitu;
+                memDrafts = sortDraftsNewest(listS);
+              }
               setMsg(
-                "已保存为「已确认待易途」（已写入全员共享）。已通知 / 已排队推送助手录易途。未出团钉钉名单未改动。",
+                "已确认并已排队推送，状态「已通知待易途」。未出团钉钉名单未改动。",
                 "ok"
               );
+              setTimeout(function () {
+                syncDraftsFromCloud().then(function () {
+                  const again = (loadDrafts() || []).find((x) => x && x.id === still.id);
+                  if (again) workingDraft = cloneDraft(again);
+                  openReviewFromWorking();
+                  renderDraftList();
+                }).catch(function () {});
+              }, 2500);
             } else {
               setMsg(
                 "已保存为「已确认待易途」（已写入全员共享），但自动推送未排队。请点「🔔 通知AI助手录易途」补发。",
@@ -3038,8 +3061,8 @@ const MingdanUpload = (function () {
     const list = loadDrafts();
     const idx = list.findIndex((x) => x.id === activeId);
     if (idx < 0) return;
-    if (list[idx].status !== "confirmed_await_yitu") {
-      setMsg("仅「已确认待易途」可标记为已进易途", "err");
+    if (list[idx].status !== "confirmed_await_yitu" && list[idx].status !== "notified_await_yitu") {
+      setMsg("仅「已确认待易途 / 已通知待易途」可标记为已进易途", "err");
       return;
     }
     list[idx].status = "in_yitu";
@@ -3356,7 +3379,7 @@ const MingdanUpload = (function () {
     const text = buildNotifyClipboardText(d, f);
     await copyTextFallback(text);
 
-    const canAuto = d.status === "confirmed_await_yitu" || d.status === "pending_change_sync";
+    const canAuto = d.status === "confirmed_await_yitu" || d.status === "notified_await_yitu" || d.status === "pending_change_sync";
     if (!canAuto) {
       setMsg(
         "🔔 已复制备份通知文案。当前未销售确认，无法自动排队推送；请先「销售确认」或粘贴给助手。",
@@ -3388,10 +3411,31 @@ const MingdanUpload = (function () {
           "err"
         );
       } else if (wq > 0) {
+        // 排队成功：本页先标「已通知待易途」；Worker 在 Cursor 2xx 后也会写回共享 KV
+        d.status = "notified_await_yitu";
+        d.status_label = STATUS.notified_await_yitu;
+        d.yitu_notified_at = ts;
+        workingDraft = cloneDraft(d);
+        const listN = loadDrafts();
+        const ixN = listN.findIndex((x) => x && x.id === d.id);
+        if (ixN >= 0) {
+          listN[ixN].status = "notified_await_yitu";
+          listN[ixN].status_label = STATUS.notified_await_yitu;
+          listN[ixN].yitu_notified_at = ts;
+          memDrafts = sortDraftsNewest(listN);
+        }
         setMsg(
-          "🔔 已通知 / 已排队推送（webhook_queued=" + wq + "）。备份文案已复制，可粘贴补发。",
+          "🔔 已通知 / 已排队推送（webhook_queued=" + wq + "），状态「已通知待易途」。备份文案已复制。",
           "ok"
         );
+        setTimeout(function () {
+          syncDraftsFromCloud().then(function () {
+            const still = (loadDrafts() || []).find((x) => x && x.id === d.id);
+            if (still) workingDraft = cloneDraft(still);
+            openReviewFromWorking();
+            renderDraftList();
+          }).catch(function () {});
+        }, 2500);
       } else {
         setMsg(
           "🔔 已写入全员共享并复制备份，但本次未检测到新的推送排队（webhook_queued=0）。请稍后重试或粘贴备份给助手。",
@@ -3524,7 +3568,7 @@ const MingdanUpload = (function () {
     const host = $("fuzzyOverlay");
     if (!host) return;
     const watch = loadDrafts().filter((d) =>
-      ["confirmed_await_yitu", "in_yitu", "pending_change_sync", "yitu_updated"].includes(d.status)
+      ["confirmed_await_yitu", "notified_await_yitu", "in_yitu", "pending_change_sync", "yitu_updated"].includes(d.status)
     );
     if (!watch.length) {
       host.classList.add("hidden");
