@@ -418,7 +418,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 14:47 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 15:27 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -482,7 +482,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 14:47 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 15:27 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -502,7 +502,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 14:47 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 15:27 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1775,16 +1775,45 @@ const MingdanUpload = (function () {
       remarks,
       gendan_pure: pure,
     };
-    // 正文里若夹带证件号（顺序任意），一并填入名单
+    // 正文里若夹带证件号（顺序任意），一并填入名单（含国内姓名+18位身份证）
     try {
       const idParsed = parseIdDoc(t);
-      if (idParsed && idParsed.guest_list) {
-        fields.guest_list = idParsed.guest_list;
-        if (!fields.guest_name && idParsed.names && idParsed.names[0] && !isBadGuestName(idParsed.names[0])) {
-          fields.guest_name = idParsed.names[0];
-        }
-        if (!fields.party_size && idParsed.guests && idParsed.guests.length) {
-          fields.party_size = idParsed.guests.length + "大";
+      if (idParsed && idParsed.guests && idParsed.guests.length) {
+        // 去掉纯业务员名占坑（有身份证号的保留）
+        idParsed.guests = idParsed.guests.filter(function (g) {
+          const nm = String(g.name || "").trim();
+          const num = String(g.number || g.id_number || "").trim();
+          if (num && /^\d{17}[\dXx]$/i.test(num)) return true;
+          if (nm && isStaffOnlyName(nm, t)) return false;
+          return !!(nm || num);
+        });
+        attachGuestPhonesFromOrderText(idParsed.guests, t);
+        idParsed.guest_list = idParsed.guests
+          .map(function (g) {
+            return (
+              g.line ||
+              serializeGuestObj({
+                name: g.name,
+                phone: g.phone || "",
+                id_type: g.type || g.id_type || "证件",
+                id_number: g.number || g.id_number || "",
+                gender: g.gender || "",
+                age: g.age || "",
+                guest_kind: g.guest_kind || "",
+              })
+            );
+          })
+          .filter(Boolean)
+          .join("\n");
+        idParsed.names = idParsed.guests.map(function (g) { return g.name; }).filter(Boolean);
+        if (idParsed.guest_list) {
+          fields.guest_list = idParsed.guest_list;
+          if (!fields.guest_name && idParsed.names && idParsed.names[0] && !isBadGuestName(idParsed.names[0])) {
+            fields.guest_name = idParsed.names[0];
+          }
+          if (!fields.party_size && idParsed.guests.length) {
+            fields.party_size = idParsed.guests.length + "大";
+          }
         }
       }
     } catch (e) {}
@@ -3389,13 +3418,76 @@ const MingdanUpload = (function () {
       return eight;
     });
     // 台胞证号旁签发次数：30384335""01 / 02215633 "04 / 07042222 °03
-    t = t.replace(/(\d{8})\s*["“”'`'*°·.=]{0,4}\s*(0[1-9]|[1-9])(?!\d)/g, "$1 签发次数$2");
+    // 必须是独立 8 位（前一位非数字），避免把 18 位身份证 / 11 位手机末段误切成「签发次数」
+    t = t.replace(/(^|[^\d])(\d{8})\s*["“”'`'*°·.=]{0,4}\s*(0[1-9]|[1-9])(?!\d)/g, "$1$2 签发次数$3");
     // 证件号码 OCR 粘连/错字
     t = t.replace(/证\s*[件仲体忻]\s*[号码纺名]?\s*[码码友]?/g, "证件号码");
     // 英文名逗号被认成分号/空
     t = t.replace(/\b([A-Z]{2,20})\s*[;；]\s*([A-Z][A-Z\-]{1,30})\b/g, "$1, $2");
     t = t.replace(/\b([A-Z]{2,20})\s*[W_]\s*([A-Z][A-Z\-]{1,30})\b/g, "$1, $2");
     return t;
+  }
+
+  /** 姓名是否仅出现在业务员/客服行（不应当作客人） */
+  function isStaffOnlyName(name, raw) {
+    const nm = String(name || "").trim();
+    if (!nm || nm.length < 2) return false;
+    const t = String(raw || "");
+    const esc = nm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const staffRe = new RegExp("(?:业务员|客服|对接人|销售|联系人员)[^\\n]{0,12}" + esc);
+    const guestRe = new RegExp(
+      "(?:联系人|客人|代表人|出行人|预定姓名|姓名)[^\\n]{0,12}" + esc + "|" + esc + "\\s*[1-9]\\d{16}[\\dXx]"
+    );
+    if (guestRe.test(t)) return false;
+    return staffRe.test(t);
+  }
+
+  /** 从正文给已识别客人补手机：联系人/姓名旁的 11 位号 */
+  function attachGuestPhonesFromOrderText(guests, raw) {
+    if (!guests || !guests.length) return guests;
+    const t = String(raw || "");
+    const lines = t.split(/\n+/);
+    const phoneByName = {};
+    for (const line of lines) {
+      if (/(?:业务员|客服|对接人|销售|联系人员)/.test(line) && !/联系人/.test(line)) continue;
+      const m =
+        line.match(/([\u4e00-\u9fff]{2,4})\s*(1\d{10})/) ||
+        line.match(/(?:联系人|客人|代表人)[^\u4e00-\u9fff]{0,4}([\u4e00-\u9fff]{2,4})[^\d]{0,8}(1\d{10})/);
+      if (!m) continue;
+      const nm = cleanPersonNameForPhone(m[1]);
+      if (nm) phoneByName[nm] = m[2];
+    }
+    // fallback: global「联系人 姓名 手机」
+    const gm = t.match(/联系人[^\u4e00-\u9fff]{0,4}([\u4e00-\u9fff]{2,4})[^\d]{0,8}(1\d{10})/);
+    if (gm) {
+      const nm = cleanPersonNameForPhone(gm[1]);
+      if (nm && !phoneByName[nm]) phoneByName[nm] = gm[2];
+    }
+    for (const g of guests) {
+      const nm = String(g.name || "").trim();
+      if (!nm) continue;
+      if (!g.phone && phoneByName[nm]) g.phone = phoneByName[nm];
+      if (g.phone) {
+        g.line = (typeof serializeGuestObj === "function")
+          ? serializeGuestObj({
+              name: g.name,
+              phone: g.phone,
+              id_type: g.type || g.id_type || "身份证",
+              id_number: g.number || g.id_number,
+              gender: g.gender || "",
+              age: g.age || "",
+              guest_kind: g.guest_kind || "",
+            })
+          : ((g.name ? g.name + " " : "") + (g.phone ? g.phone + " " : "") + (g.type || "身份证") + " " + (g.number || ""));
+      }
+    }
+    return guests;
+  }
+  function cleanPersonNameForPhone(name) {
+    let nm = String(name || "").replace(/[^\u4e00-\u9fff]/g, "");
+    if (nm.length < 2 || nm.length > 4) return "";
+    if (/身份|证件|护照|台胞|通行|联系|业务|客服/.test(nm)) return "";
+    return nm;
   }
 
   /** 证件：台胞证 8 位 / 护照 字母+数字 / 身份证 18 位 / MRZ；输出 guest_list 行 */
@@ -3465,8 +3557,9 @@ const MingdanUpload = (function () {
       if (/[证号机关局管出入境国]/.test(han) && han.length >= 2) return ""; // 标签碎片
       if (/[了区]/.test(han)) return ""; // OCR 碎字
       if (/[二三四五六七八九十]/.test(han) && !/^[\u4e00-\u9fff]{2,3}$/.test(han)) return "";
-      if (/^[一二三四五六七八九十百千万]/.test(han)) return "";
-      const labelRe = /证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|订单|居民|来往|通行|签发|机关|管理|共和|福建|广东|次数|有效|出生|性别|还人|和人|市硬|医汪|中华|人民|出入|境管|台湾|丽人|理号|发电|六本|县二|证忻|号友|仲名|全证|管理局|共和国|天和|国出|华人|和国|复发|民居|所证|和二|从关|次娄|各外|外二|红了|三友|韩华|大民|志和|共和/;
+      // 「万/千」也是真实姓氏，不能当数字抬头拒掉（如 万成荣）
+      if (/^[一二三四五六七八九十百]/.test(han)) return "";
+      const labelRe = /证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|订单|居民|来往|通行|签发|机关|管理|共和|福建|广东|次数|有效|出生|性别|联系|还人|和人|市硬|医汪|中华|人民|出入|境管|台湾|丽人|理号|发电|六本|县二|证忻|号友|仲名|全证|管理局|共和国|天和|国出|华人|和国|复发|民居|所证|和二|从关|次娄|各外|外二|红了|三友|韩华|大民|志和|共和/;
       // 紧挨英文名时放宽「疝树/树页」等近形字拒绝，避免 尚树贞/林锦红 被误杀
       // 树页/疝树 是「尚树贞」近形误识，不再一票否决
       const harshRe = /秋末/;
@@ -3483,6 +3576,8 @@ const MingdanUpload = (function () {
       const bHan = /[\u4e00-\u9fff]/.test(b);
       if (bHan && !aHan) return b;
       if (aHan && !bHan) return a;
+      // 已有合法中文名时，不让同等长度的另一个中文名覆盖（避免「王五」被邻近「赵六」抢走）
+      if (aHan && bHan && a !== b && b.length <= a.length) return a;
       return b.length >= a.length ? b : a;
     }
     function push(name, typ, num) {
@@ -3582,13 +3677,24 @@ const MingdanUpload = (function () {
       );
     const lookPass = /护照|Passport\b|P<[A-Z]{3}/i.test(flat);
 
-    // 身份证 18 位
+    // 身份证 18 位（正文/截图均可：姓名紧挨或「身份证/身份证号」标签）
     const id18 = /([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])/g;
     let m;
     while ((m = id18.exec(flat))) {
       let nm = nearbyName(m.index, flat);
-      const glued = flat.slice(Math.max(0, m.index - 12), m.index).match(/([\u4e00-\u9fff]{2,4})身份证\s*$/);
-      if (glued) nm = glued[1];
+      const before = flat.slice(Math.max(0, m.index - 24), m.index);
+      // 优先紧贴证号的 2–3 字姓名（忌吃到「日联系人」等 4 字粘连）
+      const glued =
+        before.match(/([\u4e00-\u9fff]{2,3})\s*身份证(?:号(?:码)?)?\s*[:：]?\s*$/) ||
+        before.match(/([\u4e00-\u9fff]{2,3})\s*$/) ||
+        before.match(/([\u4e00-\u9fff]{2,4})\s*身份证(?:号(?:码)?)?\s*[:：]?\s*$/) ||
+        before.match(/([\u4e00-\u9fff]{2,4})\s*$/);
+      if (glued) {
+        const cand = cleanPersonName(glued[1]);
+        if (cand) nm = cand;
+      }
+      // 拒业务员/客服名当客人（无证件语境时）
+      if (nm && isStaffOnlyName(nm, text)) nm = "";
       push(nm, "身份证", m[1].toUpperCase());
     }
 
@@ -3683,10 +3789,16 @@ const MingdanUpload = (function () {
       if (pm2 && /\d/.test(pm2[1]) && !/^[GDCZKTY]\d+$/i.test(pm2[1])) {
         push(pm2[2], "护照", pm2[1].toUpperCase());
       }
+      // 国内身份证：姓名 + 18 位（可带「身份证/身份证号」标签；支持末位 X）
       const idn =
-        line.match(/([\u4e00-\u9fff]{2,4})\s*身份证\s*([1-9]\d{16}[\dXx])/) ||
-        line.match(/([\u4e00-\u9fff]{2,4})\s+(?:身份证\s*)?([1-9]\d{16}[\dXx])/);
-      if (idn) push(idn[1], "身份证", idn[2].toUpperCase());
+        line.match(/([\u4e00-\u9fff]{2,4})\s*身份证(?:号(?:码)?)?\s*[:：]?\s*([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\b/i) ||
+        line.match(/([\u4e00-\u9fff]{2,4})\s*[:：]\s*([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\b/) ||
+        line.match(/([\u4e00-\u9fff]{2,4})\s+(?:身份证(?:号(?:码)?)?\s*[:：]?\s*)?([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\b/i) ||
+        line.match(/身份证(?:号(?:码)?)?\s*[:：]?\s*([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\b/i);
+      if (idn) {
+        if (idn.length >= 3 && idn[2]) push(idn[1], "身份证", idn[2].toUpperCase());
+        else push(nearbyName(flat.indexOf(idn[1]), flat) || "", "身份证", idn[1].toUpperCase());
+      }
       const idn2 =
         line.match(/([\u4e00-\u9fff]{2,4})\s*台胞证\s*(\d{8})\b/) ||
         line.match(/([\u4e00-\u9fff]{2,4})\s+(?:台胞证|通行证)\s*(\d{8})\b/);
@@ -3747,6 +3859,19 @@ const MingdanUpload = (function () {
       let typ = "护照";
       if (/^\d{17}[\dXx]$/i.test(num)) typ = "身份证";
       else if (/^\d{8}$/.test(num)) typ = lookTw ? "台胞证" : lookPass ? "护照" : "台胞证";
+      // 身份证：优先用名字行之后、尚未命名的证号，避免串到上一行客人
+      if (typ === "身份证") {
+        const after = lines.slice(i, winEnd).join(" ");
+        const afterIds = after.match(/([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])/g) || [];
+        const unnamed = afterIds.find(function (x) {
+          const u = String(x).toUpperCase();
+          const prev = found.find(function (g) { return g.number === u; });
+          return !prev || !prev.name;
+        });
+        if (unnamed) num = unnamed;
+        else if (afterIds.length) num = afterIds[0];
+        if (/^\d{17}[\dXx]$/i.test(num)) typ = "身份证";
+      }
       push(name, typ, num);
     }
 
