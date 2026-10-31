@@ -428,7 +428,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 17:08 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 17:16 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -492,7 +492,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 17:08 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 17:16 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -512,7 +512,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 17:08 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 17:16 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -943,18 +943,26 @@ const MingdanUpload = (function () {
     return { ok: true, webhook_queued: wq };
   }
 
-  /** 一次 PUT：个人待办 + 全员已确认（body.shared）；避免浏览器请求 account=__shared_confirmed__ */
-  async function putPersonalAndShared(account, personal, shared) {
+  /** 一次 PUT：个人待办 + 全员已确认（body.shared）；避免浏览器请求 account=__shared_confirmed__
+   *  @param {{force_yitu_notify_ids?: string[]}=} opts  通知按钮可强制再排队 webhook
+   *  @returns {Promise<{ok:boolean,webhook_queued:number}>}
+   */
+  async function putPersonalAndShared(account, personal, shared, opts) {
+    const body = {
+      account: account,
+      drafts: Array.isArray(personal) ? personal : [],
+      shared: Array.isArray(shared) ? shared : [],
+    };
+    const forceIds = opts && Array.isArray(opts.force_yitu_notify_ids)
+      ? opts.force_yitu_notify_ids.map((x) => String(x || "").trim()).filter(Boolean)
+      : [];
+    if (forceIds.length) body.force_yitu_notify_ids = forceIds;
     const res = await fetchWithRetry(
       draftsBaseUrl(),
       {
         method: "PUT",
         headers: draftsAuthHeaders(),
-        body: JSON.stringify({
-          account: account,
-          drafts: Array.isArray(personal) ? personal : [],
-          shared: Array.isArray(shared) ? shared : [],
-        }),
+        body: JSON.stringify(body),
       },
       DRAFTS_PUT_MS
     );
@@ -962,7 +970,9 @@ const MingdanUpload = (function () {
     if (!res.ok || !data.ok) {
       throw new Error(draftsResponseError(res, data));
     }
-    return true;
+    // CRITICAL: must return Worker webhook_queued (was `return true` → toast always 0)
+    const wq = Number(data.webhook_queued || 0) || 0;
+    return { ok: true, webhook_queued: wq };
   }
 
   function readLocalLegacyDrafts() {
@@ -1063,8 +1073,9 @@ const MingdanUpload = (function () {
     return [];
   }
 
-  /** @returns {Promise<{ok:boolean,error?:string,webhook_queued?:number}>} */
-  async function saveDrafts(list) {
+  /** @param {{force_yitu_notify_ids?: string[]}=} opts
+   *  @returns {Promise<{ok:boolean,error?:string,webhook_queued?:number}>} */
+  async function saveDrafts(list, opts) {
     const user = currentUser();
     if (!user) return { ok: false, error: "not_logged_in" };
     if (!draftsApiConfigured()) return { ok: false, error: "not_configured" };
@@ -1100,8 +1111,8 @@ const MingdanUpload = (function () {
         return { ok: false, error: String((eFetch && eFetch.message) || eFetch || "shared_fetch_failed") };
       }
       const mergedShared = mergeSharedLists(cloudShared, sharedLocal, deletedIds);
-      // 一次 PUT 写个人 + 共享（worker 先写共享）
-      const putRes = await putPersonalAndShared(user, personal, mergedShared);
+      // 一次 PUT 写个人 + 共享（worker 先写共享）；opts 可带 force_yitu_notify_ids
+      const putRes = await putPersonalAndShared(user, personal, mergedShared, opts);
       memSharedIdSet = new Set(mergedShared.map((d) => d && d.id).filter(Boolean));
       memDrafts = sortDraftsNewest([...personal, ...mergedShared]);
       const wq = putRes && typeof putRes === "object" ? (Number(putRes.webhook_queued) || 0) : 0;
@@ -1214,12 +1225,12 @@ const MingdanUpload = (function () {
     return null;
   }
 
-  async function upsertPersisted(draft) {
+  async function upsertPersisted(draft, opts) {
     const list = loadDrafts();
     const idx = list.findIndex((x) => x.id === draft.id);
     if (idx >= 0) list[idx] = draft;
     else list.unshift(draft);
-    return saveDrafts(list);
+    return saveDrafts(list, opts);
   }
 
   function saveErrorMsg(err) {
@@ -3369,7 +3380,7 @@ const MingdanUpload = (function () {
     const nbtn = $("fuzzyNotifyBtn");
     if (nbtn) nbtn.disabled = true;
     try {
-      const res = await upsertPersisted(cloneDraft(d));
+      const res = await upsertPersisted(cloneDraft(d), { force_yitu_notify_ids: [d.id] });
       const wq = res && res.ok ? (Number(res.webhook_queued) || 0) : 0;
       if (!res.ok) {
         setMsg(
