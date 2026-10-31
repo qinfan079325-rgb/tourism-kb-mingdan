@@ -418,7 +418,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 14:41 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 14:45 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -482,7 +482,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 14:41 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 14:45 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -502,7 +502,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 14:41 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 14:45 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1361,6 +1361,17 @@ const MingdanUpload = (function () {
     return /^(见图|见图片|见证件(?:图片)?|后补|待补|暂无|无|没有|—|－|-{1,2}|／|\/)$/i.test(s);
   }
 
+  /** 拒把「出行人姓名和身份证」等标签碎片当客人姓名 */
+  function isBadGuestName(v) {
+    const s = String(v || "").trim();
+    if (!s) return true;
+    if (isPlaceholder(s)) return true;
+    if (/身份|证件|护照|台胞|通行|出行人|名单|见图|后补|待补|联系方式/.test(s)) return true;
+    if (/^(?:姓名|客人|代表人|乘客|旅客)$/.test(s)) return true;
+    if (s.length > 8 && !/[·•\s]/.test(s)) return true; // 过长无分隔，多半是整句误吸
+    return false;
+  }
+
   /** 从「重庆四天」「九武5天4晚」等提取行程天数；失败返回 0 */
   function tripDaysFromText(s) {
     const t = String(s || "");
@@ -1654,13 +1665,15 @@ const MingdanUpload = (function () {
     );
     guestRaw = (guestRaw || "").replace(/^[^\u4e00-\u9fffA-Za-z]*/, "").trim();
     let guest_name = "";
-    if (guestRaw && !isPlaceholder(guestRaw)) {
+    // 绝不从「出行人姓名和身份证」行取代表人（会留下「和身份证」）
+    if (/出行人姓名和身份证/.test(guestRaw || "")) guestRaw = "";
+    if (guestRaw && !isPlaceholder(guestRaw) && !/^出行人/.test(guestRaw)) {
       guest_name = guestRaw.split(/[，,；;、（(]/)[0].trim();
       if (guest_name && (guest_name.length > 8 || /电话|微信|台湾|没有/.test(guest_name))) {
         const gn = guestRaw.match(/([\u4e00-\u9fff]{2,4})/);
         if (gn) guest_name = gn[1];
       }
-      if (isPlaceholder(guest_name)) guest_name = "";
+      if (isPlaceholder(guest_name) || isBadGuestName(guest_name)) guest_name = "";
     }
     // 客人行里的手机不算第6条联系人手机（那是业务员/对接人）
     const full_amount = pick(
@@ -1764,7 +1777,7 @@ const MingdanUpload = (function () {
       const idParsed = parseIdDoc(t);
       if (idParsed && idParsed.guest_list) {
         fields.guest_list = idParsed.guest_list;
-        if (!fields.guest_name && idParsed.names && idParsed.names[0]) {
+        if (!fields.guest_name && idParsed.names && idParsed.names[0] && !isBadGuestName(idParsed.names[0])) {
           fields.guest_name = idParsed.names[0];
         }
         if (!fields.party_size && idParsed.guests && idParsed.guests.length) {
@@ -1792,11 +1805,18 @@ const MingdanUpload = (function () {
       // 最终闸门：无车次/航班特征的内容不得留在交通字段（如「【客人人数】: 6大」）
       fields.outbound_transport = cleanTransportField(fields.outbound_transport);
       fields.return_transport = cleanTransportField(fields.return_transport);
-      const tDate = (train && train.depart_date) || (flight && flight.depart_date) || "";
+      // 仅在真正车票/机票语境下吸收日期与乘客名，避免「出行人姓名和身份证」误吸
+      const tDate =
+        (lookTrain && train && train.depart_date) ||
+        (lookFlight && flight && flight.depart_date) ||
+        "";
       if (tDate && !fields.depart_date) fields.depart_date = tDate;
-      if (train && train.order_date && !fields.book_date) fields.book_date = train.order_date;
-      const pass = (train && train.passenger) || (flight && flight.passenger) || "";
-      if (pass) {
+      if (lookTrain && train && train.order_date && !fields.book_date) fields.book_date = train.order_date;
+      const pass =
+        (lookTrain && train && train.passenger) ||
+        (lookFlight && flight && flight.passenger) ||
+        "";
+      if (pass && !isPlaceholder(pass) && !isBadGuestName(pass)) {
         // 车票/机票上的姓名是游客，只填客人姓名，不填第5条联系人员
         if (!fields.guest_name) fields.guest_name = pass;
       }
@@ -4294,8 +4314,16 @@ const MingdanUpload = (function () {
     if (times[0]) out.depart_time = times[0];
     if (times[1]) out.arrive_time = times[1];
 
-    m = flat.match(/(?:旅客|乘客|姓名|Passenger|Name)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Z][A-Za-z\s]{1,30})/i);
-    if (m) out.passenger = m[1].replace(/\s+/g, " ").trim();
+    // 旅客/乘客；「姓名」须带冒号且不能是「出行人姓名和身份证」标签碎片
+    m =
+      flat.match(/(?:旅客|乘客|Passenger)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Z][A-Za-z\s]{1,30})/i) ||
+      flat.match(/(?:^|[^\u4e00-\u9fff])(?:姓名|Name)\s*[:：]\s*([\u4e00-\u9fff]{2,4}|[A-Z][A-Za-z\s]{1,30})/i);
+    if (m) {
+      const pn = m[1].replace(/\s+/g, " ").trim();
+      if (pn && !isPlaceholder(pn) && !isBadGuestName(pn) && !/和身份证|身份证/.test(pn)) {
+        out.passenger = pn;
+      }
+    }
 
     const parts = [];
     if (out.flight_no) parts.push(out.flight_no);
