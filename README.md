@@ -78,7 +78,7 @@ python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --today 2026-10
 
 登录后打开 **模糊订单** 页：https://qinfan079325-rgb.github.io/tourism-kb-mingdan/upload.html
 
-流程：解析 → **销售在本页勾选并点确认** →「已确认待易途」→（助手录易途后）「标记易途已录入」→ 正式未出团仍靠**钉钉同步**。
+流程：解析 → **销售在本页勾选并点确认** →「已确认待易途」→（助手录易途后由后台 API 回写「已进易途」+订单号）→ 正式未出团仍靠**钉钉同步**。
 
 ### 改单
 

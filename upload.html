@@ -429,7 +429,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 20:35 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 00:00 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -482,7 +482,6 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
         <button type="button" class="btn" id="fuzzyRecalcKb">按明细重算 KB</button>
         <button type="button" class="btn fuzzy-keep" id="fuzzyKeepDraftBtn" title="写入当前账号云端草稿并标「仅为草稿·待办」（仅本账号；换设备同账号可见）">保留草稿</button>
         <button type="button" class="btn fuzzy-primary" id="fuzzyConfirmBtn" disabled>销售确认无误并保存</button>
-        <button type="button" class="btn" id="fuzzyMarkYituBtn">标记易途已录入</button>
         <button type="button" class="btn" id="fuzzyChangeBtn">申请改单</button>
         <button type="button" class="btn fuzzy-primary" id="fuzzySubmitChangeBtn">提交改单</button>
         <button type="button" class="btn" id="fuzzyYituUpdatedBtn">易途已更新</button>
@@ -493,7 +492,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 20:35 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-01 00:00 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -513,7 +512,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 20:35 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 00:00 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1315,6 +1314,29 @@ const MingdanUpload = (function () {
     renderList();
     scrollToUpload();
     setMsg("已开新单：在上方粘贴/识别即可；原草稿仍在下方列表（个人待办 / 全员已确认）", "ok");
+  }
+
+
+  /** Display yitu_entered_at in Asia/Shanghai wall clock. */
+  function formatYituAt(v) {
+    const s = String(v || "").trim();
+    if (!s) return "";
+    const t = Date.parse(s);
+    if (Number.isNaN(t)) return s;
+    try {
+      const fmt = new Intl.DateTimeFormat("sv-SE", {
+        timeZone: "Asia/Shanghai",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      return fmt.format(new Date(t)).replace(" ", " ") + " Asia/Shanghai";
+    } catch (e) {
+      return s;
+    }
   }
 
   function updateReviewChrome(d) {
@@ -2192,7 +2214,7 @@ const MingdanUpload = (function () {
             ${draftBadge}
             <span class="fuzzy-st st-${esc(d.status)}">${esc(st)}</span>
             <span class="fuzzy-who">${esc(f.guest_name || "未命名")} · ${esc(f.depart_date || "无出团日")} · ${esc(f.party_size || "")}</span>
-            <span class="fuzzy-agency">${esc(f.agency || "")}</span>
+            <span class="fuzzy-agency">${esc(f.agency || "")}${d.yitu_order_no ? " · " + esc(d.yitu_order_no) : ""}</span>
             ${byLine}
           </div>
           <div class="fuzzy-draft-actions">
@@ -2231,7 +2253,6 @@ const MingdanUpload = (function () {
   function updateActionButtons(d) {
     const chk = $("fuzzyConfirmCheck");
     const cbtn = $("fuzzyConfirmBtn");
-    const markYitu = $("fuzzyMarkYituBtn");
     const changeBtn = $("fuzzyChangeBtn");
     const submitChange = $("fuzzySubmitChangeBtn");
     const yituUpdated = $("fuzzyYituUpdatedBtn");
@@ -2257,9 +2278,6 @@ const MingdanUpload = (function () {
       } else {
         cbtn.style.display = "none";
       }
-    }
-    if (markYitu) {
-      markYitu.style.display = (d.status === "confirmed_await_yitu" || d.status === "notified_await_yitu") ? "" : "none";
     }
     if (changeBtn) {
       changeBtn.style.display = confirmed && !changeMode ? "" : "none";
@@ -2852,8 +2870,19 @@ const MingdanUpload = (function () {
     const draftHint = isDraftLike(d.status)
       ? (persisted ? "仅为草稿·待办（仅本账号）" : "未保留 · 仅内存核对中，点「保留草稿」才写入本账号")
       : (STATUS[d.status] || d.status);
+    let statusExtra = "";
+    if (d.yitu_order_no || d.status === "in_yitu" || d.status === "yitu_updated") {
+      const bits = [];
+      if (f.depart_date) bits.push("出团 " + f.depart_date);
+      if (f.party_size) bits.push(f.party_size);
+      if (f.agency) bits.push(f.agency);
+      if (f.line_name) bits.push(f.line_name);
+      if (d.yitu_order_no) bits.push("订单号 " + d.yitu_order_no);
+      if (d.yitu_entered_at) bits.push("录完 " + formatYituAt(d.yitu_entered_at));
+      if (bits.length) statusExtra = " · " + bits.join(" · ");
+    }
     $("fuzzyStatusLine").textContent =
-      `状态：${draftHint} · ${d.id}`;
+      `状态：${draftHint} · ${d.id}` + statusExtra;
     updateReviewChrome(d);
     renderDupWarn(d);
     renderHistory(d);
@@ -3054,37 +3083,6 @@ const MingdanUpload = (function () {
         "err"
       );
     }
-    openReviewFromWorking();
-  }
-
-  async function markInYitu() {
-    const list = loadDrafts();
-    const idx = list.findIndex((x) => x.id === activeId);
-    if (idx < 0) return;
-    if (list[idx].status !== "confirmed_await_yitu" && list[idx].status !== "notified_await_yitu") {
-      setMsg("仅「已确认待易途 / 已通知待易途」可标记为已进易途", "err");
-      return;
-    }
-    list[idx].status = "in_yitu";
-    list[idx].status_label = STATUS.in_yitu;
-    list[idx].yitu_entered_at = nowISO();
-    list[idx].yitu_entered_by = currentUser();
-    if (!Array.isArray(list[idx].change_history)) list[idx].change_history = [];
-    list[idx].change_history.push({
-      kind: "易途已录入",
-      notes: "标记订单已录入易途；正式未出团名单仍等钉钉同步。",
-      at: nowISO(),
-      by: currentUser(),
-      result_status: "in_yitu",
-    });
-    const res = await saveDrafts(list);
-    workingDraft = cloneDraft(list[idx]);
-    setMsg(
-      res.ok
-        ? "已标记「已进易途」。订单仍留本页；未出团等钉钉同步覆盖/出现。"
-        : saveErrorMsg(res.error),
-      res.ok ? "ok" : "err"
-    );
     openReviewFromWorking();
   }
 
@@ -3346,7 +3344,7 @@ const MingdanUpload = (function () {
     if (d.status === "pending_change_sync") {
       lines.push("请助手按改单说明更新易途；完成后在订单页点「易途已更新」。");
     } else if (d.status === "confirmed_await_yitu") {
-      lines.push("草稿已确认待易途；请助手录入易途。完成后点「标记易途已录入」。");
+      lines.push("草稿已确认待易途；请助手录入易途。录完后由后台回写「已进易途」与订单号，无需人工点标记。");
     } else {
       lines.push("草稿仅在上传页；请助手继续处理。");
     }
@@ -6292,8 +6290,6 @@ const MingdanUpload = (function () {
     if (nbtn) nbtn.addEventListener("click", copyNotify);
     const sample = $("fuzzyFillSample");
     if (sample) sample.addEventListener("click", fillSample);
-    const markYitu = $("fuzzyMarkYituBtn");
-    if (markYitu) markYitu.addEventListener("click", markInYitu);
     const changeBtn = $("fuzzyChangeBtn");
     if (changeBtn) changeBtn.addEventListener("click", startChangeMode);
     const submitChangeBtn = $("fuzzySubmitChangeBtn");
