@@ -290,24 +290,34 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
 .fuzzy-ocr-pick-hint{font-size:12px;color:var(--muted)}
 
 
-/* 客人名单：每人一行四框（姓名/证件类型/证件号/电话） */
+/* 客人名单：每人一行 8 列（姓名/电话/证件类型/证件号码/性别/年龄/类型/删）；电话与证件号加宽 */
 .fuzzy-field.guest-list-field{grid-column:1/-1}
 .fuzzy-field.span-2{grid-column:1/-1}
-.guest-list-wrap{display:flex;flex-direction:column;gap:8px}
-.guest-list-head{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;font-size:12.5px;font-weight:700;color:#e2e8f0;padding:4px 6px;background:rgba(51,65,85,.45);border-radius:8px;letter-spacing:.02em}
-.guest-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 36px;gap:6px;align-items:center}
-.guest-row input,.guest-row select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
-  border-radius:8px;padding:7px 8px;font-size:13px;font-family:inherit;box-sizing:border-box}
+.guest-list-wrap{display:flex;flex-direction:column;gap:8px;min-width:0}
+.guest-list-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.guest-list-cols{
+  --g-name:72px;--g-phone:118px;--g-idtype:78px;--g-idno:minmax(168px,1.6fr);
+  --g-sex:52px;--g-age:52px;--g-kind:64px;--g-del:30px;
+  display:grid;
+  grid-template-columns:var(--g-name) var(--g-phone) var(--g-idtype) var(--g-idno) var(--g-sex) var(--g-age) var(--g-kind) var(--g-del);
+  gap:5px;align-items:center;min-width:640px
+}
+.guest-list-head.guest-list-cols{font-size:12px;font-weight:700;color:#e2e8f0;padding:4px 4px;background:rgba(51,65,85,.45);border-radius:8px;letter-spacing:.02em}
+.guest-row.guest-list-cols{margin:0}
+.guest-row input,.guest-row select{width:100%;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:6px 6px;font-size:12.5px;font-family:inherit;box-sizing:border-box}
+.guest-row .guest-phone,.guest-row .guest-id-number{font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.guest-row .guest-gender,.guest-row .guest-age,.guest-row .guest-kind,.guest-row .guest-id-type{padding-left:4px;padding-right:4px}
 .guest-row input:focus,.guest-row select:focus{border-color:var(--accent);outline:none}
-.guest-row .guest-del{border:1px solid var(--line);background:transparent;color:#f87171;border-radius:8px;height:34px;cursor:pointer;font-size:16px;line-height:1}
+.guest-row .guest-del{border:1px solid var(--line);background:transparent;color:#f87171;border-radius:8px;height:32px;width:100%;cursor:pointer;font-size:15px;line-height:1;padding:0}
 .guest-row .guest-del:hover{border-color:#f87171;background:#7f1d1d22}
 .guest-list-actions{display:flex;gap:8px;align-items:center;margin-top:2px}
 .guest-list-hint{font-size:11px;font-weight:500;color:#94a3b8;letter-spacing:0}
 .guest-list-hidden{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
 @media(max-width:720px){
-  .guest-list-head{display:none}
-  .guest-row{grid-template-columns:1fr 1fr;gap:6px}
-  .guest-row .guest-del{grid-column:1/-1;justify-self:start;width:auto;padding:6px 12px}
+  /* 窄屏仍单行：横向滚动，不折成两行 */
+  .guest-list-head.guest-list-cols{font-size:11px}
+  .guest-list-cols{min-width:600px;gap:4px}
 }
 
 /* —— 浮动客服对接 —— */
@@ -418,7 +428,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 15:27 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 15:50 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -482,7 +492,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 15:27 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 15:50 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -502,7 +512,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 15:27 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 15:50 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2413,7 +2423,7 @@ const MingdanUpload = (function () {
     const age = String(eg.age || "").trim();
     const kind = String(eg.guest_kind || "成人").trim() || "成人";
     return (
-      '<div class="guest-row" data-guest-idx="' +
+      '<div class="guest-row guest-list-cols" data-guest-idx="' +
       idx +
       '">' +
       '<input type="text" class="guest-name" data-guest-field="name" placeholder="姓名" value="' +
@@ -2461,9 +2471,11 @@ const MingdanUpload = (function () {
       (need ? " <em>需核对</em>" : "") +
       ' <span class="guest-list-hint">姓名 · 电话 · 证件类型 · 证件号码 · 性别 · 年龄 · 类型</span></span>' +
       '<div class="guest-list-wrap" id="guestListWrap">' +
-      '<div class="guest-list-head"><span>姓名</span><span>电话</span><span>证件类型</span><span>证件号码</span><span>性别</span><span>年龄</span><span>类型</span><span></span></div>' +
+      '<div class="guest-list-scroll">' +
+      '<div class="guest-list-head guest-list-cols"><span>姓名</span><span>电话</span><span>证件类型</span><span>证件号码</span><span>性别</span><span>年龄</span><span>类型</span><span></span></div>' +
       '<div class="guest-list-rows" id="guestListRows">' +
       rows +
+      "</div>" +
       "</div>" +
       '<div class="guest-list-actions"><button type="button" class="btn" id="guestListAddBtn">＋ 添加客人</button></div>' +
       "</div>" +
