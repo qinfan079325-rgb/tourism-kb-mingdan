@@ -428,7 +428,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 16:22 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 17:08 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -492,7 +492,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 16:22 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 17:08 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -512,7 +512,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 16:22 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 17:08 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -939,7 +939,8 @@ const MingdanUpload = (function () {
     if (!res.ok || !data.ok) {
       throw new Error(draftsResponseError(res, data));
     }
-    return true;
+    const wq = Number(data.webhook_queued || 0) || 0;
+    return { ok: true, webhook_queued: wq };
   }
 
   /** 一次 PUT：个人待办 + 全员已确认（body.shared）；避免浏览器请求 account=__shared_confirmed__ */
@@ -1062,7 +1063,7 @@ const MingdanUpload = (function () {
     return [];
   }
 
-  /** @returns {Promise<{ok:boolean,error?:string}>} */
+  /** @returns {Promise<{ok:boolean,error?:string,webhook_queued?:number}>} */
   async function saveDrafts(list) {
     const user = currentUser();
     if (!user) return { ok: false, error: "not_logged_in" };
@@ -1100,10 +1101,11 @@ const MingdanUpload = (function () {
       }
       const mergedShared = mergeSharedLists(cloudShared, sharedLocal, deletedIds);
       // 一次 PUT 写个人 + 共享（worker 先写共享）
-      await putPersonalAndShared(user, personal, mergedShared);
+      const putRes = await putPersonalAndShared(user, personal, mergedShared);
       memSharedIdSet = new Set(mergedShared.map((d) => d && d.id).filter(Boolean));
       memDrafts = sortDraftsNewest([...personal, ...mergedShared]);
-      return { ok: true };
+      const wq = putRes && typeof putRes === "object" ? (Number(putRes.webhook_queued) || 0) : 0;
+      return { ok: true, webhook_queued: wq };
     } catch (e) {
       const err = String((e && e.message) || e || "network");
       // 失败时：确认单并入个人库再试写，防止「已确认」只在内存
@@ -1249,10 +1251,28 @@ const MingdanUpload = (function () {
     else rev.classList.remove("is-collapsed");
     const btn = $("fuzzyReviewToggle");
     if (btn) {
-      // 已展开时隐藏「展开核对」，只留「开新单」；收起后才显示「展开核对」
-      btn.textContent = "展开核对";
-      btn.style.display = collapsed ? "" : "none";
+      // 展开时显示「收起核对」，收起时显示「展开核对」
+      btn.textContent = collapsed ? "展开核对" : "收起核对";
+      btn.style.display = "";
     }
+    // 同步列表里该单的「打开核对 / 收起核对」按钮文案
+    try { syncOpenReviewButtonLabels(); } catch (e) {}
+  }
+
+  function isReviewOpenFor(id) {
+    if (!id || activeId !== id) return false;
+    const rev = $("fuzzyReview");
+    if (!rev || rev.classList.contains("hidden")) return false;
+    return !rev.classList.contains("is-collapsed");
+  }
+
+  function syncOpenReviewButtonLabels() {
+    const box = $("fuzzyDraftList");
+    if (!box) return;
+    box.querySelectorAll(".fuzzy-open").forEach((b) => {
+      const id = b.getAttribute("data-id");
+      b.textContent = isReviewOpenFor(id) ? "收起核对" : "打开核对";
+    });
   }
 
   function scrollToUpload() {
@@ -2162,14 +2182,14 @@ const MingdanUpload = (function () {
             ${byLine}
           </div>
           <div class="fuzzy-draft-actions">
-            <button type="button" class="btn fuzzy-open" data-id="${esc(d.id)}">打开核对</button>
+            <button type="button" class="btn fuzzy-open" data-id="${esc(d.id)}">${isReviewOpenFor(d.id) ? "收起核对" : "打开核对"}</button>
             <button type="button" class="btn fuzzy-del" data-id="${esc(d.id)}">删除</button>
           </div>
         </div>`;
       })
       .join("");
     box.querySelectorAll(".fuzzy-open").forEach((b) =>
-      b.addEventListener("click", () => openDraft(b.getAttribute("data-id")))
+      b.addEventListener("click", () => toggleOrOpenDraft(b.getAttribute("data-id")))
     );
     box.querySelectorAll(".fuzzy-del").forEach((b) =>
       b.addEventListener("click", async () => {
@@ -2845,6 +2865,18 @@ const MingdanUpload = (function () {
     if (rev && rev.scrollIntoView) rev.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  /** 列表「打开核对」：该单已展开则收起；否则打开并展开。 */
+  function toggleOrOpenDraft(id) {
+    if (!id) return;
+    if (isReviewOpenFor(id)) {
+      setReviewCollapsed(true);
+      scrollToUpload();
+      setMsg("已收起核对", "ok");
+      return;
+    }
+    openDraft(id);
+  }
+
   function readFieldsFromForm() {
     syncGuestListHidden();
     const fields = {};
@@ -2941,6 +2973,7 @@ const MingdanUpload = (function () {
     if (!Array.isArray(d.change_history)) d.change_history = [];
     workingDraft = d;
     const res = await upsertPersisted(cloneDraft(d));
+    const wq = res && res.ok ? (Number(res.webhook_queued) || 0) : 0;
     if (res.ok) {
       try {
         const sync = await syncDraftsFromCloud();
@@ -2948,10 +2981,17 @@ const MingdanUpload = (function () {
           const still = (loadDrafts() || []).find((x) => x && x.id === d.id);
           if (still && belongsOnShared(still)) {
             workingDraft = cloneDraft(still);
-            setMsg(
-              "已保存为「已确认待易途」（已写入全员共享）。系统已自动通知助手录易途；「🔔 通知AI助手录易途」仅作备份。未出团钉钉名单未改动。",
-              "ok"
-            );
+            if (wq > 0) {
+              setMsg(
+                "已保存为「已确认待易途」（已写入全员共享）。已通知 / 已排队推送助手录易途。未出团钉钉名单未改动。",
+                "ok"
+              );
+            } else {
+              setMsg(
+                "已保存为「已确认待易途」（已写入全员共享），但自动推送未排队。请点「🔔 通知AI助手录易途」补发。",
+                "err"
+              );
+            }
           } else {
             setMsg(
               "确认已提交，但全员共享校验未看到该单。请再点一次「销售确认」或「刷新列表」。",
@@ -2960,14 +3000,18 @@ const MingdanUpload = (function () {
           }
         } else {
           setMsg(
-            "已保存为「已确认待易途」。同步校验失败，请点「刷新列表」确认是否全员可见。",
-            "ok"
+            (wq > 0
+              ? "已保存为「已确认待易途」并已排队推送。同步校验失败，请点「刷新列表」确认是否全员可见。"
+              : "已保存为「已确认待易途」。同步校验失败；若助手未收到，请点「🔔 通知AI助手录易途」。"),
+            wq > 0 ? "ok" : "err"
           );
         }
       } catch (eSync) {
         setMsg(
-          "已保存为「已确认待易途」。请点「刷新列表」；其他账号刷新后应能看到。",
-          "ok"
+          (wq > 0
+            ? "已保存为「已确认待易途」并已排队推送。请点「刷新列表」；其他账号刷新后应能看到。"
+            : "已保存为「已确认待易途」。请点「刷新列表」；若助手未收到请点「🔔 通知AI助手录易途」。"),
+          wq > 0 ? "ok" : "err"
         );
       }
     } else {
@@ -3247,14 +3291,7 @@ const MingdanUpload = (function () {
     if (copyBtn) copyBtn.addEventListener("click", copyCsReport);
   }
 
-  function copyNotify() {
-    const d = getActiveDraft();
-    if (!d) {
-      setMsg("请先打开一条草稿", "err");
-      return;
-    }
-    d.fields = readFieldsFromForm();
-    const f = readFieldsFromForm();
+  function buildNotifyClipboardText(d, f) {
     const hist = Array.isArray(d.change_history) ? d.change_history : [];
     const lastChange = [...hist].reverse().find((h) => h.kind === "申请改单");
     const lines = [
@@ -3279,13 +3316,81 @@ const MingdanUpload = (function () {
     } else {
       lines.push("草稿仅在上传页；请助手继续处理。");
     }
-    const text = lines.join("\n");
-    navigator.clipboard.writeText(text).then(
-      () => setMsg("🔔 已复制备份通知文案（正常确认后会自动通知，无需再粘贴）。可粘贴到与助手的聊天作补发。", "ok"),
-      () => {
-        prompt("复制以下通知发给助手：", text);
+    return lines.join("\n");
+  }
+
+  function copyTextFallback(text) {
+    return new Promise((resolve) => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => resolve(true), () => {
+          try { prompt("复制以下通知发给助手：", text); } catch (e) {}
+          resolve(false);
+        });
+      } else {
+        try { prompt("复制以下通知发给助手：", text); } catch (e) {}
+        resolve(false);
       }
-    );
+    });
+  }
+
+  /** 通知AI助手录易途：复制备份文案 + 对已确认/改单态强制 shared PUT（bump 时间戳）以再次排队 webhook。 */
+  async function copyNotify() {
+    const d = getActiveDraft();
+    if (!d) {
+      setMsg("请先打开一条草稿", "err");
+      return;
+    }
+    d.fields = readFieldsFromForm();
+    const f = d.fields || {};
+    const text = buildNotifyClipboardText(d, f);
+    await copyTextFallback(text);
+
+    const canAuto = d.status === "confirmed_await_yitu" || d.status === "pending_change_sync";
+    if (!canAuto) {
+      setMsg(
+        "🔔 已复制备份通知文案。当前未销售确认，无法自动排队推送；请先「销售确认」或粘贴给助手。",
+        "err"
+      );
+      return;
+    }
+    if (!currentUser()) {
+      setMsg("🔔 已复制备份。请先登录后再点通知，以便写入全员共享并排队推送。", "err");
+      return;
+    }
+
+    const ts = nowISO();
+    // bump confirmed_at + updated_at so Worker detectYituNotifyEvents re-fires
+    d.confirmed_at = ts;
+    d.updated_at = ts;
+    d.updated_by = currentUser();
+    if (!d.confirmed_by) d.confirmed_by = currentUser();
+    workingDraft = d;
+
+    const nbtn = $("fuzzyNotifyBtn");
+    if (nbtn) nbtn.disabled = true;
+    try {
+      const res = await upsertPersisted(cloneDraft(d));
+      const wq = res && res.ok ? (Number(res.webhook_queued) || 0) : 0;
+      if (!res.ok) {
+        setMsg(
+          "🔔 已复制备份文案，但写入全员共享失败：" + saveErrorMsg(res.error) + "。请联网后重试「通知AI助手录易途」。",
+          "err"
+        );
+      } else if (wq > 0) {
+        setMsg(
+          "🔔 已通知 / 已排队推送（webhook_queued=" + wq + "）。备份文案已复制，可粘贴补发。",
+          "ok"
+        );
+      } else {
+        setMsg(
+          "🔔 已写入全员共享并复制备份，但本次未检测到新的推送排队（webhook_queued=0）。请稍后重试或粘贴备份给助手。",
+          "err"
+        );
+      }
+      openReviewFromWorking();
+    } finally {
+      if (nbtn) nbtn.disabled = false;
+    }
   }
 
   function submitParse() {
