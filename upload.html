@@ -428,7 +428,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 16:00 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 16:03 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -492,7 +492,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 16:00 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 16:03 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -512,7 +512,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 16:00 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 16:03 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1319,6 +1319,20 @@ const MingdanUpload = (function () {
     return { kb: Math.round(Math.abs(total)), pure };
   }
 
+  function looksLikeSettlementFormula(s) {
+    const t = String(s || "").trim();
+    if (!t) return false;
+    // 纯数字结算额：-600 / 2700
+    if (/^[-+]?\d+(?:\.\d+)?$/.test(t)) return true;
+    // 含等号结算式
+    if (/=/.test(t) && /\d/.test(t)) return true;
+    // 乘法项：-1400*2
+    if (/[-+]?\d+(?:\.\d+)?\s*[*×xX]\s*\d/.test(t)) return true;
+    // 加减串：-600+0 / -1400*2+100续住
+    if (/\d/.test(t) && /[-+]/.test(t)) return true;
+    return false;
+  }
+
   function normalizeText(raw) {
     let t = String(raw || "");
     t = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -1332,8 +1346,10 @@ const MingdanUpload = (function () {
     t = t.replace(/(^|\n)[^\S\n]*[^【\n\w\u4e00-\u9fff]{1,8}[^\S\n]*(【)/g, "$1$2");
     // 结算/返款/备注/金额行可能粘在同一行
     t = t.replace(/([^\n])(结算明细\s*：)/g, "$1\n$2");
+    t = t.replace(/([^\n])(结算名字\s*：)/g, "$1\n$2"); // OCR：结算明细→结算名字
     t = t.replace(/([^\n])(结算\s*：)/g, "$1\n$2");
-    t = t.replace(/([^\n])(返款\s*：)/g, "$1\n$2");
+    t = t.replace(/([^\n])(回传\s*：)/g, "$1\n$2");
+    t = t.replace(/([^\n])(?<!结算)(明细\s*：)/g, "$1\n$2"); // 明细=结算明细别名
     t = t.replace(/([^\n])(备注\s*：)/g, "$1\n$2");
     t = t.replace(/([^\n])(【定金】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【代收)/g, "$1\n$2");
@@ -1433,7 +1449,7 @@ const MingdanUpload = (function () {
   function isTransportLine(s) {
     const v = String(s || "").trim();
     if (!v) return false;
-    if (/客人人数|参团人数|出行人数|几大|几小|合同金额|总团款|总团费|团费|报名费|团款|全款|定金|预定金额|到付尾款|尾款|代收金额|结算明细|返款|备注|客服|业务员|房间类型|房间要求|团型天数|预定行程|出行日期|预定姓名|来航班号|客人证件|姓名及联系|组团社|联系电话/.test(v)) return false;
+    if (/客人人数|参团人数|出行人数|几大|几小|合同金额|总团款|总团费|团费|报名费|团款|全款|定金|预定金额|到付尾款|尾款|代收金额|结算明细|结算名字|回传|明细|返款|备注|客服|业务员|房间类型|房间要求|团型天数|预定行程|出行日期|预定姓名|来航班号|客人证件|姓名及联系|组团社|联系电话/.test(v)) return false;
     if (/^\d{1,3}\s*[大人位小](?:\s*\d{0,3}\s*[小人位])?$/.test(v)) return false;
     if (/^【/.test(v) && /人数|客人|合同|定金|代收|结算|返款|备注|客服|房间/.test(v)) return false;
     if (/\b(?:CX|CA|MU|CZ|HU|3U|FM|HO|9C|ZH|SC|MF|TV|PN|G5|JD|KN|HX|KA|SQ|TG|NH|JL|KE|OZ|QR|EK|AA|UA|DL|BA|AF|LH|GJ|RY|EU|GY|A6|UQ|CN|NX|BK|NS)\s*-?\s*\d{2,4}\b/i.test(v)) return true;
@@ -1794,6 +1810,7 @@ const MingdanUpload = (function () {
       }
     }
     if (!collect_on_tour && balance_due !== "") collect_on_tour = balance_due;
+    // 结算明细别名：结算明细/结算/明细/回传；OCR「结算名字」仅当右侧像结算式
     let settle = pick(
       [
         /结算明细\s*：\s*([^\n]+)/,
@@ -1802,7 +1819,21 @@ const MingdanUpload = (function () {
       t
     );
     settle = settle.replace(/^结算\s*：\s*/, "").trim();
-    if (!settle) settle = pick([/(?:^|\n)\s*结算\s*：\s*([^\n]+)/], t);
+    if (!settle) {
+      settle = pick(
+        [
+          /(?:^|\n)\s*结算\s*：\s*([^\n]+)/,
+          /(?:^|\n)\s*明细\s*：\s*([^\n]+)/,
+          /(?:^|\n)\s*回传\s*：\s*([^\n]+)/,
+        ],
+        t
+      );
+      settle = (settle || "").replace(/^结算\s*：\s*/, "").trim();
+    }
+    if (!settle) {
+      const mName = t.match(/(?:^|\n)\s*结算名字\s*：\s*([^\n]+)/);
+      if (mName && looksLikeSettlementFormula(mName[1])) settle = mName[1].trim();
+    }
     // 同一行尾部「结算：…=-4382」兜底
     if (!settle) {
       const m = t.match(/结算\s*：\s*([-+\d.*×xXｋＫkK乌江加车续住房差\u4e00-\u9fff]+(?:=\s*-?\d+(?:\.\d+)?)?)/);
@@ -1826,7 +1857,7 @@ const MingdanUpload = (function () {
         .replace(/[，,；;\s]+$/g, "")
         .trim();
     }
-    let remarks = pick([/备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*返款|$)/], t);
+    let remarks = pick([/备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*明细|\n\s*回传|\n\s*返款|$)/], t);
     remarks = (remarks || "").trim();
     const { kb, pure } = kbFromDetail(settle);
     let settlement = "";
