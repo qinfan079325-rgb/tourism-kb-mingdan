@@ -418,7 +418,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 07:20 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-10-31 14:31 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -482,7 +482,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-10-31 07:20 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-10-31 14:31 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -502,7 +502,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 07:20 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-10-31 14:31 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2661,7 +2661,7 @@ const MingdanUpload = (function () {
           if (still && belongsOnShared(still)) {
             workingDraft = cloneDraft(still);
             setMsg(
-              "已保存为「已确认待易途」（已写入全员共享，其他账号点「刷新列表」可见）。未出团钉钉名单未改动。",
+              "已保存为「已确认待易途」（已写入全员共享）。系统已自动通知助手录易途；「🔔 通知AI助手录易途」仅作备份。未出团钉钉名单未改动。",
               "ok"
             );
           } else {
@@ -2777,7 +2777,7 @@ const MingdanUpload = (function () {
       list[idx].status = "pending_change_sync";
       list[idx].status_label = STATUS.pending_change_sync;
       msg =
-        "改单已提交，状态「待同步易途」。请点「🔔 通知AI助手录易途」或下载 JSON，助手改完易途后点「易途已更新」。已进未出团的等钉钉同步覆盖。";
+        "改单已提交，状态「待同步易途」。系统已自动通知助手；「🔔 通知AI助手录易途」仅作备份。助手改完易途后点「易途已更新」。已进未出团的等钉钉同步覆盖。";
     }
 
     list[idx].change_history.push({
@@ -2993,7 +2993,7 @@ const MingdanUpload = (function () {
     }
     const text = lines.join("\n");
     navigator.clipboard.writeText(text).then(
-      () => setMsg("🔔 已复制「通知AI助手录易途」文案，请粘贴到与助手的聊天", "ok"),
+      () => setMsg("🔔 已复制备份通知文案（正常确认后会自动通知，无需再粘贴）。可粘贴到与助手的聊天作补发。", "ok"),
       () => {
         prompt("复制以下通知发给助手：", text);
       }
