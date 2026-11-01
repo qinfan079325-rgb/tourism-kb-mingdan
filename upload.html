@@ -435,7 +435,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 13:35 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 13:41 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -498,7 +498,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-01 13:35 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-01 13:41 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -518,7 +518,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 13:35 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 13:41 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1623,6 +1623,20 @@ const MingdanUpload = (function () {
     t = t.replace(/([^\n])(【全款】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【合同金额】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【出行日期】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【出行时间】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【出团日期】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【出团时间】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【订金数额】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【定金数额】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【订金】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【团款报价】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【代收团款】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【备注】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【备注信息】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【其它说明】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【其他说明】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【特别说明】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【说明】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【预定姓名】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【出行人数】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【房间要求】)/g, "$1\n$2");
@@ -1647,10 +1661,21 @@ const MingdanUpload = (function () {
     return "";
   }
   function yearDate(mmdd) {
+    const s = String(mmdd || "").trim();
+    const iso = s.match(/(20\d{2})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/);
+    if (iso) {
+      const mo = parseInt(iso[2], 10), da = parseInt(iso[3], 10);
+      if (mo >= 1 && mo <= 12 && da >= 1 && da <= 31) {
+        return `${iso[1]}-${String(mo).padStart(2, "0")}-${String(da).padStart(2, "0")}`;
+      }
+    }
     const y = todayISO().slice(0, 4);
-    const m = String(mmdd).match(/(\d{1,2})\s*[月/\-.\uFF0F]\s*(\d{1,2})/);
+    const m = s.match(/(\d{1,2})\s*[月/\-.\uFF0F]\s*(\d{1,2})/);
     if (!m) return "";
-    return `${y}-${String(m[1]).padStart(2, "0")}-${String(m[2]).padStart(2, "0")}`;
+    const mo = parseInt(m[1], 10), da = parseInt(m[2], 10);
+    if (mo < 1 || mo > 12 || da < 1 || da > 31) return "";
+    // 若日期已过今年同日很久（如 12 月贴单已到次年），仍用当前年；票面年份优先走 iso 分支
+    return `${y}-${String(mo).padStart(2, "0")}-${String(da).padStart(2, "0")}`;
   }
 
   /** 见图/后补等占位，不写入真实字段 */
@@ -1799,8 +1824,9 @@ const MingdanUpload = (function () {
 
   function shouldAutoFillCollect(currentCollect, fullStr, depStr) {
     const auto = formatCollectFromMoney(fullStr, depStr);
-    if (!auto) return "";
     const cur = String(currentCollect || "").trim();
+    // 缺全款或定金时无法编公式，保留已识别的【代收团款】等标签值
+    if (!auto) return cur;
     if (!cur) return auto;
     const cNum = moneyNumber(cur);
     const fNum = moneyNumber(fullStr);
@@ -1869,7 +1895,12 @@ const MingdanUpload = (function () {
     const departRaw = pick(
       [
         /【\s*出行日期\s*】\s*[：:]?\s*([^\n]+)/,
-        /出行日期\s*[：:]\s*([^\n]+)/,
+        /出行日期\s*[：:]?\s*([^\n]+)/,
+        /【\s*出行时间\s*】\s*[：:]?\s*([^\n]+)/,
+        /出行时间\s*[：:]?\s*([^\n]+)/,
+        /【\s*出团日期\s*】\s*[：:]?\s*([^\n]+)/,
+        /出团日期\s*[：:]?\s*([^\n]+)/,
+        /【\s*出团时间\s*】\s*[：:]?\s*([^\n]+)/,
         /【\s*预定日期\s*】\s*[：:]?\s*([^\n]+)/,
         /【\s*时间\s*】\s*[：:]?\s*([^\n]+)/,
         /出团时间\s*[：:]\s*([^\n]+)/,
@@ -1879,7 +1910,7 @@ const MingdanUpload = (function () {
       ],
       t
     );
-    const depart_date = departRaw ? yearDate(departRaw) : "";
+    let depart_date = departRaw ? yearDate(departRaw) : "";
     const returnRaw = pick(
       [
         /【\s*返程日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n]+)/,
@@ -1970,6 +2001,30 @@ const MingdanUpload = (function () {
     if (isPlaceholder(return_transport)) return_transport = "";
     outbound_transport = cleanTransportField(outbound_transport);
     return_transport = cleanTransportField(return_transport);
+    // 无明确出行/出团日时：从【到站信息】/去程交通行首 MM.DD / M月D日 推断
+    if (!depart_date) {
+      const arriveRaw = pick(
+        [
+          /【\s*到站信息\s*】\s*[：:]?\s*([^\n]+)/,
+          /【\s*到站\s*】\s*[：:]?\s*([^\n]+)/,
+          /【\s*接站信息\s*】\s*[：:]?\s*([^\n]+)/,
+          /【\s*接站\s*】\s*[：:]?\s*([^\n]+)/,
+        ],
+        t
+      );
+      const dateSrc = [arriveRaw, outbound_transport, t].filter(Boolean).join("\n");
+      const dm =
+        String(dateSrc).match(/(?:^|[\s【】：:])(\d{1,2})\s*[.]\s*(\d{1,2})(?=\D|$)/) ||
+        String(dateSrc).match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日?/) ||
+        String(dateSrc).match(/(20\d{2})\s*[-/]\s*(\d{1,2})\s*[-/]\s*(\d{1,2})/);
+      if (dm) {
+        if (dm.length >= 4 && /^20\d{2}$/.test(dm[1])) {
+          depart_date = yearDate(dm[1] + "-" + dm[2] + "-" + dm[3]);
+        } else {
+          depart_date = yearDate(dm[1] + "." + dm[2]);
+        }
+      }
+    }
     const party_size = pick(
       [
         /【\s*出行人数\s*[】\]]\s*：?\s*([^\n]+)/,
@@ -2082,6 +2137,10 @@ const MingdanUpload = (function () {
     const deposit = cleanMoneyValue(
       pick(
         [
+          /【\s*订金数额\s*】\s*[：:]?\s*([^\n]+)/,
+          /订金数额\s*[：:]?\s*([\d.,]+)/,
+          /【\s*定金数额\s*】\s*[：:]?\s*([^\n]+)/,
+          /定金数额\s*[：:]?\s*([\d.,]+)/,
           /【\s*预定金额\s*】\s*[：:]?\s*([^\n]+)/,
           /预定金额\s*[：:]?\s*([\d.,]+)/,
           /【\s*定金\s*[】\]]\s*：?\s*([^\n]+)/,
@@ -2192,8 +2251,44 @@ const MingdanUpload = (function () {
         .replace(/[，,；;\s]+$/g, "")
         .trim();
     }
-    let remarks = pick([/备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*明细|\n\s*回传|\n\s*返款|$)/], t);
+    let remarks = pick(
+      [
+        /【\s*备注\s*】\s*[：:]?\s*([^\n]+)/,
+        /【\s*备注信息\s*】\s*[：:]?\s*([^\n]+)/,
+        /【\s*其它说明\s*】\s*[：:]?\s*([^\n]+)/,
+        /【\s*其他说明\s*】\s*[：:]?\s*([^\n]+)/,
+        /【\s*特别说明\s*】\s*[：:]?\s*([^\n]+)/,
+        /【\s*说明\s*】\s*[：:]?\s*([^\n]+)/,
+        /备注信息\s*[：:]?\s*([^\n]+)/,
+        /其它说明\s*[：:]?\s*([^\n]+)/,
+        /其他说明\s*[：:]?\s*([^\n]+)/,
+        /特别说明\s*[：:]?\s*([^\n]+)/,
+        /备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*明细|\n\s*回传|\n\s*返款|\n\s*【|$)/,
+        /(?:^|\n)\s*备注\s*[：:]\s*([^\n]+)/,
+        // 无冒号：行首「备注」后直接跟正文（勿吞结算/返款）
+        /(?:^|\n)\s*备注(?![信息明细])\s+([^\n结算返款]+)/,
+      ],
+      t
+    );
     remarks = (remarks || "").trim();
+    // 备注勿吞结算/返款/结算明细；若备注在返款后单独成行仍可保留正文
+    if (remarks) {
+      remarks = remarks
+        .split(/\n\s*(?:结算明细|结算名字|结算|明细|回传|返款)\s*：/)[0]
+        .replace(/\s*(?:结算明细|结算|返款|明细|回传)\s*：.*$/u, "")
+        .trim();
+    }
+    // 兜底：返款行之后仍有「备注/说明」行
+    if (!remarks) {
+      const afterRebate = t.split(/(?:^|\n)\s*返款\s*：/)[1] || "";
+      const mAfter = afterRebate.match(
+        /(?:【\s*(?:备注(?:信息)?|其它说明|其他说明|特别说明|说明)\s*】|(?:^|\n)\s*(?:备注(?:信息)?|其它说明|其他说明|特别说明))\s*[：:]?\s*([^\n]+)/
+      );
+      if (mAfter) {
+        remarks = String(mAfter[1] || "").trim();
+        remarks = remarks.replace(/\s*(?:结算明细|结算|返款|明细|回传)\s*：.*$/u, "").trim();
+      }
+    }
     const { kb, pure } = kbFromDetail(settle);
     let settlement = settlementFromDetail(settle);
     const agencyResolved = resolveAgencyToYituFull((agency || "").trim());
