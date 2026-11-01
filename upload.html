@@ -211,6 +211,8 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-st.st-yitu_updated{background:#312e81;color:#c7d2fe}
 .fuzzy-who{font-size:13px}
 .fuzzy-agency{color:var(--muted);font-size:12px}
+.fuzzy-yitu-at{font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;
+  background:#0f766e;color:#ccfbf1;border:1px solid #2dd4bf;letter-spacing:.01em;white-space:nowrap}
 .fuzzy-draft-actions{display:flex;flex-wrap:wrap;gap:6px}
 .fuzzy-review{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}
 .fuzzy-review-bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;
@@ -429,7 +431,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 07:15 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 08:47 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -492,7 +494,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-01 07:15 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-01 08:47 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -512,7 +514,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 07:15 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 08:47 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1317,12 +1319,15 @@ const MingdanUpload = (function () {
   }
 
 
-  /** Display yitu_entered_at in Asia/Shanghai wall clock. */
-  function formatYituAt(v) {
+  /** Display any ISO/time string as Asia/Shanghai wall clock (no UTC/Z suffix). */
+  function formatChinaTime(v) {
     const s = String(v || "").trim();
     if (!s) return "";
     const t = Date.parse(s);
-    if (Number.isNaN(t)) return s;
+    if (Number.isNaN(t)) {
+      // Already a plain wall clock like 2026-10-31 23:45 — keep as-is; strip trailing Z/UTC labels.
+      return s.replace(/[Zz]$/, "").replace(/\s*UTC$/i, "").replace(/\s*Asia\/Shanghai$/i, "").trim();
+    }
     try {
       const fmt = new Intl.DateTimeFormat("sv-SE", {
         timeZone: "Asia/Shanghai",
@@ -1333,10 +1338,14 @@ const MingdanUpload = (function () {
         minute: "2-digit",
         hour12: false,
       });
-      return fmt.format(new Date(t)).replace(" ", " ") + " Asia/Shanghai";
+      // sv-SE yields "YYYY-MM-DD HH:MM"
+      return fmt.format(new Date(t));
     } catch (e) {
       return s;
     }
+  }
+  function formatYituAt(v) {
+    return formatChinaTime(v);
   }
 
   function updateReviewChrome(d) {
@@ -2150,7 +2159,7 @@ const MingdanUpload = (function () {
         .map((h) => {
           return (
             `<div class="fuzzy-history-item">` +
-            `<div class="fuzzy-history-meta">${esc(h.at || "")} · ${esc(h.by || "")} · ${esc(h.kind || "改单")}` +
+            `<div class="fuzzy-history-meta">${esc(formatChinaTime(h.at) || h.at || "")} · ${esc(h.by || "")} · ${esc(h.kind || "改单")}` +
             (h.result_status ? ` → ${esc(STATUS[h.result_status] || h.result_status)}` : "") +
             `</div>` +
             `<div class="fuzzy-history-notes">${esc(h.notes || "")}</div>` +
@@ -2209,10 +2218,15 @@ const MingdanUpload = (function () {
           : (isDraftLike(d.status) && d.created_by
             ? `<span class="fuzzy-by">创建：${esc(d.created_by)}</span>`
             : "");
+        const yituAt = formatChinaTime(d.yitu_entered_at);
+        const yituAtBadge = yituAt
+          ? `<span class="fuzzy-yitu-at" title="录完系统时间（中国时间）">录完 ${esc(yituAt)}</span>`
+          : "";
         return `<div class="fuzzy-draft ${isDraftLike(d.status) ? "is-draft-todo" : "is-shared"} ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
           <div class="fuzzy-draft-h">
             ${draftBadge}
             <span class="fuzzy-st st-${esc(d.status)}">${esc(st)}</span>
+            ${yituAtBadge}
             <span class="fuzzy-who">${esc(f.guest_name || "未命名")} · ${esc(f.depart_date || "无出团日")} · ${esc(f.party_size || "")}</span>
             <span class="fuzzy-agency">${esc(f.agency || "")}${d.yitu_order_no ? " · " + esc(d.yitu_order_no) : ""}</span>
             ${byLine}
