@@ -435,7 +435,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 13:49 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 13:58 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -498,7 +498,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-01 13:49 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-01 13:58 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -518,7 +518,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 13:49 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 13:58 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -4163,6 +4163,8 @@ const MingdanUpload = (function () {
     const phoneById = {};
 
     function isStaffPhoneLine(line) {
+      // 客户/游客/客人电话行是游客侧，不算业务员
+      if (/(?:客户电话|客户手机|游客电话|游客手机|客人电话|客人手机)/.test(line)) return false;
       // 业务员/客服/对接人/销售行不往客人挂电话；「联系人员」亦然
       if (/(?:业务员|客服|对接人|销售)/.test(line)) return true;
       if (/联系人员/.test(line)) return true;
@@ -4224,17 +4226,90 @@ const MingdanUpload = (function () {
       if (nm && !phoneByName[nm]) phoneByName[nm] = gm[2];
     }
 
-    // 标签：客人电话/客人手机/联系人电话/联系人手机 → 代表人行（非业务员）
+    // 标签：客人/客户/游客电话·手机（含【】《》可无冒号）+ 联系人电话/手机 → 代表人行（非业务员）
+    // 客户姓名/游客姓名 与 客户电话 分行时，模糊配对前一行姓名
     let labeledGuestPhone = "";
-    const labelRe = /(?:客人电话|客人手机|联系人电话|联系人手机)\s*[：:]\s*(1\d{10})/g;
-    let lm;
-    while ((lm = labelRe.exec(t))) {
-      const lineStart = t.lastIndexOf("\n", lm.index) + 1;
-      const lineEnd = t.indexOf("\n", lm.index);
-      const line = t.slice(lineStart, lineEnd === -1 ? t.length : lineEnd);
-      if (isStaffPhoneLine(line) && !/(?:客人电话|客人手机)/.test(line)) continue;
-      labeledGuestPhone = lm[1];
-      break;
+    let labeledGuestPhoneName = "";
+    const isGuestPhoneLabelLine = function (line) {
+      return /(?:客户电话|客户手机|游客电话|游客手机|客人电话|客人手机)/.test(line);
+    };
+    const labelRes = [
+      /(?:客户电话|客户手机|游客电话|游客手机|客人电话|客人手机|联系人电话|联系人手机)\s*[：:]\s*(1\d{10})/g,
+      /[【《]\s*(?:客户电话|客户手机|游客电话|游客手机|客人电话|客人手机|联系人电话|联系人手机)\s*[】》]\s*[：:]?\s*(1\d{10})/g,
+    ];
+    function lineAround(idx) {
+      const lineStart = t.lastIndexOf("\n", idx) + 1;
+      const lineEnd = t.indexOf("\n", idx);
+      return t.slice(lineStart, lineEnd === -1 ? t.length : lineEnd);
+    }
+    function precedingNameNear(idx) {
+      // 向前看最多 3 行，抓【客户姓名】郭丽华 / 客户姓名：郭丽华 等
+      const before = t.slice(0, idx);
+      const prevLines = before.split(/\n+/).filter(Boolean).slice(-3);
+      for (let i = prevLines.length - 1; i >= 0; i--) {
+        const pl = prevLines[i];
+        if (isStaffPhoneLine(pl) && !isGuestPhoneLabelLine(pl)) continue;
+        let nm =
+          pl.match(
+            /[【《]\s*(?:客户姓名|游客姓名|客人姓名|代表人姓名|代表人)\s*[】》]\s*[：:]?\s*([\u4e00-\u9fff]{2,4})/
+          ) ||
+          pl.match(
+            /(?:客户姓名|游客姓名|客人姓名|代表人姓名|代表人|联系人(?!员))\s*[：:]\s*([\u4e00-\u9fff]{2,4})/
+          );
+        if (nm) {
+          const cleaned = cleanPersonNameForPhone(nm[1]);
+          if (cleaned) return cleaned;
+        }
+      }
+      return "";
+    }
+    for (const labelRe of labelRes) {
+      let lm;
+      labelRe.lastIndex = 0;
+      while ((lm = labelRe.exec(t))) {
+        const line = lineAround(lm.index);
+        if (isStaffPhoneLine(line) && !isGuestPhoneLabelLine(line)) continue;
+        labeledGuestPhone = lm[1];
+        labeledGuestPhoneName = precedingNameNear(lm.index);
+        if (labeledGuestPhoneName) phoneByName[labeledGuestPhoneName] = labeledGuestPhone;
+        break;
+      }
+      if (labeledGuestPhone) break;
+    }
+    // 分行扫描兜底：本行是电话标签、上行是姓名标签
+    if (!labeledGuestPhone) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (isStaffPhoneLine(line) && !isGuestPhoneLabelLine(line)) continue;
+        const pm =
+          line.match(
+            /[【《]\s*(?:客户电话|客户手机|游客电话|游客手机|客人电话|客人手机)\s*[】》]\s*[：:]?\s*(1\d{10})/
+          ) ||
+          line.match(
+            /(?:客户电话|客户手机|游客电话|游客手机|客人电话|客人手机)\s*[：:]\s*(1\d{10})/
+          );
+        if (!pm) continue;
+        labeledGuestPhone = pm[1];
+        for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
+          const pl = lines[j];
+          const nm =
+            pl.match(
+              /[【《]\s*(?:客户姓名|游客姓名|客人姓名|代表人姓名|代表人)\s*[】》]\s*[：:]?\s*([\u4e00-\u9fff]{2,4})/
+            ) ||
+            pl.match(
+              /(?:客户姓名|游客姓名|客人姓名|代表人姓名|代表人|联系人(?!员))\s*[：:]\s*([\u4e00-\u9fff]{2,4})/
+            );
+          if (nm) {
+            const cleaned = cleanPersonNameForPhone(nm[1]);
+            if (cleaned) {
+              labeledGuestPhoneName = cleaned;
+              phoneByName[cleaned] = labeledGuestPhone;
+              break;
+            }
+          }
+        }
+        break;
+      }
     }
 
     function reserializeGuestPhone(g) {
@@ -4267,9 +4342,18 @@ const MingdanUpload = (function () {
     }
 
     if (labeledGuestPhone) {
-      let rep = cleanPersonNameForPhone(representativeName) || "";
+      let rep =
+        cleanPersonNameForPhone(representativeName) ||
+        labeledGuestPhoneName ||
+        "";
       if (!rep) {
-        const cm = t.match(/(?:客人姓名|代表人|联系人(?!员))\s*[：:]\s*([\u4e00-\u9fff]{2,4})/);
+        const cm =
+          t.match(
+            /[【《]\s*(?:客户姓名|游客姓名|客人姓名|代表人姓名|代表人)\s*[】》]\s*[：:]?\s*([\u4e00-\u9fff]{2,4})/
+          ) ||
+          t.match(
+            /(?:客户姓名|游客姓名|客人姓名|代表人姓名|代表人|联系人(?!员))\s*[：:]\s*([\u4e00-\u9fff]{2,4})/
+          );
         if (cm) rep = cleanPersonNameForPhone(cm[1]);
       }
       let target = null;
