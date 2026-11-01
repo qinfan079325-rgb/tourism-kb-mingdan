@@ -435,7 +435,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 12:43 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 13:35 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -498,7 +498,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-01 12:43 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-01 13:35 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -518,7 +518,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 12:43 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 13:35 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1627,8 +1627,15 @@ const MingdanUpload = (function () {
     t = t.replace(/([^\n])(【出行人数】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【房间要求】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【来航班号】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【到站信息】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【到站】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【接站信息】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【接站】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【来程】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【抵达】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【预定行程】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【联系电话】)/g, "$1\n$2");
+    t = t.replace(/([^\n])(【客户姓名】)/g, "$1\n$2");
     return t;
   }
 
@@ -1654,14 +1661,33 @@ const MingdanUpload = (function () {
   }
 
   /** 拒把「出行人姓名和身份证」等标签碎片当客人姓名 */
+  /** 常见省/直辖市/自治区简称（含内蒙古等 3 字），用于拒「女河北」式假姓名 */
+  const REGION_SHORT_NAMES =
+    "河北|河南|山东|山西|陕西|广东|广西|江苏|浙江|安徽|福建|江西|湖南|湖北|四川|云南|贵州|辽宁|吉林|黑龙江|甘肃|青海|海南|台湾|内蒙古|宁夏|新疆|西藏|北京|天津|上海|重庆|香港|澳门";
+
   function isBadGuestName(v) {
     const s = String(v || "").trim();
     if (!s) return true;
     if (isPlaceholder(s)) return true;
     if (/身份|证件|护照|台胞|通行|出行人|名单|见图|后补|待补|联系方式|联系人员?/.test(s)) return true;
     if (/^(?:姓名|客人|代表人|乘客|旅客|联系人|业务员|客服)$/.test(s)) return true;
+    if (/^[男女]$/.test(s)) return true;
+    // 性别+省简称：女河北 / 男山东 / 女内蒙古
+    if (new RegExp("^[男女](?:" + REGION_SHORT_NAMES + ")$").test(s)) return true;
+    // 仅省简称（2–3 字）
+    if (new RegExp("^(?:" + REGION_SHORT_NAMES + ")$").test(s)) return true;
     if (s.length > 8 && !/[·•\s]/.test(s)) return true; // 过长无分隔，多半是整句误吸
     return false;
+  }
+
+  /** 去掉姓名前的「男/女」+ 可选省简称；「女河北郭丽华」→「郭丽华」 */
+  function stripGenderRegionPrefix(name) {
+    let s = String(name || "").trim();
+    if (!s) return "";
+    s = s.replace(new RegExp("^[男女]\\s*(?:" + REGION_SHORT_NAMES + ")\\s*"), "");
+    s = s.replace(/^[男女]\s+/, "");
+    s = s.replace(new RegExp("^(?:" + REGION_SHORT_NAMES + ")\\s*"), "");
+    return s.trim();
   }
 
   /** 从「重庆四天」「九武5天4晚」等提取行程天数；失败返回 0 */
@@ -1709,13 +1735,16 @@ const MingdanUpload = (function () {
   function isTransportLine(s) {
     const v = String(s || "").trim();
     if (!v) return false;
-    if (/客人人数|参团人数|出行人数|几大|几小|合同金额|总团款|总团费|团费|报名费|团款|全款|定金|预定金额|到付尾款|尾款|代收金额|结算明细|结算名字|回传|明细|返款|备注|客服|业务员|房间类型|房间要求|团型天数|预定行程|出行日期|预定姓名|来航班号|客人证件|姓名及联系|组团社|联系电话/.test(v)) return false;
+    if (/客人人数|参团人数|出行人数|几大|几小|合同金额|总团款|总团费|团费|报名费|团款|全款|定金|订金|预定金额|报价|到付尾款|尾款|代收金额|结算明细|结算名字|回传|明细|返款|备注|客服|业务员|房间类型|房间要求|团型天数|预定行程|出行日期|预定姓名|来航班号|客人证件|姓名及联系|组团社|联系电话/.test(v)) return false;
     if (/^\d{1,3}\s*[大人位小](?:\s*\d{0,3}\s*[小人位])?$/.test(v)) return false;
-    if (/^【/.test(v) && /人数|客人|合同|定金|代收|结算|返款|备注|客服|房间/.test(v)) return false;
+    if (/^【/.test(v) && /人数|客人|合同|定金|订金|代收|结算|返款|备注|客服|房间/.test(v)) return false;
     if (/\b(?:CX|CA|MU|CZ|HU|3U|FM|HO|9C|ZH|SC|MF|TV|PN|G5|JD|KN|HX|KA|SQ|TG|NH|JL|KE|OZ|QR|EK|AA|UA|DL|BA|AF|LH|GJ|RY|EU|GY|A6|UQ|CN|NX|BK|NS)\s*-?\s*\d{2,4}\b/i.test(v)) return true;
     if (/\b[GDCZKTY]\d{1,5}\b/i.test(v)) return true;
-    if (/航班|机场|航站楼?|车次|高铁|动车|火车|火车站|发车|起飞|登机|值机|Terminal|Flight\b|Confirmed/i.test(v)) return true;
-    if (/[\u4e00-\u9fff]{2,12}\s*[-~～至到→]\s*[\u4e00-\u9fff]{2,12}/.test(v) && /\d{1,2}\s*[:：]\s*\d{2}/.test(v)) return true;
+    if (/航班|机场|航站楼?|车次|高铁|动车|火车|火车站|发车|起飞|登机|值机|到站|接站|Terminal|Flight\b|Confirmed/i.test(v)) return true;
+    // 城际：邯郸—重庆 / 邯郸-重庆（含 em/en dash）
+    if (/[\u4e00-\u9fff]{2,12}\s*[-—–―−－~～至到→]\s*[\u4e00-\u9fff]{2,12}/.test(v) && /\d{1,2}\s*[:：]\s*\d{2}/.test(v)) return true;
+    // MM.DD城A时:分—城B时:分  G54302（无标签粘贴）
+    if (/(?:\d{1,2}[.\/月]\d{1,2})?[\u4e00-\u9fff]{2,8}\s*\d{1,2}\s*[:：]\s*\d{2}\s*[-—–―−－~～至到→]\s*[\u4e00-\u9fff]{2,8}\s*\d{1,2}\s*[:：]\s*\d{2}/.test(v)) return true;
     if (/\b[A-Z]{3}\s*[-~～至到→]\s*[A-Z]{3}\b/.test(v)) return true;
     return false;
   }
@@ -1895,15 +1924,38 @@ const MingdanUpload = (function () {
         /【\s*来航班\s*】\s*[：:]?\s*([^\n【]+)/,
         /来航班号\s*[：:]\s*([^\n【]+)/,
         /来航班\s*[：:]\s*([^\n【]+)/,
+        /【\s*到站信息\s*】\s*[：:]?\s*([^\n【]+)/,
+        /到站信息\s*[：:]\s*([^\n【]+)/,
+        /【\s*到站\s*】\s*[：:]?\s*([^\n【]+)/,
+        /(?:^|\n)\s*到站\s*[：:]\s*([^\n【]+)/,
+        /【\s*接站信息\s*】\s*[：:]?\s*([^\n【]+)/,
+        /接站信息\s*[：:]\s*([^\n【]+)/,
+        /【\s*接站\s*】\s*[：:]?\s*([^\n【]+)/,
+        /(?:^|\n)\s*接站\s*[：:]\s*([^\n【]+)/,
+        /【\s*来程(?:信息)?\s*】\s*[：:]?\s*([^\n【]+)/,
+        /来程信息\s*[：:]\s*([^\n【]+)/,
+        /【\s*抵达(?:信息|航班)?\s*】\s*[：:]?\s*([^\n【]+)/,
         /【\s*抵达日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n【]+)/,
         /【\s*去程[^】]*】\s*[：:]?\s*([^\n【]+)/,
         /去程交通\s*[：:]\s*([^\n【]+)/,
-        /来程信息\s*[：:]\s*([^\n【]+)/,
         /抵达航班\s*[：:]\s*([^\n【]+)/,
         /去程\s*[：:]\s*([^\n【]+)/,
       ],
       t
     );
+    // 无标签：整行像「12.01邯郸13:40—重庆15:35  G54302」则作去程
+    if (!outbound_transport || isPlaceholder(outbound_transport)) {
+      const linesScan = t.split(/\n+/);
+      for (let li = 0; li < linesScan.length; li++) {
+        let cand = String(linesScan[li] || "").trim().replace(/^【[^】]{1,12}】\s*[：:]?\s*/, "");
+        if (!cand) continue;
+        if (/返程|回程|返航班/.test(linesScan[li])) continue;
+        if (isTransportLine(cand) && /(?:\d{1,2}[.\/月]\d{1,2})?[\u4e00-\u9fff].*\d{1,2}\s*[:：]\s*\d{2}/.test(cand) && /\b[GDCZKTY]\d{1,5}\b/i.test(cand)) {
+          outbound_transport = cand;
+          break;
+        }
+      }
+    }
     let return_transport = pick(
       [
         /【\s*返程日期\s*[/／]\s*航班\s*】\s*[：:]?\s*([^\n【]+)/,
@@ -1978,6 +2030,8 @@ const MingdanUpload = (function () {
       [
         /【\s*预定姓名\s*】\s*[：:]?\s*([^\n]+)/,
         /预定姓名\s*[：:]\s*([^\n]+)/,
+        /【\s*客户姓名\s*】\s*[：:]?\s*([^\n]+)/,
+        /客户姓名\s*[：:]\s*([^\n]+)/,
         /【?\s*客人姓名及联系方式\s*[】\]]?\s*：?\s*([^\n]+)/,
         /客人姓名\s*[：:]\s*([^\n]+)/,
         /代表人\s*[：:]\s*([^\n]+)/,
@@ -2004,19 +2058,23 @@ const MingdanUpload = (function () {
       pick(
         [
           /【\s*总团费\s*】\s*[：:]?\s*([^\n]+)/,
-          /总团费\s*[：:]\s*([^\n]+)/,
+          /总团费\s*[：:]?\s*([\d.,]+)/,
           /【\s*团费\s*】\s*[：:]?\s*([^\n]+)/,
-          /(?:^|\n)\s*团费\s*[：:]\s*([^\n]+)/,
+          /(?:^|\n|[、，,;；\s])团费\s*[：:]?\s*([\d.,]+)/,
           /【\s*报名费\s*】\s*[：:]?\s*([^\n]+)/,
-          /报名费\s*[：:]\s*([^\n]+)/,
+          /报名费\s*[：:]?\s*([\d.,]+)/,
           /【\s*总团款\s*】\s*[：:]?\s*([^\n]+)/,
-          /总团款\s*[：:]\s*([^\n]+)/,
+          /总团款\s*[：:]?\s*([\d.,]+)/,
           /【\s*全款\s*】\s*[：:]?\s*([^\n]+)/,
-          /全款\s*[：:]\s*([^\n]+)/,
+          /全款\s*[：:]?\s*([\d.,]+)/,
+          /【\s*团款报价\s*】\s*[：:]?\s*([^\n]+)/,
+          /团款报价\s*[：:]?\s*([\d.,]+)/,
+          /【\s*报价\s*】\s*[：:]?\s*([^\n]+)/,
+          /(?:^|\n|[、，,;；\s])报价\s*[：:]?\s*([\d.,]+)/,
           /【\s*团款\s*】\s*[：:]?\s*([^\n]+)/,
-          /(?:^|\n)\s*团款\s*[：:]\s*([^\n]+)/,
+          /(?:^|\n|[、，,;；\s])团款\s*[：:]?\s*([\d.,]+)/,
           /【\s*合同金额\s*[】\]]\s*：?\s*([^\n]+)/,
-          /合同金额\s*[：:]\s*([^\n]+)/,
+          /合同金额\s*[：:]?\s*([\d.,]+)/,
         ],
         t
       )
@@ -2025,9 +2083,17 @@ const MingdanUpload = (function () {
       pick(
         [
           /【\s*预定金额\s*】\s*[：:]?\s*([^\n]+)/,
-          /预定金额\s*[：:]\s*([^\n]+)/,
+          /预定金额\s*[：:]?\s*([\d.,]+)/,
           /【\s*定金\s*[】\]]\s*：?\s*([^\n]+)/,
-          /定金\s*[：:]\s*([^\n]+)/,
+          /(?:^|\n|[、，,;；\s])定金\s*[：:]?\s*([\d.,]+)/,
+          /【\s*订金\s*[】\]]\s*：?\s*([^\n]+)/,
+          /(?:^|\n|[、，,;；\s])订金\s*[：:]?\s*([\d.,]+)/,
+          /【\s*已付(?:款|金额)?\s*】\s*[：:]?\s*([^\n]+)/,
+          /已付(?:款|金额)?\s*[：:]?\s*([\d.,]+)/,
+          /【\s*已收(?:款|金额)?\s*】\s*[：:]?\s*([^\n]+)/,
+          /已收(?:款|金额)?\s*[：:]?\s*([\d.,]+)/,
+          /【\s*支付金额\s*】\s*[：:]?\s*([^\n]+)/,
+          /支付金额\s*[：:]?\s*([\d.,]+)/,
         ],
         t
       )
@@ -2036,7 +2102,11 @@ const MingdanUpload = (function () {
     let collect_on_tour = pick(
       [
         /【\s*代收金额\s*[】\]]\s*：?\s*([^\n]+)/,
-        /(?:^|\n)\s*代收(?:金额)?\s*[：:]\s*([^\n]+)/,
+        /【\s*代收团款\s*】\s*[：:]?\s*([^\n]+)/,
+        /代收团款\s*[：:]?\s*([\d.,]+)/,
+        /(?:^|\n|[、，,;；\s])代收(?:金额)?\s*[：:]?\s*([\d.,]+)/,
+        /【\s*余款\s*】\s*[：:]?\s*([^\n]+)/,
+        /(?:^|\n|[、，,;；\s])余款\s*[：:]?\s*([\d.,]+)/,
       ],
       t
     );
@@ -2187,8 +2257,15 @@ const MingdanUpload = (function () {
         idParsed.names = idParsed.guests.map(function (g) { return g.name; }).filter(Boolean);
         if (idParsed.guest_list) {
           fields.guest_list = idParsed.guest_list;
-          if (!fields.guest_name && idParsed.names && idParsed.names[0] && !isBadGuestName(idParsed.names[0])) {
-            fields.guest_name = idParsed.names[0];
+          if (fields.guest_name && isBadGuestName(fields.guest_name)) fields.guest_name = "";
+          if (!fields.guest_name && idParsed.names && idParsed.names.length) {
+            for (let ni = 0; ni < idParsed.names.length; ni++) {
+              const candNm = stripGenderRegionPrefix(idParsed.names[ni]);
+              if (candNm && !isBadGuestName(candNm)) {
+                fields.guest_name = candNm;
+                break;
+              }
+            }
           }
           if (!fields.party_size && idParsed.guests.length) {
             fields.party_size = idParsed.guests.length + "大";
@@ -2727,7 +2804,13 @@ const MingdanUpload = (function () {
         }
       }
     }
-    const name = s.replace(/\s+/g, " ").trim();
+    // 去掉残留出生日期、性别、省简称，避免姓名变成「女河北」或「1989.03.06」
+    s = s.replace(/(?:19|20)\d{2}[.\/-]\d{1,2}[.\/-]\d{1,2}/g, " ").replace(/\s+/g, " ").trim();
+    s = stripGenderRegionPrefix(s);
+    s = s.replace(new RegExp("(?:^|[\\s,，])(?:" + REGION_SHORT_NAMES + ")(?=$|[\\s,，])", "g"), " ").replace(/\s+/g, " ").trim();
+    let name = s.replace(/\s+/g, " ").trim();
+    name = stripGenderRegionPrefix(name);
+    if (isBadGuestName(name)) name = "";
     if (!name && !id_number && !phone) return null;
     return enrichGuestFields({
       name: name,
@@ -4166,8 +4249,11 @@ const MingdanUpload = (function () {
       // 「姓名吴嘉容」OCR 粘连时去掉前导「姓名/名」
       han = han.replace(/^(?:姓名)+/, "");
       if (/^名[\u4e00-\u9fff]{2,3}$/.test(han)) han = han.slice(1);
+      // 「女河北郭丽华」/「女河北」→ 去性别+省简称
+      han = stripGenderRegionPrefix(han);
       if (han.length === 4 && opts.nearEng) han = han.slice(1);
       if (han.length < 2 || han.length > 6) return "";
+      if (isBadGuestName(han)) return "";
       if (/号$|码$|局$|证$|关$/.test(han)) return "";
       if (/[证号机关局管出入境国]/.test(han) && han.length >= 2) return ""; // 标签碎片
       if (/[了区]/.test(han)) return ""; // OCR 碎字
@@ -4297,16 +4383,32 @@ const MingdanUpload = (function () {
     let m;
     while ((m = id18.exec(flat))) {
       let nm = nearbyName(m.index, flat);
-      const before = flat.slice(Math.max(0, m.index - 24), m.index);
+      const before = flat.slice(Math.max(0, m.index - 48), m.index);
+      // 组团社常见：姓名 + 出生日期 + 性别 + 省份 + 身份证
+      const roster =
+        before.match(/([\u4e00-\u9fff]{2,4})\s*(?:19|20)\d{2}[.\/-]?\d{1,2}[.\/-]?\d{1,2}\s*[男女]?\s*(?:河北|河南|山东|山西|陕西|广东|广西|江苏|浙江|安徽|福建|江西|湖南|湖北|四川|云南|贵州|辽宁|吉林|黑龙江|甘肃|青海|海南|台湾|内蒙古|宁夏|新疆|西藏|北京|天津|上海|重庆|香港|澳门)?\s*$/) ||
+        before.match(/([\u4e00-\u9fff]{2,4})\s*[男女]\s*(?:河北|河南|山东|山西|陕西|广东|广西|江苏|浙江|安徽|福建|江西|湖南|湖北|四川|云南|贵州|辽宁|吉林|黑龙江|甘肃|青海|海南|台湾|内蒙古|宁夏|新疆|西藏|北京|天津|上海|重庆|香港|澳门)?\s*$/) ||
+        before.match(/[男女](?:河北|河南|山东|山西|陕西|广东|广西|江苏|浙江|安徽|福建|江西|湖南|湖北|四川|云南|贵州|辽宁|吉林|黑龙江|甘肃|青海|海南|台湾|内蒙古|宁夏|新疆|西藏|北京|天津|上海|重庆|香港|澳门)?([\u4e00-\u9fff]{2,4})\s*(?:19|20)\d{2}/) ||
+        before.match(/[男女](?:河北|河南|山东|山西|陕西|广东|广西|江苏|浙江|安徽|福建|江西|湖南|湖北|四川|云南|贵州|辽宁|吉林|黑龙江|甘肃|青海|海南|台湾|内蒙古|宁夏|新疆|西藏|北京|天津|上海|重庆|香港|澳门)([\u4e00-\u9fff]{2,4})\s*$/);
       // 优先紧贴证号的 2–3 字姓名（忌吃到「日联系人」等 4 字粘连）
       const glued =
         before.match(/([\u4e00-\u9fff]{2,3})\s*身份证(?:号(?:码)?)?\s*[:：]?\s*$/) ||
         before.match(/([\u4e00-\u9fff]{2,3})\s*$/) ||
         before.match(/([\u4e00-\u9fff]{2,4})\s*身份证(?:号(?:码)?)?\s*[:：]?\s*$/) ||
         before.match(/([\u4e00-\u9fff]{2,4})\s*$/);
-      if (glued) {
-        const cand = cleanPersonName(glued[1]);
-        if (cand) nm = cand;
+      if (roster) {
+        const cand = cleanPersonName(roster[1]);
+        if (cand && !isBadGuestName(cand)) nm = cand;
+      } else if (glued) {
+        const rawG = stripGenderRegionPrefix(glued[1]);
+        const cand = cleanPersonName(rawG || glued[1]);
+        if (cand && !isBadGuestName(cand)) nm = cand;
+        else if (isBadGuestName(String(nm || ""))) nm = "";
+      }
+      if (nm) {
+        nm = stripGenderRegionPrefix(nm);
+        nm = cleanPersonName(nm) || nm;
+        if (isBadGuestName(nm)) nm = "";
       }
       // 拒业务员/客服名当客人（无证件语境时）
       if (nm && isStaffOnlyName(nm, text)) nm = "";
@@ -4404,16 +4506,27 @@ const MingdanUpload = (function () {
       if (pm2 && /\d/.test(pm2[1]) && !/^[GDCZKTY]\d+$/i.test(pm2[1])) {
         push(pm2[2], "护照", pm2[1].toUpperCase());
       }
-      // 国内身份证：姓名 + 18 位（可无空格粘连；可带「身份证/身份证号」标签；支持末位 X）
+      // 国内身份证：姓名 + 18 位（可无空格粘连；可带性别/省份；支持末位 X）
+      const id18re = "([1-9]\\d{5}(?:19|20)\\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx])";
+      const regionAlt = REGION_SHORT_NAMES;
       const idn =
-        line.match(/([\u4e00-\u9fff]{2,4})([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\b/) ||
-        line.match(/([\u4e00-\u9fff]{2,4})\s*身份证(?:号(?:码)?)?\s*[:：]?\s*([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\b/i) ||
-        line.match(/([\u4e00-\u9fff]{2,4})\s*[:：]\s*([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\b/) ||
-        line.match(/([\u4e00-\u9fff]{2,4})\s+(?:身份证(?:号(?:码)?)?\s*[:：]?\s*)?([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\b/i) ||
-        line.match(/身份证(?:号(?:码)?)?\s*[:：]?\s*([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])\b/i);
+        line.match(new RegExp("([\\u4e00-\\u9fff]{2,4})\\s*(?:19|20)\\d{2}[./\\-]?\\d{1,2}[./\\-]?\\d{1,2}\\s*[男女]?\\s*(?:" + regionAlt + ")?\\s*" + id18re)) ||
+        line.match(new RegExp("[男女]\\s*(?:" + regionAlt + ")?\\s*([\\u4e00-\\u9fff]{2,4})\\s*(?:19|20)\\d{2}[./\\-]?\\d{1,2}[./\\-]?\\d{1,2}\\s*" + id18re)) ||
+        line.match(new RegExp("[男女](?:" + regionAlt + ")([\\u4e00-\\u9fff]{2,4})" + id18re)) ||
+        line.match(new RegExp("([\\u4e00-\\u9fff]{2,4})" + id18re + "\\b")) ||
+        line.match(new RegExp("([\\u4e00-\\u9fff]{2,4})\\s*身份证(?:号(?:码)?)?\\s*[:：]?\\s*" + id18re + "\\b", "i")) ||
+        line.match(new RegExp("([\\u4e00-\\u9fff]{2,4})\\s*[:：]\\s*" + id18re + "\\b")) ||
+        line.match(new RegExp("([\\u4e00-\\u9fff]{2,4})\\s+(?:身份证(?:号(?:码)?)?\\s*[:：]?\\s*)?" + id18re + "\\b", "i")) ||
+        line.match(new RegExp("身份证(?:号(?:码)?)?\\s*[:：]?\\s*" + id18re + "\\b", "i"));
       if (idn) {
-        if (idn.length >= 3 && idn[2]) push(idn[1], "身份证", idn[2].toUpperCase());
-        else push(nearbyName(flat.indexOf(idn[1]), flat) || "", "身份证", idn[1].toUpperCase());
+        if (idn.length >= 3 && idn[2]) {
+          let nmId = stripGenderRegionPrefix(idn[1]);
+          nmId = cleanPersonName(nmId) || nmId;
+          if (isBadGuestName(nmId)) nmId = "";
+          push(nmId, "身份证", idn[2].toUpperCase());
+        } else {
+          push(nearbyName(flat.indexOf(idn[1]), flat) || "", "身份证", idn[1].toUpperCase());
+        }
       }
       const idn2 =
         line.match(/([\u4e00-\u9fff]{2,4})\s*台胞证\s*(\d{8})\b/) ||
