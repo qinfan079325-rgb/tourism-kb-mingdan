@@ -211,6 +211,10 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-st.st-yitu_updated{background:#312e81;color:#c7d2fe}
 .fuzzy-who{font-size:13px}
 .fuzzy-agency{color:var(--muted);font-size:12px}
+.fuzzy-agency-check{display:inline-block;margin-left:6px;font-size:11px;font-weight:750;border-radius:999px;padding:1px 7px;
+  background:#7c2d12;color:#fdba74;border:1px solid #ea580c;vertical-align:middle;letter-spacing:.02em}
+.fuzzy-agency-check-note{margin-left:6px;font-size:11.5px;color:#fdba74;font-weight:650}
+.fuzzy-field.agency-needs-check{border-left-color:#ea580c!important;background:rgba(124,45,18,.22)!important;border-color:#9a3412!important}
 .fuzzy-yitu-at{font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;
   background:#0f766e;color:#ccfbf1;border:1px solid #2dd4bf;letter-spacing:.01em;white-space:nowrap}
 .fuzzy-draft-actions{display:flex;flex-wrap:wrap;gap:6px}
@@ -431,7 +435,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 11:45 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-01 12:43 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -494,7 +498,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-01 11:45 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-01 12:43 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -514,7 +518,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 11:45 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-01 12:43 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1451,22 +1455,59 @@ const MingdanUpload = (function () {
     return best;
   }
 
+  /** 一对多默认偏好：查询短名命中多条时优先含这些关键字的客户名 */
+  const AGENCY_MULTI_PREFER = [
+    { queryIncludes: ["星梦泽", "厦门星梦泽"], nameIncludes: ["小海豚"] },
+  ];
+
+  function customerFullCompact(c) {
+    return String(c.full || c.code + c.name).replace(/\s+/g, "");
+  }
+
+  /** 多命中时选一家：偏好表 → 最长全称 → code+name 稳定排序；永远不返回短名 */
+  function pickAmbiguousAgency(q, candidates) {
+    if (!candidates || !candidates.length) return null;
+    const qCn = chineseOnlyAgency(q);
+    for (let p = 0; p < AGENCY_MULTI_PREFER.length; p++) {
+      const pref = AGENCY_MULTI_PREFER[p];
+      const qHit = (pref.queryIncludes || []).some((x) => qCn.indexOf(chineseOnlyAgency(x)) >= 0 || chineseOnlyAgency(x).indexOf(qCn) >= 0);
+      if (!qHit) continue;
+      const hits = candidates.filter((c) => {
+        const n = chineseOnlyAgency(c.name) + chineseOnlyAgency(c.full);
+        return (pref.nameIncludes || []).some((x) => n.indexOf(chineseOnlyAgency(x)) >= 0);
+      });
+      if (hits.length === 1) return hits[0];
+      if (hits.length > 1) {
+        hits.sort((a, b) => customerFullCompact(b).length - customerFullCompact(a).length || customerFullCompact(a).localeCompare(customerFullCompact(b)));
+        return hits[0];
+      }
+    }
+    const sorted = candidates.slice().sort((a, b) => {
+      const fa = customerFullCompact(a);
+      const fb = customerFullCompact(b);
+      return fb.length - fa.length || fa.localeCompare(fb);
+    });
+    return sorted[0];
+  }
+
   /**
-   * 看板短名 → 易途「代码+全称」（无空格）。唯一明确命中才扩；歧义则保留原文。
+   * 看板短名 → 易途「代码+全称」（无空格）。
+   * 返回 { full, needsCheck }：唯一命中 needsCheck=false；一对多已默认 needsCheck=true。
    */
   function resolveAgencyToYituFull(raw) {
     const orig = String(raw || "").trim();
-    if (!orig) return orig;
+    const empty = { full: orig, needsCheck: false };
+    if (!orig) return empty;
     const compact = orig.replace(/\s+/g, "");
-    if (!compact) return orig;
+    if (!compact) return empty;
 
     // 已是完整 code+name / full / 精确 name
     for (let i = 0; i < YITU_CUSTOMERS.length; i++) {
       const c = YITU_CUSTOMERS[i];
-      const fullCompact = String(c.full || c.code + c.name).replace(/\s+/g, "");
+      const fullCompact = customerFullCompact(c);
       const nameCompact = String(c.name || "").replace(/\s+/g, "");
       if (compact === fullCompact || compact === nameCompact || compact === String(c.code).replace(/\s+/g, "")) {
-        return fullCompact;
+        return { full: fullCompact, needsCheck: false };
       }
     }
 
@@ -1476,19 +1517,27 @@ const MingdanUpload = (function () {
       const code = codeM[1];
       const rest = codeM[2] || "";
       const byCode = YITU_CUSTOMERS.filter((c) => c.code === code);
-      if (byCode.length === 1) return String(byCode[0].full || byCode[0].code + byCode[0].name).replace(/\s+/g, "");
+      if (byCode.length === 1) return { full: customerFullCompact(byCode[0]), needsCheck: false };
       if (byCode.length > 1 && rest) {
         const restCn = chineseOnlyAgency(rest);
         const hit = byCode.filter((c) => {
           const n = chineseOnlyAgency(c.name);
           return restCn && (n.indexOf(restCn) >= 0 || restCn.indexOf(n) >= 0 || String(c.full).replace(/\s+/g, "").indexOf(compact) >= 0);
         });
-        if (hit.length === 1) return String(hit[0].full || hit[0].code + hit[0].name).replace(/\s+/g, "");
+        if (hit.length === 1) return { full: customerFullCompact(hit[0]), needsCheck: false };
+        if (hit.length > 1) {
+          const picked = pickAmbiguousAgency(restCn || compact, hit);
+          return { full: customerFullCompact(picked), needsCheck: true };
+        }
+      }
+      if (byCode.length > 1) {
+        const picked = pickAmbiguousAgency(compact, byCode);
+        return { full: customerFullCompact(picked), needsCheck: true };
       }
     }
 
     const q = chineseOnlyAgency(compact);
-    if (q.length < 2) return orig;
+    if (q.length < 2) return empty;
 
     // 短名被客户名包含（优先）
     const contain = [];
@@ -1498,11 +1547,11 @@ const MingdanUpload = (function () {
       if (n.indexOf(q) >= 0) contain.push(c);
     }
     if (contain.length === 1) {
-      return String(contain[0].full || contain[0].code + contain[0].name).replace(/\s+/g, "");
+      return { full: customerFullCompact(contain[0]), needsCheck: false };
     }
     if (contain.length > 1) {
-      // 同分歧义：不猜
-      return orig;
+      const picked = pickAmbiguousAgency(q, contain);
+      return { full: customerFullCompact(picked), needsCheck: true };
     }
 
     // 客户短名被查询包含（较少见）
@@ -1515,15 +1564,15 @@ const MingdanUpload = (function () {
     if (reverse.length) {
       reverse.sort((a, b) => b.len - a.len);
       const bestLen = reverse[0].len;
-      const tops = reverse.filter((x) => x.len === bestLen);
+      const tops = reverse.filter((x) => x.len === bestLen).map((x) => x.c);
       if (tops.length === 1) {
-        const c = tops[0].c;
-        return String(c.full || c.code + c.name).replace(/\s+/g, "");
+        return { full: customerFullCompact(tops[0]), needsCheck: false };
       }
-      return orig;
+      const picked = pickAmbiguousAgency(q, tops);
+      return { full: customerFullCompact(picked), needsCheck: true };
     }
 
-    // 最长连续中文公共子串打分；需足够长且唯一最高分
+    // 最长连续中文公共子串打分；需足够长
     const scored = [];
     for (let i = 0; i < YITU_CUSTOMERS.length; i++) {
       const c = YITU_CUSTOMERS[i];
@@ -1531,16 +1580,17 @@ const MingdanUpload = (function () {
       const lcs = longestContigCn(q, n);
       if (lcs >= 2) scored.push({ c: c, score: lcs });
     }
-    if (!scored.length) return orig;
+    if (!scored.length) return empty;
     scored.sort((a, b) => b.score - a.score);
     const best = scored[0].score;
-    // 查询较短时要求几乎整段命中；较长时至少 3 字
     const need = q.length <= 3 ? q.length : Math.max(3, Math.min(q.length, 4));
-    if (best < need) return orig;
-    const tops = scored.filter((x) => x.score === best);
-    if (tops.length !== 1) return orig;
-    const c = tops[0].c;
-    return String(c.full || c.code + c.name).replace(/\s+/g, "");
+    if (best < need) return empty;
+    const tops = scored.filter((x) => x.score === best).map((x) => x.c);
+    if (tops.length === 1) {
+      return { full: customerFullCompact(tops[0]), needsCheck: false };
+    }
+    const picked = pickAmbiguousAgency(q, tops);
+    return { full: customerFullCompact(picked), needsCheck: true };
   }
 
   function normalizeText(raw) {
@@ -2076,11 +2126,14 @@ const MingdanUpload = (function () {
     remarks = (remarks || "").trim();
     const { kb, pure } = kbFromDetail(settle);
     let settlement = settlementFromDetail(settle);
+    const agencyResolved = resolveAgencyToYituFull((agency || "").trim());
     const fields = {
       line_name,
       depart_date,
       return_date,
-      agency: resolveAgencyToYituFull((agency || "").trim()),
+      agency: agencyResolved.full,
+      agency_needs_check: !!agencyResolved.needsCheck,
+      agency_match_note: agencyResolved.needsCheck ? "一对多已默认，请核对" : "",
       contact_name,
       contact_phone,
       outbound_transport: (outbound_transport || "").trim(),
@@ -2341,7 +2394,7 @@ const MingdanUpload = (function () {
             <span class="fuzzy-st st-${esc(d.status)}">${esc(st)}</span>
             ${yituAtBadge}
             <span class="fuzzy-who">${esc(f.guest_name || "未命名")} · ${esc(f.depart_date || "无出团日")} · ${esc(f.party_size || "")}</span>
-            <span class="fuzzy-agency">${esc(f.agency || "")}${d.yitu_order_no ? " · " + esc(d.yitu_order_no) : ""}</span>
+            <span class="fuzzy-agency">${esc(f.agency || "")}${f.agency_needs_check ? '<span class="fuzzy-agency-check" title="一对多已默认，请核对客户单位">待核</span>' : ""}${d.yitu_order_no ? " · " + esc(d.yitu_order_no) : ""}</span>
             ${byLine}
           </div>
           <div class="fuzzy-draft-actions">
@@ -2958,6 +3011,26 @@ const MingdanUpload = (function () {
   }
 
 
+  function bindAgencyNeedsCheckClear() {
+    const box = $("fuzzyFields");
+    if (!box || box._agencyCheckBound) return;
+    box._agencyCheckBound = true;
+    box.addEventListener("input", function (ev) {
+      const t = ev.target;
+      if (!t || t.getAttribute("data-k") !== "agency") return;
+      if (!workingDraft || !workingDraft.fields) return;
+      if (!workingDraft.fields.agency_needs_check) return;
+      workingDraft.fields.agency_needs_check = false;
+      workingDraft.fields.agency_match_note = "";
+      const lab = t.closest(".fuzzy-field");
+      if (lab) {
+        lab.classList.remove("agency-needs-check");
+        lab.querySelectorAll(".fuzzy-agency-check, .fuzzy-agency-check-note").forEach((n) => n.remove());
+      }
+    });
+  }
+
+
   function openReviewFromWorking(opts) {
     const d = workingDraft;
     if (!d) return;
@@ -2982,13 +3055,18 @@ const MingdanUpload = (function () {
       const keyKind = KEY_FIELDS[k];
       const keyCls = keyKind ? ` key ${keyKind === "key" ? "" : keyKind}`.trimEnd() : "";
       const hint = k === "collect_on_tour" ? ' <span class="fuzzy-money-hint">全款−定金</span>' : "";
-      return `<label class="fuzzy-field${keyCls}${need ? " need" : ""}${wide ? " span-2" : ""}">
-        <span class="fuzzy-field-lab">${esc(label)}${hint}${need ? " <em>需核对</em>" : ""}</span>
+      const agencyCheck = k === "agency" && f.agency_needs_check;
+      const agencyHint = agencyCheck
+        ? ' <span class="fuzzy-agency-check" title="一对多已默认，请核对客户单位">待核</span><span class="fuzzy-agency-check-note">一对多已默认，请核对</span>'
+        : "";
+      return `<label class="fuzzy-field${keyCls}${need || agencyCheck ? " need" : ""}${wide ? " span-2" : ""}${agencyCheck ? " agency-needs-check" : ""}">
+        <span class="fuzzy-field-lab">${esc(label)}${hint}${agencyHint}${need ? " <em>需核对</em>" : ""}</span>
         <textarea data-k="${esc(k)}" rows="${k === "remarks" || k === "settlement_detail" ? 3 : 1}">${esc(val)}</textarea>
       </label>`;
     }).join("");
     bindGuestListUi();
     bindCollectAuto();
+    bindAgencyNeedsCheckClear();
     syncGuestListHidden();
     refreshCollectFromMoneyFields();
     const notes = $("fuzzyChangeNotes");
@@ -3053,6 +3131,16 @@ const MingdanUpload = (function () {
     $("fuzzyFields").querySelectorAll("textarea[data-k]").forEach((el) => {
       fields[el.getAttribute("data-k")] = el.value;
     });
+    const prev = (workingDraft && workingDraft.fields) || {};
+    const prevAgency = String(prev.agency || "").trim();
+    const nextAgency = String(fields.agency || "").trim();
+    if (prev.agency_needs_check && nextAgency && nextAgency === prevAgency) {
+      fields.agency_needs_check = true;
+      fields.agency_match_note = prev.agency_match_note || "一对多已默认，请核对";
+    } else {
+      fields.agency_needs_check = false;
+      fields.agency_match_note = "";
+    }
     const detail = fields.settlement_detail || "";
     const { kb, pure } = kbFromDetail(detail);
     if (detail) {
@@ -3711,7 +3799,7 @@ const MingdanUpload = (function () {
             <span>${esc(f.depart_date || "")}</span>
             <b>${esc(f.guest_name || "")}</b>
             <span>${esc(f.party_size || "")}</span>
-            <span>${esc(f.agency || "")}</span>
+            <span>${esc(f.agency || "")}${f.agency_needs_check ? ' <span class="fuzzy-agency-check" title="一对多已默认，请核对">待核</span>' : ""}</span>
             <span class="g-kb">KB ${esc(f.kb ?? "—")}</span>
           </div>`;
         })
