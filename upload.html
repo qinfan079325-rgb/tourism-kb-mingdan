@@ -3110,6 +3110,8 @@ const MingdanUpload = (function () {
   function isOrdersDateCollapsed(dateKey) {
     const map = loadOrdersDateCollapsedMap();
     const k = String(dateKey || "nodate");
+    // Missing key = collapsed by default; only expand when user opened (stored false).
+    if (!Object.prototype.hasOwnProperty.call(map, k)) return true;
     return !!map[k];
   }
   function draftMatchesQuery(d, q) {
