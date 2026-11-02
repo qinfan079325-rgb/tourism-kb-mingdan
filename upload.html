@@ -490,7 +490,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 17:40 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 17:54 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -553,7 +553,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 17:40 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 17:54 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -573,7 +573,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 17:40 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 17:54 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -927,6 +927,53 @@ const MingdanUpload = (function () {
     f = f || {};
     return MIDTOUR_KEYS.some(function (k) {
       return parseMidtourValue(k, f[k]).length > 0;
+    });
+  }
+  /** 根据团中行生成改单说明摘要（供自动填 / 提交 / 通知） */
+  function buildMidtourChangeNotes(f) {
+    f = f || {};
+    const lines = [];
+    MIDTOUR_KEYS.forEach(function (k) {
+      const pretty = formatMidtourForNotify(k, f[k]);
+      if (pretty) lines.push("· " + (MIDTOUR_LABELS[k] || k) + "：" + pretty);
+    });
+    if (!lines.length) return "";
+    return "团中加项：\n" + lines.join("\n");
+  }
+  function readMidtourFieldsSnapshot() {
+    syncAllMidtourHidden();
+    const f = {};
+    MIDTOUR_KEYS.forEach(function (k) {
+      const ta = document.querySelector('#fuzzyFields textarea[data-k="' + k + '"]');
+      f[k] = ta ? ta.value : "";
+    });
+    return f;
+  }
+  /** 改单说明为空（或仍是自动稿）时，用团中行软填草稿，用户可改 */
+  function maybeSoftFillChangeNotes() {
+    const notes = $("fuzzyChangeNotes");
+    if (!notes) return "";
+    const cur = String(notes.value || "");
+    const wasAuto = notes.dataset && notes.dataset.autogen === "1";
+    if (cur.trim() && !wasAuto) return cur.trim();
+    const draft = buildMidtourChangeNotes(readMidtourFieldsSnapshot());
+    if (draft) {
+      notes.value = draft;
+      if (notes.dataset) notes.dataset.autogen = "1";
+      return draft;
+    }
+    if (wasAuto) {
+      notes.value = "";
+      if (notes.dataset) notes.dataset.autogen = "";
+    }
+    return "";
+  }
+  function clearChangeNotesAutogenFlagOnEdit() {
+    const notes = $("fuzzyChangeNotes");
+    if (!notes || notes._autogenBound) return;
+    notes._autogenBound = true;
+    notes.addEventListener("input", function () {
+      if (notes.dataset) notes.dataset.autogen = "";
     });
   }
 
@@ -3601,7 +3648,10 @@ const MingdanUpload = (function () {
       if (!t.getAttribute("data-midtour-field")) return;
       const row = t.closest(".midtour-row");
       const key = row && row.getAttribute("data-midtour-key");
-      if (key) syncMidtourHidden(key);
+      if (key) {
+        syncMidtourHidden(key);
+        maybeSoftFillChangeNotes();
+      }
     });
     box.addEventListener("change", function (ev) {
       const t = ev && ev.target;
@@ -3609,7 +3659,10 @@ const MingdanUpload = (function () {
       if (!t.getAttribute("data-midtour-field")) return;
       const row = t.closest(".midtour-row");
       const key = row && row.getAttribute("data-midtour-key");
-      if (key) syncMidtourHidden(key);
+      if (key) {
+        syncMidtourHidden(key);
+        maybeSoftFillChangeNotes();
+      }
     });
     box.addEventListener("click", function (ev) {
       const t = ev.target;
@@ -3622,6 +3675,7 @@ const MingdanUpload = (function () {
         if (!rowsBox) return;
         rowsBox.insertAdjacentHTML("beforeend", midtourRowHtml(key, emptyMidtourRow(key)));
         syncMidtourHidden(key);
+        maybeSoftFillChangeNotes();
         const last = rowsBox.querySelector(".midtour-row:last-child input");
         if (last) last.focus();
         return;
@@ -3637,6 +3691,7 @@ const MingdanUpload = (function () {
             rowsBox.insertAdjacentHTML("beforeend", midtourRowHtml(key, emptyMidtourRow(key)));
           }
           syncMidtourHidden(key);
+          maybeSoftFillChangeNotes();
         }
       }
     });
@@ -3897,7 +3952,11 @@ const MingdanUpload = (function () {
     syncAllMidtourHidden();
     refreshCollectFromMoneyFields();
     const notes = $("fuzzyChangeNotes");
-    if (notes) notes.value = "";
+    if (notes) {
+      notes.value = "";
+      if (notes.dataset) notes.dataset.autogen = "";
+    }
+    clearChangeNotesAutogenFlagOnEdit();
     const persisted = loadDrafts().some((x) => x.id === d.id);
     const draftHint = isDraftLike(d.status)
       ? (persisted ? "仅为草稿·待办（仅本账号）" : "未保留 · 仅内存核对中，点「保留草稿」才写入本账号")
@@ -4091,7 +4150,7 @@ const MingdanUpload = (function () {
                   const again = (loadDrafts() || []).find((x) => x && x.id === still.id);
                   if (again) workingDraft = cloneDraft(again);
                   openReviewFromWorking();
-                  renderDraftList();
+                  renderList();
                 }).catch(function () {});
               }, 2500);
             } else {
@@ -4139,27 +4198,44 @@ const MingdanUpload = (function () {
     }
     changeMode = true;
     updateActionButtons(d);
+    clearChangeNotesAutogenFlagOnEdit();
+    const filled = maybeSoftFillChangeNotes();
     const notes = $("fuzzyChangeNotes");
     if (notes) {
       notes.focus();
     }
-    setMsg("请填写改单说明，改好右侧字段后点「提交改单」", "ok");
+    if (filled) {
+      setMsg("已按团中加项生成改单说明（可改），确认字段后点「提交改单」；也可直接「通知AI助手」", "ok");
+    } else {
+      setMsg("请填写改单说明，改好右侧字段后点「提交改单」（填了团中行可自动生成说明）", "ok");
+    }
   }
 
   async function submitChange() {
     const d0 = loadDrafts().find((x) => x.id === activeId);
     if (!d0) return;
-    const notesEl = $("fuzzyChangeNotes");
-    const notes = (notesEl && notesEl.value || "").trim();
-    if (!notes) {
-      setMsg("改单说明必填", "err");
-      return;
-    }
     const list = loadDrafts();
     const idx = list.findIndex((x) => x.id === activeId);
     if (idx < 0) return;
     const oldFields = Object.assign({}, list[idx].fields || {});
     const newFields = readFieldsFromForm();
+    const notesEl = $("fuzzyChangeNotes");
+    let notes = (notesEl && notesEl.value || "").trim();
+    if (!notes) {
+      notes = buildMidtourChangeNotes(newFields);
+      if (notes && notesEl) {
+        notesEl.value = notes;
+        if (notesEl.dataset) notesEl.dataset.autogen = "1";
+      }
+    }
+    if (!notes && !hasMidtourAddons(newFields)) {
+      setMsg("改单说明必填（无团中加项时请手写说明）", "err");
+      return;
+    }
+    if (!notes) {
+      notes = "团中加项变更";
+      if (notesEl) notesEl.value = notes;
+    }
     const alreadyInYitu =
       list[idx].status === "in_yitu" ||
       list[idx].status === "pending_change_sync" ||
@@ -4368,7 +4444,7 @@ const MingdanUpload = (function () {
     if (copyBtn) copyBtn.addEventListener("click", copyCsReport);
   }
 
-  function buildNotifyClipboardText(d, f) {
+  function buildNotifyClipboardText(d, f, liveNotes) {
     const hist = Array.isArray(d.change_history) ? d.change_history : [];
     const lastChange = [...hist].reverse().find((h) => h.kind === "申请改单");
     const lines = [
@@ -4389,11 +4465,12 @@ const MingdanUpload = (function () {
     if (hasMidtourAddons(f)) {
       lines.push("团中加项说明=易途只录圈红栏；无标号栏不录；团中代收→团费加一行。");
     }
-    if (lastChange) {
-      lines.push(`最近改单说明=${lastChange.notes || ""}`);
-      lines.push(`改单时间=${lastChange.at || ""}`);
+    const noteText = (lastChange && lastChange.notes) || liveNotes || "";
+    if (noteText) {
+      lines.push(`最近改单说明=${noteText}`);
+      if (lastChange && lastChange.at) lines.push(`改单时间=${lastChange.at || ""}`);
     }
-    if (d.status === "pending_change_sync") {
+    if (d.status === "pending_change_sync" || hasMidtourAddons(f)) {
       lines.push("请助手按改单说明更新易途；完成后在订单页点「易途已更新」。");
     } else if (d.status === "confirmed_await_yitu") {
       lines.push("草稿已确认待易途；请助手录入易途。录完后由后台回写「已进易途」与订单号，无需人工点标记。");
@@ -4417,7 +4494,8 @@ const MingdanUpload = (function () {
     });
   }
 
-  /** 通知AI助手录易途：复制备份文案 + 对已确认/改单态强制 shared PUT（bump 时间戳）以再次排队 webhook。 */
+  /** 通知AI助手录易途：复制备份文案 + 对已确认/改单态强制 shared PUT（bump 时间戳）以再次排队 webhook。
+   *  已进易途/易途已更新：有团中加项或改单说明时可直接改「待同步易途」并 force 排队，不清空团中字段。 */
   async function copyNotify() {
     const d = getActiveDraft();
     if (!d) {
@@ -4426,15 +4504,58 @@ const MingdanUpload = (function () {
     }
     d.fields = readFieldsFromForm();
     const f = d.fields || {};
-    const text = buildNotifyClipboardText(d, f);
+    let liveNotes = ($("fuzzyChangeNotes") && $("fuzzyChangeNotes").value || "").trim();
+    if (!liveNotes && hasMidtourAddons(f)) {
+      liveNotes = buildMidtourChangeNotes(f);
+      const notesEl = $("fuzzyChangeNotes");
+      if (notesEl && !String(notesEl.value || "").trim()) {
+        notesEl.value = liveNotes;
+        if (notesEl.dataset) notesEl.dataset.autogen = "1";
+      }
+    }
+    const midtourOk = hasMidtourAddons(f);
+    const notesOk = !!liveNotes;
+    const st0 = d.status;
+    const canBase =
+      st0 === "confirmed_await_yitu" ||
+      st0 === "notified_await_yitu" ||
+      st0 === "pending_change_sync";
+    const canChangeSync = (st0 === "in_yitu" || st0 === "yitu_updated") && (midtourOk || notesOk);
+    const canAuto = canBase || canChangeSync;
+
+    const ts = nowISO();
+    let changeSyncPath = st0 === "pending_change_sync" || canChangeSync;
+    if (canChangeSync) {
+      // 已进易途单：有团中/说明 → 先落成待同步易途，保留 midtour，再 force webhook
+      d.status = "pending_change_sync";
+      d.status_label = STATUS.pending_change_sync;
+      if (!Array.isArray(d.change_history)) d.change_history = [];
+      d.change_history.push({
+        kind: "申请改单",
+        notes: liveNotes || (midtourOk ? "团中加项变更" : "改单通知"),
+        at: ts,
+        by: currentUser() || "",
+        result_status: "pending_change_sync",
+        fields_after: Object.assign({}, f),
+      });
+      changeSyncPath = true;
+    }
+
+    const text = buildNotifyClipboardText(d, f, liveNotes);
     await copyTextFallback(text);
 
-    const canAuto = d.status === "confirmed_await_yitu" || d.status === "notified_await_yitu" || d.status === "pending_change_sync";
     if (!canAuto) {
-      setMsg(
-        "🔔 已复制备份通知文案。当前未销售确认，无法自动排队推送；请先「销售确认」或粘贴给助手。",
-        "err"
-      );
+      if (st0 === "in_yitu" || st0 === "yitu_updated") {
+        setMsg(
+          "🔔 已复制备份。已进易途订单请先填写团中加项或改单说明，再点通知排队同步。",
+          "err"
+        );
+      } else {
+        setMsg(
+          "🔔 已复制备份通知文案。当前未销售确认，无法自动排队推送；请先「销售确认」或粘贴给助手。",
+          "err"
+        );
+      }
       return;
     }
     if (!currentUser()) {
@@ -4442,7 +4563,6 @@ const MingdanUpload = (function () {
       return;
     }
 
-    const ts = nowISO();
     // bump confirmed_at + updated_at so Worker detectYituNotifyEvents re-fires
     d.confirmed_at = ts;
     d.updated_at = ts;
@@ -4461,29 +4581,49 @@ const MingdanUpload = (function () {
           "err"
         );
       } else if (wq > 0) {
-        // 排队成功：本页先标「已通知待易途」；Worker 在 Cursor 2xx 后也会写回共享 KV
-        d.status = "notified_await_yitu";
-        d.status_label = STATUS.notified_await_yitu;
-        d.yitu_notified_at = ts;
-        workingDraft = cloneDraft(d);
-        const listN = loadDrafts();
-        const ixN = listN.findIndex((x) => x && x.id === d.id);
-        if (ixN >= 0) {
-          listN[ixN].status = "notified_await_yitu";
-          listN[ixN].status_label = STATUS.notified_await_yitu;
-          listN[ixN].yitu_notified_at = ts;
-          memDrafts = sortDraftsNewest(listN);
+        if (changeSyncPath) {
+          // 改单同步：保持「待同步易途」，切勿改成「已通知待易途」或清空团中
+          d.status = "pending_change_sync";
+          d.status_label = STATUS.pending_change_sync;
+          d.yitu_notified_at = ts;
+          workingDraft = cloneDraft(d);
+          const listN = loadDrafts();
+          const ixN = listN.findIndex((x) => x && x.id === d.id);
+          if (ixN >= 0) {
+            listN[ixN] = Object.assign({}, listN[ixN], cloneDraft(d));
+            memDrafts = sortDraftsNewest(listN);
+          }
+          setMsg(
+            "🔔 已按团中加项/改单排队同步易途（webhook_queued=" +
+              wq +
+              "），状态「待同步易途」。备份文案已复制。",
+            "ok"
+          );
+        } else {
+          // 首次录易途：本页先标「已通知待易途」
+          d.status = "notified_await_yitu";
+          d.status_label = STATUS.notified_await_yitu;
+          d.yitu_notified_at = ts;
+          workingDraft = cloneDraft(d);
+          const listN = loadDrafts();
+          const ixN = listN.findIndex((x) => x && x.id === d.id);
+          if (ixN >= 0) {
+            listN[ixN].status = "notified_await_yitu";
+            listN[ixN].status_label = STATUS.notified_await_yitu;
+            listN[ixN].yitu_notified_at = ts;
+            memDrafts = sortDraftsNewest(listN);
+          }
+          setMsg(
+            "🔔 已通知 / 已排队推送（webhook_queued=" + wq + "），状态「已通知待易途」。备份文案已复制。",
+            "ok"
+          );
         }
-        setMsg(
-          "🔔 已通知 / 已排队推送（webhook_queued=" + wq + "），状态「已通知待易途」。备份文案已复制。",
-          "ok"
-        );
         setTimeout(function () {
           syncDraftsFromCloud().then(function () {
             const still = (loadDrafts() || []).find((x) => x && x.id === d.id);
             if (still) workingDraft = cloneDraft(still);
             openReviewFromWorking();
-            renderDraftList();
+            renderList();
           }).catch(function () {});
         }, 2500);
       } else {
