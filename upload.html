@@ -435,7 +435,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 11:39 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 14:40 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -498,7 +498,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 11:39 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 14:40 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -518,7 +518,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 11:39 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 14:40 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1982,6 +1982,10 @@ const MingdanUpload = (function () {
     }
     let line_name = pick(
       [
+        /[【《]\s*产品名称\s*[】》]\s*[：:]?\s*([^\n]+)/,
+        /产品名称\s*[：:]?\s*([^\n]+)/,
+        /[【《]\s*游玩行程\s*[】》]\s*[：:]?\s*([^\n]+)/,
+        /游玩行程\s*[：:]?\s*([^\n]+)/,
         /[【《]\s*预定行程\s*[】》]\s*[：:]?\s*([^\n]+)/,
         /预定行程\s*[：:]\s*([^\n]+)/,
         /[【《]\s*团型天数\s*[】》]\s*[：:]?\s*([^\n]+)/,
@@ -1990,8 +1994,12 @@ const MingdanUpload = (function () {
       ],
       t
     );
+    // 标签未命中时用全文关键词（私享/纯享/九武），避免空串直接默认九武盖掉「私享重庆」
+    if (!(line_name || "").trim() && /私享|小包团|拼小团|纯享|纯玩|无购物|九武/.test(t)) {
+      line_name = t;
+    }
     line_name = resolveLineNameToYituFull(line_name);
-    const rooms = pick(
+    let rooms = pick(
       [
         /[【《]\s*酒店用房\s*[】》]\s*[：:]?\s*([^\n]+)/,
         /酒店用房\s*[：:]\s*([^\n]+)/,
@@ -2002,12 +2010,25 @@ const MingdanUpload = (function () {
         /房间类型\s*[：:]\s*([^\n]+)/,
         /[【《]\s*房型\s*[】》]\s*[：:]?\s*([^\n]+)/,
         /房型\s*[：:]\s*([^\n]+)/,
+        /[【《]\s*住宿标准\s*[】》]\s*[：:]?\s*([^\n]+)/,
+        /住宿标准\s*[：:]?\s*([^\n]+)/,
         /用房\s*[：:]\s*([^\n]+)/,
         /房间\s*[：:]\s*([^\n]+)/,
         /酒店\s*[：:]\s*([^\n]+)/,
       ],
       t
     );
+    // 【双标间：2】【大床房：0】【三人间：0】→ 拼成「2双标」等（只录数量>0）
+    if (!(rooms || "").trim() || /标准型|豪华型|住宿/.test(rooms || "")) {
+      const roomBits = [];
+      const twin = t.match(/[【《]?\s*双标间\s*[】》]?\s*[：:]\s*(\d+)/);
+      const king = t.match(/[【《]?\s*大床房\s*[】》]?\s*[：:]\s*(\d+)/);
+      const triple = t.match(/[【《]?\s*三人间\s*[】》]?\s*[：:]\s*(\d+)/);
+      if (twin && parseInt(twin[1], 10) > 0) roomBits.push(twin[1] + "双标");
+      if (king && parseInt(king[1], 10) > 0) roomBits.push(king[1] + "大床");
+      if (triple && parseInt(triple[1], 10) > 0) roomBits.push(triple[1] + "三人间");
+      if (roomBits.length) rooms = roomBits.join("+");
+    }
     let outbound_transport = pick(
       [
         /[【《]\s*来航班号\s*[】》]\s*[：:]?\s*([^\n【]+)/,
@@ -2031,6 +2052,8 @@ const MingdanUpload = (function () {
         /去程交通\s*[：:]\s*([^\n【]+)/,
         /抵达航班\s*[：:]\s*([^\n【]+)/,
         /去程\s*[：:]\s*([^\n【]+)/,
+        /(?:^|\n)\s*(\d{1,2}\s*月\s*\d{1,2}\s*日[^\n]*乘坐\s*[A-Z0-9]{2}\s*-?\s*\d{2,4}[^\n]*)/,
+        /(?:^|\n)\s*([^\n]*乘坐\s*[A-Z0-9]{2}\s*-?\s*\d{2,4}[^\n]*到[^\n]*机场[^\n]*)/,
       ],
       t
     );
@@ -2087,7 +2110,7 @@ const MingdanUpload = (function () {
         }
       }
     }
-    const party_size = pick(
+    let party_size = pick(
       [
         /[【《]\s*出行人数\s*[】》\]]\s*：?\s*([^\n]+)/,
         /出行人数\s*[：:]\s*([^\n]+)/,
@@ -2101,6 +2124,16 @@ const MingdanUpload = (function () {
       ],
       t
     );
+    // 【成人：4】【小孩：0】→ 4大 / 4大1小
+    if (!(party_size || "").trim()) {
+      const ad = t.match(/[【《]\s*成人\s*[】》]\s*[：:]\s*(\d+)/);
+      const ch = t.match(/[【《]\s*小孩\s*[】》]\s*[：:]\s*(\d+)/) || t.match(/[【《]\s*儿童\s*[】》]\s*[：:]\s*(\d+)/);
+      if (ad) {
+        const a = parseInt(ad[1], 10);
+        const c = ch ? parseInt(ch[1], 10) : 0;
+        party_size = a + "大" + (c > 0 ? c + "小" : "");
+      }
+    }
     // 第5/6条：联系人员/手机 = 业务员或游客以外的对接人，不是客人代表人
     let staff = pick(
       [
@@ -2199,6 +2232,10 @@ const MingdanUpload = (function () {
     const deposit = cleanMoneyValue(
       pick(
         [
+          /[【《]\s*定金代收\s*[】》]\s*[：:]?\s*([^\n]+)/,
+          /定金代收\s*[：:]?\s*([\d.,]+)/,
+          /[【《]\s*订金代收\s*[】》]\s*[：:]?\s*([^\n]+)/,
+          /订金代收\s*[：:]?\s*([\d.,]+)/,
           /[【《]\s*订金数额\s*[】》]\s*[：:]?\s*([^\n]+)/,
           /订金数额\s*[：:]?\s*([\d.,]+)/,
           /[【《]\s*定金数额\s*[】》]\s*[：:]?\s*([^\n]+)/,
@@ -2222,6 +2259,8 @@ const MingdanUpload = (function () {
     // 代收标签；「尾款：0（代收）」仅括注，不视为代收字段
     let collect_on_tour = pick(
       [
+        /[【《]\s*尾款代收\s*[】》]\s*[：:]?\s*([^\n]+)/,
+        /尾款代收\s*[：:]?\s*([\d.,]+)/,
         /[【《]\s*代收金额\s*[】》\]]\s*：?\s*([^\n]+)/,
         /[【《]\s*代收团款\s*[】》]\s*[：:]?\s*([^\n]+)/,
         /代收团款\s*[：:]?\s*([\d.,]+)/,
@@ -2368,7 +2407,19 @@ const MingdanUpload = (function () {
       guest_name,
       party_size: (party_size || "").trim(),
       book_date: todayISO(),
-      sign_date: depart_date || todayISO(),
+      sign_date: (function () {
+        const signRaw = pick(
+          [
+            /[【《]\s*签单日期\s*[】》]\s*[：:]?\s*([^\n]+)/,
+            /签单日期\s*[：:]?\s*([^\n]+)/,
+            /[【《]\s*签约日期\s*[】》]\s*[：:]?\s*([^\n]+)/,
+            /签约日期\s*[：:]?\s*([^\n]+)/,
+          ],
+          t
+        );
+        const sd = signRaw ? yearDate(signRaw) : "";
+        return sd || depart_date || todayISO();
+      })(),
       rooms: (rooms || "").trim(),
       full_amount: (full_amount || "").trim(),
       deposit: (deposit || "").trim(),
@@ -2446,6 +2497,11 @@ const MingdanUpload = (function () {
       // 无标签票面只补去程；返程须有【返程…】标签或用户点「仅填返程」，避免单张去程票串进返程
       if (transportLine && isTransportLine(transportLine)) {
         if (!fields.outbound_transport) fields.outbound_transport = transportLine;
+      }
+      // 正文已有「月日+乘坐+航班+机场」整句时，优先保留整句，不被短航班行覆盖
+      const rideLine = (t.match(/(?:^|\n)\s*(\d{1,2}\s*月\s*\d{1,2}\s*日[^\n]*乘坐\s*[A-Z0-9]{2}\s*-?\s*\d{2,4}[^\n]*)/) || [])[1];
+      if (rideLine && isTransportLine(rideLine.trim())) {
+        fields.outbound_transport = rideLine.trim();
       }
       // 最终闸门：无车次/航班特征的内容不得留在交通字段（如「【客人人数】: 6大」）
       fields.outbound_transport = cleanTransportField(fields.outbound_transport);
