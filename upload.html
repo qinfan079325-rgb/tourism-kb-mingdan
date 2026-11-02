@@ -435,7 +435,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 14:57 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 14:58 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -498,7 +498,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 14:57 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 14:58 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -518,7 +518,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 14:57 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 14:58 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1935,6 +1935,61 @@ const MingdanUpload = (function () {
     });
   }
 
+
+  /** 无人数关键词时：按客人名单行数推断参团人数（证件名单 / 正文姓名行 / 顿号多名） */
+  function countGuestsForPartySize(fields, rawText) {
+    const f = fields || {};
+    const fromList = parseGuestListText(f.guest_list || "");
+    if (fromList.length) return fromList.length;
+    const t = String(rawText || "");
+    const names = [];
+    const seen = Object.create(null);
+    function addName(nm) {
+      nm = stripGenderRegionPrefix(String(nm || "").trim());
+      if (!nm || isBadGuestName(nm) || isPlaceholder(nm)) return;
+      if (nm.length < 2 || nm.length > 8) return;
+      if (seen[nm]) return;
+      seen[nm] = 1;
+      names.push(nm);
+    }
+    // 1) 姓名+证件号同现（正文夹带名单，无「N大」关键词）
+    const idRe = /([\u4e00-\u9fff]{2,4})\s*[，,、\s]*([A-Za-z][A-Za-z0-9]{5,17}|\d{17}[\dXx]|\d{8})/g;
+    let m;
+    while ((m = idRe.exec(t))) addName(m[1]);
+    // 2) 【客人名单】/【客人证件】块：随后连续姓名行
+    const block = t.split(/\n+/);
+    let inGuestBlock = false;
+    for (let i = 0; i < block.length; i++) {
+      const line = String(block[i] || "").trim();
+      if (/[【《]?\s*(?:客人名单|游客名单|名单|客人证件|证件信息|出行人)\s*[】》]?/.test(line) && !/姓名及联系/.test(line)) {
+        inGuestBlock = true;
+        // 同行冒号后也可能有名
+        const same = line.split(/[：:]/).slice(1).join("：").trim();
+        if (same) same.split(/[，,、；;]/).forEach(addName);
+        continue;
+      }
+      if (inGuestBlock) {
+        if (/^[【《]/.test(line) || /^(?:结算|返款|备注|定金|尾款|全款|团款|组团社|产品|线路|用房|住宿|去程|返程|抵达|签单|客服|业务员)/.test(line)) {
+          inGuestBlock = false;
+        } else {
+          const g = parseGuestLine(line);
+          if (g && g.name) addName(g.name);
+          else {
+            const only = line.match(/^[\u4e00-\u9fff]{2,4}$/);
+            if (only) addName(only[0]);
+          }
+        }
+      }
+    }
+    // 3) 预定姓名/客人姓名一行多名：张三、李四、王五
+    const multi = t.match(/[【《]?\s*(?:预定姓名|客人姓名|客户姓名|游客姓名)\s*[】》]?\s*[：:]?\s*([^\n]+)/);
+    if (multi) {
+      const parts = String(multi[1] || "").split(/[，,、；;]/);
+      if (parts.length >= 2) parts.forEach(function (p) { addName(p.replace(/[（(][^）)]*[）)]/g, "").trim()); });
+    }
+    return names.length;
+  }
+
   function parseText(raw) {
     const t = normalizeText(raw);
     // 字段按「标签/格式」识别，不依赖易途 1–22 顺序；截图/粘贴顺序任意均可
@@ -2550,6 +2605,12 @@ const MingdanUpload = (function () {
         fields.party_size = train.ticket_count + "大";
       }
     } catch (e) {}
+
+    // 无人数关键词：按客人名单人数推断（证件名单 / 正文姓名行）
+    if (!fields.party_size) {
+      const nGuest = countGuestsForPartySize(fields, t);
+      if (nGuest > 0) fields.party_size = nGuest + "大";
+    }
 
     // 无标签时：纯格式抓人数「N大 / N人 / N位」
     if (!fields.party_size) {
