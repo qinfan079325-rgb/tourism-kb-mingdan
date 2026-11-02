@@ -198,6 +198,11 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-draft-badge{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;
   background:#9a3412;color:#ffedd5;border:1px solid #f97316;letter-spacing:.02em}
 .fuzzy-shared-badge{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:#14532d;color:#bbf7d0;border:1px solid #22c55e}
+.fuzzy-midtour-badge{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:#7c2d12;color:#fdba74;border:1px solid #fb923c}
+.fuzzy-field-hint{display:block;width:100%;font-size:11px;font-weight:500;color:#94a3b8;margin-top:2px;line-height:1.35;letter-spacing:.01em}
+.fuzzy-field.midtour{border-left:3px solid #fb923c;background:rgba(124,45,18,.12);border-color:#9a3412;border-radius:0 10px 10px 0}
+.fuzzy-field.midtour .fuzzy-field-lab{color:#ffedd5}
+.fuzzy-money-hint{font-size:11px;font-weight:600;color:#86efac;margin-left:4px}
 .fuzzy-draft.is-shared{border-color:#166534}
 .fuzzy-by{font-size:11px;color:var(--muted);margin-left:6px}
 .fuzzy-st.st-draft_todo{background:#7c2d12;color:#fdba74}
@@ -437,7 +442,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 15:01 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 17:26 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -500,7 +505,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 15:01 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 17:26 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -520,7 +525,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 15:01 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 17:26 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -705,6 +710,10 @@ const MingdanUpload = (function () {
     ["rebate", "返款"],
     ["kb", "kb值"],
     ["settlement_detail", "结算明细"],
+    ["midtour_fee_collect", "团中代收团款"],
+    ["midtour_tickets", "代订门票明细"],
+    ["midtour_hotels", "代订酒店明细"],
+    ["midtour_vehicles", "代订用车"],
     ["guest_list", "客人名单"],
     ["remarks", "备注"],
     ["gendan_pure", "跟单价(纯数字)"],
@@ -724,6 +733,19 @@ const MingdanUpload = (function () {
     deposit: "money",
     guest_list: "guest",
   };
+
+  /** 团中加项：格式提示（易途只录圈红栏） */
+  const MIDTOUR_HINTS = {
+    midtour_fee_collect: "金额+文字说明 → 易途团费加一行",
+    midtour_tickets: "一行一项：景区景点|门票类别|日期|单价|数量|备注",
+    midtour_hotels: "一行一项：酒店公司|房种类型|入住日期|单价|数量|天数|备注",
+    midtour_vehicles: "一行一项：车队公司|车辆类型|项目名称|用车日期|返程日期|单价|数量|备注（不含安排方式/司机/电话）",
+  };
+  const MIDTOUR_KEYS = ["midtour_fee_collect", "midtour_tickets", "midtour_hotels", "midtour_vehicles"];
+  function hasMidtourAddons(f) {
+    f = f || {};
+    return MIDTOUR_KEYS.some((k) => String(f[k] || "").trim());
+  }
 
   const SAMPLE_TEXT =
     "组团社：湖南友记\n" +
@@ -2510,6 +2532,10 @@ const MingdanUpload = (function () {
       rebate: (rebate || "").trim(),
       kb: kb === "" ? "" : kb,
       settlement_detail: settle,
+      midtour_fee_collect: "",
+      midtour_tickets: "",
+      midtour_hotels: "",
+      midtour_vehicles: "",
       guest_list: "",
       remarks,
       gendan_pure: pure,
@@ -2776,6 +2802,9 @@ const MingdanUpload = (function () {
         const draftBadge = isDraftLike(d.status)
           ? '<span class="fuzzy-draft-badge" title="仅当前登录账号可见">仅为草稿·待办</span>'
           : '<span class="fuzzy-shared-badge" title="销售确认后全员账号可见">全员</span>';
+        const midtourBadge = hasMidtourAddons(f)
+          ? '<span class="fuzzy-midtour-badge" title="含团中代收/门票/酒店/用车">有团中加项</span>'
+          : "";
         // 确认人只展示 confirmed_by（点销售确认的账号）；未确认不拿 created_by/updated_by 冒充
         const byLine = (!isDraftLike(d.status) && d.confirmed_by)
           ? `<span class="fuzzy-by">确认：${esc(d.confirmed_by)}</span>`
@@ -2793,6 +2822,7 @@ const MingdanUpload = (function () {
         return `<div class="fuzzy-draft ${isDraftLike(d.status) ? "is-draft-todo" : "is-shared"} ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
           <div class="fuzzy-draft-h">
             ${draftBadge}
+            ${midtourBadge}
             <span class="fuzzy-st st-${esc(d.status)}">${esc(st)}</span>
             ${yituAtBadge}
             <span class="fuzzy-who">${esc(f.guest_name || "未命名")} · ${esc(f.depart_date || "无出团日")} · ${esc(f.party_size || "")}</span>
@@ -3460,17 +3490,22 @@ const MingdanUpload = (function () {
       if (k === "collect_on_tour") {
         val = shouldAutoFillCollect(val, f.full_amount, f.deposit);
       }
-      const wide = k === "settlement_detail" || k === "remarks" || k === "outbound_transport" || k === "return_transport";
+      const isMidtour = MIDTOUR_KEYS.includes(k);
+      const wide = k === "settlement_detail" || k === "remarks" || k === "outbound_transport" || k === "return_transport" || isMidtour;
       const keyKind = KEY_FIELDS[k];
       const keyCls = keyKind ? ` key ${keyKind === "key" ? "" : keyKind}`.trimEnd() : "";
       const hint = k === "collect_on_tour" ? ' <span class="fuzzy-money-hint">全款−定金</span>' : "";
+      const midHint = MIDTOUR_HINTS[k]
+        ? `<span class="fuzzy-field-hint">${esc(MIDTOUR_HINTS[k])}</span>`
+        : "";
       const agencyCheck = k === "agency" && f.agency_needs_check;
       const agencyHint = agencyCheck
         ? ' <span class="fuzzy-agency-check" title="一对多已默认，请核对客户单位">待核</span><span class="fuzzy-agency-check-note">一对多已默认，请核对</span>'
         : "";
-      return `<label class="fuzzy-field${keyCls}${need || agencyCheck ? " need" : ""}${wide ? " span-2" : ""}${agencyCheck ? " agency-needs-check" : ""}">
-        <span class="fuzzy-field-lab">${esc(label)}${hint}${agencyHint}${need ? " <em>需核对</em>" : ""}</span>
-        <textarea data-k="${esc(k)}" rows="${k === "remarks" || k === "settlement_detail" ? 3 : 1}">${esc(val)}</textarea>
+      const rows = k === "remarks" || k === "settlement_detail" || isMidtour ? 3 : 1;
+      return `<label class="fuzzy-field${keyCls}${need || agencyCheck ? " need" : ""}${wide ? " span-2" : ""}${agencyCheck ? " agency-needs-check" : ""}${isMidtour ? " midtour" : ""}">
+        <span class="fuzzy-field-lab">${esc(label)}${hint}${agencyHint}${need ? " <em>需核对</em>" : ""}${midHint}</span>
+        <textarea data-k="${esc(k)}" rows="${rows}">${esc(val)}</textarea>
       </label>`;
     }).join("");
     bindGuestListUi();
@@ -3963,6 +3998,21 @@ const MingdanUpload = (function () {
       `KB=${f.kb || ""}`,
       `跟单价纯数字=${f.gendan_pure || ""}`,
     ];
+    if (String(f.midtour_fee_collect || "").trim()) {
+      lines.push(`团中代收团款=${String(f.midtour_fee_collect).trim()}`);
+    }
+    if (String(f.midtour_tickets || "").trim()) {
+      lines.push(`代订门票明细=${String(f.midtour_tickets).trim()}`);
+    }
+    if (String(f.midtour_hotels || "").trim()) {
+      lines.push(`代订酒店明细=${String(f.midtour_hotels).trim()}`);
+    }
+    if (String(f.midtour_vehicles || "").trim()) {
+      lines.push(`代订用车=${String(f.midtour_vehicles).trim()}`);
+    }
+    if (hasMidtourAddons(f)) {
+      lines.push("团中加项说明=易途只录圈红栏；无标号栏不录；团中代收→团费加一行。");
+    }
     if (lastChange) {
       lines.push(`最近改单说明=${lastChange.notes || ""}`);
       lines.push(`改单时间=${lastChange.at || ""}`);
@@ -4126,6 +4176,10 @@ const MingdanUpload = (function () {
             rebate: "",
             kb: "",
             settlement_detail: "",
+            midtour_fee_collect: "",
+            midtour_tickets: "",
+            midtour_hotels: "",
+            midtour_vehicles: "",
             guest_list: "",
             remarks: `（附件待助手解析：${file.name}）`,
             gendan_pure: "",
@@ -6699,6 +6753,10 @@ const MingdanUpload = (function () {
         rebate: "",
         kb: "",
         settlement_detail: "",
+        midtour_fee_collect: "",
+        midtour_tickets: "",
+        midtour_hotels: "",
+        midtour_vehicles: "",
         guest_list: "",
         remarks: "（来自截图识别，请补全其余字段）",
         gendan_pure: "",
