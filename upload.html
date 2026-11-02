@@ -524,7 +524,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 22:06 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 22:08 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -604,7 +604,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 22:06 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 22:08 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -624,7 +624,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 22:06 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 22:08 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2012,6 +2012,27 @@ const MingdanUpload = (function () {
     t = t.replace(/([^\n])(【预定行程】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【联系电话】)/g, "$1\n$2");
     t = t.replace(/([^\n])(【客户姓名】)/g, "$1\n$2");
+    // 行首装饰符号后直接跟字段名（■酒店 / ※备注）→ 去掉装饰
+    t = t.replace(/(^|\n)[^\S\n]*[^\n\w\u4e00-\u9fff【《]{1,6}[^\S\n]*(?=[\u4e00-\u9fff])/g, "$1");
+    // 有无冒号/【】都认：行首已知字段名后若无冒号则补「：」（长标签优先）
+    const bareLabels = [
+      "结算明细", "结算名字", "备注信息", "其它说明", "其他说明", "特别说明",
+      "酒店用房", "房间要求", "房间类型", "住宿标准", "预定行程", "预定姓名", "预定日期", "预定金额",
+      "出行日期", "出行时间", "出团日期", "出团时间", "签单日期", "返程日期", "返程信息", "返程交通", "回程信息",
+      "去程信息", "去程交通", "到站信息", "接站信息", "来航班号", "来程信息", "抵达交通", "抵达航班",
+      "参团人数", "出行人数", "客人人数", "客人姓名", "客户姓名", "游客姓名", "联系人员", "联系电话", "联系人手机",
+      "组团社", "客户单位", "业务员", "对接人", "计调", "客服", "销售",
+      "双标间", "大床房", "三人间", "标准间",
+      "酒店", "用房", "房型", "房间", "备注", "说明",
+      "全款", "定金", "订金", "代收", "团款", "团费", "报名费", "合同金额", "总团款", "总团费",
+      "结算", "返款", "明细", "回传", "线路", "产品名称", "游玩行程",
+    ];
+    for (let bi = 0; bi < bareLabels.length; bi++) {
+      const lb = bareLabels[bi].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      t = t.replace(new RegExp("(^|\\n)\\s*" + lb + "(?![\\u4e00-\\u9fff])\\s*(?![：:】》])", "g"), "$1" + bareLabels[bi] + "：");
+    }
+    // 【标签】后无冒号 → 【标签】：
+    t = t.replace(/【([^】\n]{1,20})】\s*(?![：:])/g, "【$1】：");
     return t;
   }
 
