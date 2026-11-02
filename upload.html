@@ -273,7 +273,12 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-raw{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
   font-size:12.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;max-height:560px;overflow:auto;color:#cbd5e1}
 .fuzzy-dup{margin-top:10px;padding:8px 10px;border-radius:8px;font-size:13px;background:#7c2d12;border:1px solid #c2410c;color:#ffedd5}
-.fuzzy-change-box{margin-top:12px;padding:10px 12px;border:1px dashed #a16207;border-radius:10px;background:#1c1917}
+.fuzzy-change-box{margin-top:12px;padding:12px 14px;border:1px dashed #a16207;border-radius:10px;background:#1c1917;width:100%;box-sizing:border-box}
+.fuzzy-change-box .fuzzy-lab{margin-top:0}
+.fuzzy-change-box textarea,#fuzzyChangeNotes{display:block;width:100%;box-sizing:border-box;min-height:180px;
+  background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px 14px;
+  font-size:14px;line-height:1.55;outline:none;resize:vertical;font-family:inherit}
+.fuzzy-change-box textarea:focus,#fuzzyChangeNotes:focus{border-color:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,.18)}
 .fuzzy-change-hint{color:var(--muted);font-size:12px;margin:6px 0 0}
 .fuzzy-history{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
 .fuzzy-history-h{font-size:12px;font-weight:650;color:#93c5fd;margin-bottom:8px}
@@ -485,7 +490,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 17:38 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 17:40 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -529,7 +534,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       <div id="fuzzyDupWarn" class="fuzzy-dup hidden"></div>
       <div id="fuzzyChangeBox" class="fuzzy-change-box hidden">
         <label class="fuzzy-lab" for="fuzzyChangeNotes">改单说明（必填）</label>
-        <textarea id="fuzzyChangeNotes" rows="3" placeholder="写清要改的内容，例如：定金改为 800；人数改为 5大…"></textarea>
+        <textarea id="fuzzyChangeNotes" rows="9" placeholder="写清要改的内容，例如：定金改为 800；人数改为 5大…"></textarea>
         <p class="fuzzy-change-hint">未进易途只改草稿；已进易途请通知助手同步后点「易途已更新」。</p>
       </div>
       <div id="fuzzyHistory" class="fuzzy-history hidden"></div>
@@ -548,7 +553,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 17:38 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 17:40 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -568,7 +573,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 17:38 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 17:40 Asia/Shanghai</div>
 </div>
 
 <script>
