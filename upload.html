@@ -185,6 +185,32 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-msg.ok{background:#14532d;border:1px solid #166534;color:#bbf7d0}
 .fuzzy-msg.err{background:#7f1d1d;border:1px solid #b91c1c;color:#fecaca}
 .fuzzy-msg.hidden{display:none!important}
+.fuzzy-list-toolbar{display:flex;flex-direction:column;gap:8px;margin:8px 0 6px}
+.fuzzy-list-toolbar-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fuzzy-list-hint{font-size:13px;color:#64748b}
+.fuzzy-list-filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fuzzy-filter-chip{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--muted);
+  border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:650;cursor:pointer;line-height:1.2}
+.fuzzy-filter-chip:hover{border-color:#475569;color:#e2e8f0}
+.fuzzy-filter-chip.is-active{background:#1d4ed8;border-color:#3b82f6;color:#fff;box-shadow:0 0 0 1px rgba(59,130,246,.35)}
+.fuzzy-list-search{flex:1;min-width:180px;max-width:360px;background:var(--card);border:1px solid var(--line);
+  color:var(--text);border-radius:10px;padding:7px 10px;font-size:13px}
+.fuzzy-list-search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px rgba(59,130,246,.35)}
+.fuzzy-list-section{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.fuzzy-list-section + .fuzzy-list-section{margin-top:12px}
+.fuzzy-sec-h{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  text-align:left;background:rgba(30,41,59,.55);border:1px solid var(--line);border-radius:10px;
+  color:#e2e8f0;font-size:13px;font-weight:700;padding:8px 12px;cursor:pointer}
+.fuzzy-sec-h:hover{filter:brightness(1.06)}
+.fuzzy-sec-h .fuzzy-sec-count{font-size:12px;font-weight:650;color:var(--muted);background:var(--chip);
+  border-radius:999px;padding:2px 8px}
+.fuzzy-sec-h .fuzzy-sec-caret{color:var(--muted);font-size:12px;transition:transform .12s}
+.fuzzy-list-section.is-collapsed .fuzzy-sec-caret{transform:rotate(-90deg)}
+.fuzzy-list-section.is-collapsed .fuzzy-sec-body{display:none}
+.fuzzy-sec-body{display:flex;flex-direction:column;gap:8px}
+.fuzzy-list-section[data-sec="done"] .fuzzy-draft{opacity:.82}
+.fuzzy-sec-empty{color:var(--muted);font-size:12.5px;padding:4px 2px 2px}
+
 .fuzzy-draft-list{margin-top:14px;display:flex;flex-direction:column;gap:8px}
 .fuzzy-empty{color:var(--muted);font-size:13px;padding:8px 0}
 .fuzzy-draft{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
@@ -490,7 +516,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 20:03 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 20:31 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -506,9 +532,18 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       </div>
     </div>
     <div id="fuzzyMsg" class="fuzzy-msg hidden"></div>
-    <div class="fuzzy-list-toolbar" style="display:flex;align-items:center;gap:8px;margin:6px 0 4px;flex-wrap:wrap;">
-      <span style="font-size:13px;color:#64748b;">草稿列表：待办仅本人 · 销售确认后全员可见</span>
-      <button type="button" class="btn" id="fuzzyRefreshListBtn" title="重新拉取本人待办 + 全员已确认">刷新列表</button>
+    <div class="fuzzy-list-toolbar">
+      <div class="fuzzy-list-toolbar-row">
+        <span class="fuzzy-list-hint">草稿列表：待办仅本人 · 销售确认后全员可见</span>
+        <button type="button" class="btn" id="fuzzyRefreshListBtn" title="重新拉取本人待办 + 全员已确认">刷新列表</button>
+      </div>
+      <div class="fuzzy-list-filters" role="toolbar" aria-label="列表筛选">
+        <button type="button" class="fuzzy-filter-chip is-active" id="fuzzyFilterAll" data-tab="all">全部</button>
+        <button type="button" class="fuzzy-filter-chip" id="fuzzyFilterTodo" data-tab="todo">待处理</button>
+        <button type="button" class="fuzzy-filter-chip" id="fuzzyFilterChange" data-tab="change">改单</button>
+        <button type="button" class="fuzzy-filter-chip" id="fuzzyFilterDone" data-tab="done">已进易途</button>
+        <input type="search" id="fuzzyListSearch" class="fuzzy-list-search" placeholder="搜姓名 / 出团日 / 客户 / 易途单号" autocomplete="off"/>
+      </div>
     </div>
     <div id="fuzzyDraftList" class="fuzzy-draft-list"></div>
     <div id="fuzzyReview" class="fuzzy-review hidden">
@@ -553,7 +588,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 20:03 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 20:31 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -573,7 +608,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 20:03 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 20:31 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -3015,41 +3050,110 @@ const MingdanUpload = (function () {
     return sync;
   }
 
-  function renderList() {
-    const box = $("fuzzyDraftList");
-    if (!box) return;
-    const drafts = loadDrafts();
-    if (!drafts.length) {
-      box.innerHTML =
-        '<div class="fuzzy-empty">暂无草稿。点「保留草稿」→仅本人可见的待办；点「销售确认」→全员可见「已确认待易途」。都不进未出团。</div>';
-      renderOverlay();
-      return;
+  const LIST_VIEW_KEY = "fuzzyListView";
+  const LIST_DONE_COLLAPSE_KEY = "fuzzyDoneCollapsed";
+  const TODO_STATUSES = new Set([
+    "draft_todo",
+    "pending_parse",
+    "pending_sales_confirm",
+    "confirmed_await_yitu",
+    "notified_await_yitu",
+    "pending_change_sync",
+  ]);
+  let listView = { tab: "all", q: "" };
+  try {
+    const rawView = localStorage.getItem(LIST_VIEW_KEY);
+    if (rawView) {
+      const parsed = JSON.parse(rawView);
+      if (parsed && typeof parsed === "object") {
+        if (["all", "todo", "change", "done"].indexOf(parsed.tab) >= 0) listView.tab = parsed.tab;
+        if (typeof parsed.q === "string") listView.q = parsed.q;
+      }
     }
-    box.innerHTML = drafts
-      .map((d) => {
-        const f = d.fields || {};
-        const st = STATUS[d.status] || d.status_label || d.status;
-        const draftBadge = isDraftLike(d.status)
-          ? '<span class="fuzzy-draft-badge" title="仅当前登录账号可见">仅为草稿·待办</span>'
-          : '<span class="fuzzy-shared-badge" title="销售确认后全员账号可见">全员</span>';
-        const midtourBadge = hasMidtourAddons(f)
-          ? '<span class="fuzzy-midtour-badge" title="含团中代收/门票/酒店/用车">有团中加项</span>'
-          : "";
-        // 确认人只展示 confirmed_by（点销售确认的账号）；未确认不拿 created_by/updated_by 冒充
-        const byLine = (!isDraftLike(d.status) && d.confirmed_by)
-          ? `<span class="fuzzy-by">确认：${esc(d.confirmed_by)}</span>`
-          : (isDraftLike(d.status) && d.created_by
-            ? `<span class="fuzzy-by">创建：${esc(d.created_by)}</span>`
-            : "");
-        const yituAt = formatChinaTime(d.yitu_entered_at);
-        const yituAtBadge = yituAt
-          ? `<span class="fuzzy-yitu-at" title="录完系统时间（中国时间）">录完 ${esc(yituAt)}</span>`
-          : "";
-        const warnText = extractYituWarnText(d);
-        const warnLine = warnText
-          ? `<div class="fuzzy-warn" title="录易途缺项提醒">${esc(warnText)}</div>`
-          : "";
-        return `<div class="fuzzy-draft ${isDraftLike(d.status) ? "is-draft-todo" : "is-shared"} ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
+  } catch (eView) {}
+  function persistListView() {
+    try {
+      localStorage.setItem(LIST_VIEW_KEY, JSON.stringify({ tab: listView.tab, q: listView.q || "" }));
+    } catch (ePersist) {}
+  }
+  function isDoneCollapsedDefault() {
+    try {
+      const v = localStorage.getItem(LIST_DONE_COLLAPSE_KEY);
+      if (v === null || v === undefined || v === "") return true;
+      return v === "1" || v === "true";
+    } catch (eCol) {
+      return true;
+    }
+  }
+  function setDoneCollapsed(collapsed) {
+    try {
+      localStorage.setItem(LIST_DONE_COLLAPSE_KEY, collapsed ? "1" : "0");
+    } catch (eSet) {}
+  }
+  function draftMatchesQuery(d, q) {
+    if (!q) return true;
+    const f = (d && d.fields) || {};
+    const stLabel = STATUS[d.status] || d.status_label || d.status || "";
+    const hay = [
+      f.guest_name,
+      f.depart_date,
+      f.agency,
+      d.yitu_order_no,
+      stLabel,
+      d.status,
+    ]
+      .map(function (x) {
+        return String(x || "").toLowerCase();
+      })
+      .join(" ");
+    return hay.indexOf(q) >= 0;
+  }
+  function isChangeRelated(d) {
+    if (!d) return false;
+    if (d.status === "pending_change_sync" || d.status === "yitu_updated") return true;
+    return hasMidtourAddons(d.fields || {});
+  }
+  function bucketOf(d) {
+    const st = d && d.status;
+    if (st === "yitu_updated") return "recent";
+    if (st === "in_yitu") return "done";
+    if (TODO_STATUSES.has(st)) return "todo";
+    // 未知状态先放待处理，避免从列表消失
+    return "todo";
+  }
+  function syncListFilterUi() {
+    const chips = document.querySelectorAll(".fuzzy-filter-chip");
+    chips.forEach(function (btn) {
+      const tab = btn.getAttribute("data-tab");
+      btn.classList.toggle("is-active", tab === listView.tab);
+    });
+    const search = $("fuzzyListSearch");
+    if (search && search.value !== (listView.q || "")) search.value = listView.q || "";
+  }
+  function renderDraftCard(d) {
+    const f = d.fields || {};
+    const st = STATUS[d.status] || d.status_label || d.status;
+    const draftBadge = isDraftLike(d.status)
+      ? '<span class="fuzzy-draft-badge" title="仅当前登录账号可见">仅为草稿·待办</span>'
+      : '<span class="fuzzy-shared-badge" title="销售确认后全员账号可见">全员</span>';
+    const midtourBadge = hasMidtourAddons(f)
+      ? '<span class="fuzzy-midtour-badge" title="含团中代收/门票/酒店/用车">有团中加项</span>'
+      : "";
+    // 确认人只展示 confirmed_by（点销售确认的账号）；未确认不拿 created_by/updated_by 冒充
+    const byLine = (!isDraftLike(d.status) && d.confirmed_by)
+      ? `<span class="fuzzy-by">确认：${esc(d.confirmed_by)}</span>`
+      : (isDraftLike(d.status) && d.created_by
+        ? `<span class="fuzzy-by">创建：${esc(d.created_by)}</span>`
+        : "");
+    const yituAt = formatChinaTime(d.yitu_entered_at);
+    const yituAtBadge = yituAt
+      ? `<span class="fuzzy-yitu-at" title="录完系统时间（中国时间）">录完 ${esc(yituAt)}</span>`
+      : "";
+    const warnText = extractYituWarnText(d);
+    const warnLine = warnText
+      ? `<div class="fuzzy-warn" title="录易途缺项提醒">${esc(warnText)}</div>`
+      : "";
+    return `<div class="fuzzy-draft ${isDraftLike(d.status) ? "is-draft-todo" : "is-shared"} ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
           <div class="fuzzy-draft-h">
             ${draftBadge}
             ${midtourBadge}
@@ -3065,8 +3169,8 @@ const MingdanUpload = (function () {
             <button type="button" class="btn fuzzy-del" data-id="${esc(d.id)}">删除</button>
           </div>
         </div>`;
-      })
-      .join("");
+  }
+  function bindDraftListActions(box) {
     box.querySelectorAll(".fuzzy-open").forEach((b) =>
       b.addEventListener("click", () => toggleOrOpenDraft(b.getAttribute("data-id")))
     );
@@ -3090,6 +3194,107 @@ const MingdanUpload = (function () {
         setMsg("已删除草稿", "ok");
       })
     );
+    box.querySelectorAll(".fuzzy-sec-h").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const sec = btn.closest(".fuzzy-list-section");
+        if (!sec) return;
+        const nowCollapsed = !sec.classList.contains("is-collapsed");
+        sec.classList.toggle("is-collapsed", nowCollapsed);
+        if (sec.getAttribute("data-sec") === "done") setDoneCollapsed(nowCollapsed);
+      })
+    );
+  }
+  function renderSectionHtml(secKey, title, items, opts) {
+    opts = opts || {};
+    const forceShow = !!opts.forceShow;
+    const collapsed = !!opts.collapsed;
+    if (!items.length && !forceShow) return "";
+    const body = items.length
+      ? items.map(renderDraftCard).join("")
+      : '<div class="fuzzy-sec-empty">本段暂无订单</div>';
+    const cls = "fuzzy-list-section" + (collapsed ? " is-collapsed" : "");
+    return `<section class="${cls}" data-sec="${esc(secKey)}">
+      <button type="button" class="fuzzy-sec-h" aria-expanded="${collapsed ? "false" : "true"}">
+        <span>${esc(title)} · <span class="fuzzy-sec-count">${items.length}</span></span>
+        <span class="fuzzy-sec-caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="fuzzy-sec-body">${body}</div>
+    </section>`;
+  }
+  function renderList() {
+    const box = $("fuzzyDraftList");
+    if (!box) return;
+    syncListFilterUi();
+    const drafts = loadDrafts();
+    if (!drafts.length) {
+      box.innerHTML =
+        '<div class="fuzzy-empty">暂无草稿。点「保留草稿」→仅本人可见的待办；点「销售确认」→全员可见「已确认待易途」。都不进未出团。</div>';
+      renderOverlay();
+      return;
+    }
+    const q = String(listView.q || "").trim().toLowerCase();
+    const tab = listView.tab || "all";
+    let filtered = drafts.filter(function (d) {
+      return draftMatchesQuery(d, q);
+    });
+    if (tab === "todo") {
+      filtered = filtered.filter(function (d) {
+        return bucketOf(d) === "todo";
+      });
+    } else if (tab === "done") {
+      filtered = filtered.filter(function (d) {
+        return bucketOf(d) === "done";
+      });
+    } else if (tab === "change") {
+      filtered = filtered.filter(isChangeRelated);
+    }
+    if (!filtered.length) {
+      box.innerHTML =
+        '<div class="fuzzy-empty">没有符合筛选的订单。可改筛选或清空搜索。</div>';
+      renderOverlay();
+      return;
+    }
+    let html = "";
+    if (tab === "change") {
+      const changeList = sortDraftsNewest(filtered);
+      html = renderSectionHtml("change", "改单相关", changeList, { forceShow: true, collapsed: false });
+    } else if (tab === "todo") {
+      const todoList = sortDraftsNewest(filtered);
+      html = renderSectionHtml("todo", "待处理", todoList, { forceShow: true, collapsed: false });
+    } else if (tab === "done") {
+      const doneList = sortDraftsNewest(filtered);
+      html = renderSectionHtml("done", "已办完", doneList, { forceShow: true, collapsed: false });
+    } else {
+      const todo = [];
+      const recent = [];
+      const done = [];
+      filtered.forEach(function (d) {
+        const b = bucketOf(d);
+        if (b === "recent") recent.push(d);
+        else if (b === "done") done.push(d);
+        else todo.push(d);
+      });
+      html += renderSectionHtml("todo", "待处理", sortDraftsNewest(todo), {
+        forceShow: false,
+        collapsed: false,
+      });
+      html += renderSectionHtml("recent", "最近更新", sortDraftsNewest(recent), {
+        forceShow: false,
+        collapsed: false,
+      });
+      html += renderSectionHtml("done", "已办完", sortDraftsNewest(done), {
+        forceShow: false,
+        collapsed: isDoneCollapsedDefault(),
+      });
+      if (!html) {
+        box.innerHTML =
+          '<div class="fuzzy-empty">没有符合筛选的订单。可改筛选或清空搜索。</div>';
+        renderOverlay();
+        return;
+      }
+    }
+    box.innerHTML = html;
+    bindDraftListActions(box);
     renderOverlay();
   }
 
@@ -7755,6 +7960,29 @@ const MingdanUpload = (function () {
         refreshListCloud({ silent: false });
       });
     }
+    document.querySelectorAll(".fuzzy-filter-chip").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const tab = btn.getAttribute("data-tab") || "all";
+        listView.tab = tab;
+        persistListView();
+        syncListFilterUi();
+        renderList();
+      });
+    });
+    const searchInput = $("fuzzyListSearch");
+    if (searchInput) {
+      searchInput.value = listView.q || "";
+      let searchTimer = 0;
+      searchInput.addEventListener("input", function () {
+        listView.q = String(searchInput.value || "");
+        persistListView();
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(function () {
+          renderList();
+        }, 120);
+      });
+    }
+    syncListFilterUi();
     // 切回页面时静默拉一次全员共享，避免别人刚确认自己看不到
     let lastVisSync = 0;
     document.addEventListener("visibilitychange", function () {
