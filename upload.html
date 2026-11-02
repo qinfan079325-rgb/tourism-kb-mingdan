@@ -524,7 +524,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 22:00 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 22:06 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -604,7 +604,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 22:00 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 22:06 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -624,7 +624,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 22:00 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 22:06 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2392,6 +2392,7 @@ const MingdanUpload = (function () {
         /用房\s*[：:]\s*([^\n]+)/,
         /房间\s*[：:]\s*([^\n]+)/,
         /酒店\s*[：:]\s*([^\n]+)/,
+        /酒店\s+(\d+\s*(?:双标间?|标间|标准间|大床房?|三人间|单间|双人间|标房)[^\n]*)/,
       ],
       t
     );
@@ -2405,6 +2406,17 @@ const MingdanUpload = (function () {
       if (king && parseInt(king[1], 10) > 0) roomBits.push(king[1] + "大床");
       if (triple && parseInt(triple[1], 10) > 0) roomBits.push(triple[1] + "三人间");
       if (roomBits.length) rooms = roomBits.join("+");
+    }
+    // 无冒号：「酒店 1标间」/ 行内「1标间」「2大床」等
+    if (!(rooms || "").trim()) {
+      const bare =
+        t.match(/(?:^|\n)\s*酒店\s*[：:\s]+(\d+\s*(?:双标间?|标间|标准间|大床房?|三人间|单间|双人间|标房)[^\n]*)/) ||
+        t.match(/(?:^|\n)\s*(\d+\s*(?:双标间|标间|标准间|大床房|三人间|单间|双人间|标房|双标|大床)\b[^\n]*)/);
+      if (bare) {
+        let bit = String(bare[1] || "").trim();
+        bit = bit.replace(/\s*(?:航班|抵达|去程|返程|备注|结算|业务员|客服|计调).*$/u, "").trim();
+        if (bit) rooms = bit.replace(/(\d+)\s*双标间/, "$1双标").replace(/(\d+)\s*标间/, "$1标间").replace(/(\d+)\s*大床房/, "$1大床");
+      }
     }
     let outbound_transport = pick(
       [
@@ -2749,7 +2761,7 @@ const MingdanUpload = (function () {
         /其它说明\s*[：:]?\s*([^\n]+)/,
         /其他说明\s*[：:]?\s*([^\n]+)/,
         /特别说明\s*[：:]?\s*([^\n]+)/,
-        /备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*明细|\n\s*回传|\n\s*返款|\n\s*【|$)/,
+        /备注\s*：\s*([\s\S]+?)(?=\n\s*结算|\n\s*明细|\n\s*回传|\n\s*返款|\n\s*(?:业务员|客服|计调|对接人|销售)|\n\s*【|$)/,
         /(?:^|\n)\s*备注\s*[：:]\s*([^\n]+)/,
         // 无冒号：行首「备注」后直接跟正文（勿吞结算/返款）
         /(?:^|\n)\s*备注(?![信息明细])\s+([^\n结算返款]+)/,
@@ -2762,6 +2774,22 @@ const MingdanUpload = (function () {
       remarks = remarks
         .split(/\n\s*(?:结算明细|结算名字|结算|明细|回传|返款)\s*：/)[0]
         .replace(/\s*(?:结算明细|结算|返款|明细|回传)\s*：.*$/u, "")
+        .trim();
+    }
+    // 业务员/客服/计调/对接人属联系人员，不进备注（可顺带补联系人）
+    if (remarks) {
+      const staffLine = remarks.match(/(?:^|\n)\s*(?:业务员|客服|计调|对接人|销售|联系人员)\s*[：:]\s*([^\n]+)/);
+      if (staffLine) {
+        const staffBit = String(staffLine[1] || "").trim();
+        const nm = staffBit.replace(/[（(].*$/, "").replace(/1\d{10}.*$/, "").replace(/[，,；;\s]+$/g, "").trim();
+        const ph = (staffBit.match(/(1\d{10})/) || [])[1] || "";
+        if (nm && (!contact_name || contact_name === "1")) contact_name = nm;
+        if (ph && !contact_phone) contact_phone = ph;
+      }
+      remarks = remarks
+        .replace(/(?:^|\n)\s*(?:业务员|客服|计调|对接人|销售|联系人员)\s*[：:].*$/gm, "")
+        .replace(/\s*(?:业务员|客服|计调|对接人|销售|联系人员)\s*[：:][^\n]*/g, "")
+        .replace(/\n{2,}/g, "\n")
         .trim();
     }
     // 兜底：返款行之后仍有「备注/说明」行
