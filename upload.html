@@ -284,7 +284,7 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 
 @media(min-width:1100px){
   .fuzzy-fields{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .fuzzy-field.guest-list-field,.fuzzy-field.span-2{grid-column:1/-1}
+  .fuzzy-field.guest-list-field,.fuzzy-field.midtour-list-field,.fuzzy-field.span-2{grid-column:1/-1}
 }
 @media(max-width:900px){
   .fuzzy-side{grid-template-columns:1fr}
@@ -332,6 +332,49 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
   /* 窄屏仍单行：横向滚动，不折成两行 */
   .guest-list-head.guest-list-cols{font-size:11px}
   .guest-list-cols{min-width:600px;gap:4px}
+}
+
+
+/* 团中加项：行编辑（跟单价下方） */
+.fuzzy-field.midtour-list-field{grid-column:1/-1}
+.midtour-list-wrap{display:flex;flex-direction:column;gap:8px;min-width:0}
+.midtour-list-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.midtour-cols{display:grid;gap:5px;align-items:center}
+.midtour-cols-midtour_fee_collect{
+  --mt-del:30px;
+  grid-template-columns:minmax(88px,.9fr) minmax(120px,1.4fr) minmax(72px,.7fr) minmax(56px,.55fr) minmax(56px,.55fr) var(--mt-del);
+  min-width:520px
+}
+.midtour-cols-midtour_tickets{
+  --mt-del:30px;
+  grid-template-columns:minmax(100px,1.2fr) minmax(88px,.9fr) minmax(88px,.8fr) minmax(72px,.7fr) minmax(56px,.55fr) minmax(88px,1fr) var(--mt-del);
+  min-width:640px
+}
+.midtour-cols-midtour_hotels{
+  --mt-del:30px;
+  grid-template-columns:minmax(100px,1.2fr) minmax(88px,.9fr) minmax(88px,.8fr) minmax(72px,.7fr) minmax(56px,.5fr) minmax(52px,.45fr) minmax(80px,.9fr) var(--mt-del);
+  min-width:700px
+}
+.midtour-cols-midtour_vehicles{
+  --mt-del:30px;
+  grid-template-columns:minmax(90px,1fr) minmax(80px,.85fr) minmax(88px,.95fr) minmax(84px,.8fr) minmax(84px,.8fr) minmax(68px,.65fr) minmax(52px,.5fr) minmax(80px,.9fr) var(--mt-del);
+  min-width:780px
+}
+.midtour-head.midtour-cols{font-size:12px;font-weight:700;color:#ffedd5;padding:4px 4px;background:rgba(124,45,18,.35);border-radius:8px;letter-spacing:.02em}
+.midtour-row.midtour-cols{margin:0}
+.midtour-row input{width:100%;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:6px 6px;font-size:12.5px;font-family:inherit;box-sizing:border-box}
+.midtour-row input:focus{border-color:#fb923c;outline:none;box-shadow:0 0 0 2px rgba(251,146,60,.18)}
+.midtour-row .midtour-del{border:1px solid var(--line);background:transparent;color:#f87171;border-radius:8px;height:32px;width:100%;cursor:pointer;font-size:15px;line-height:1;padding:0}
+.midtour-row .midtour-del:hover{border-color:#f87171;background:#7f1d1d22}
+.midtour-list-actions{display:flex;gap:8px;align-items:center;margin-top:2px}
+.midtour-list-actions .btn{border-color:#9a3412;color:#fdba74}
+@media(max-width:720px){
+  .midtour-head.midtour-cols{font-size:11px}
+  .midtour-cols-midtour_fee_collect{min-width:480px}
+  .midtour-cols-midtour_tickets{min-width:600px}
+  .midtour-cols-midtour_hotels{min-width:660px}
+  .midtour-cols-midtour_vehicles{min-width:740px}
 }
 
 /* —— 浮动客服对接 —— */
@@ -442,7 +485,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 17:26 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 17:38 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -505,7 +548,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 17:26 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 17:38 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -525,7 +568,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 17:26 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 17:38 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -710,13 +753,13 @@ const MingdanUpload = (function () {
     ["rebate", "返款"],
     ["kb", "kb值"],
     ["settlement_detail", "结算明细"],
+    ["guest_list", "客人名单"],
+    ["remarks", "备注"],
+    ["gendan_pure", "跟单价(纯数字)"],
     ["midtour_fee_collect", "团中代收团款"],
     ["midtour_tickets", "代订门票明细"],
     ["midtour_hotels", "代订酒店明细"],
     ["midtour_vehicles", "代订用车"],
-    ["guest_list", "客人名单"],
-    ["remarks", "备注"],
-    ["gendan_pure", "跟单价(纯数字)"],
   ];
   /** 核对时要扫一眼的关键字段：更大标签 + 左侧色条 */
   const KEY_FIELDS = {
@@ -734,17 +777,152 @@ const MingdanUpload = (function () {
     guest_list: "guest",
   };
 
-  /** 团中加项：格式提示（易途只录圈红栏） */
-  const MIDTOUR_HINTS = {
-    midtour_fee_collect: "金额+文字说明 → 易途团费加一行",
-    midtour_tickets: "一行一项：景区景点|门票类别|日期|单价|数量|备注",
-    midtour_hotels: "一行一项：酒店公司|房种类型|入住日期|单价|数量|天数|备注",
-    midtour_vehicles: "一行一项：车队公司|车辆类型|项目名称|用车日期|返程日期|单价|数量|备注（不含安排方式/司机/电话）",
-  };
+  /** 团中加项：跟单价下方；行编辑录入（存 JSON 数组）；易途只录圈红栏 */
   const MIDTOUR_KEYS = ["midtour_fee_collect", "midtour_tickets", "midtour_hotels", "midtour_vehicles"];
+  const MIDTOUR_LABELS = {
+    midtour_fee_collect: "团中代收团款",
+    midtour_tickets: "代订门票明细",
+    midtour_hotels: "代订酒店明细",
+    midtour_vehicles: "代订用车",
+  };
+  const MIDTOUR_HINTS = {
+    midtour_fee_collect: "易途团费加一行 · 项目类别/项目名称/单价/数量/单位",
+    midtour_tickets: "易途门票圈红栏 · 可多行",
+    midtour_hotels: "易途房费圈红栏 · 可多行",
+    midtour_vehicles: "易途车费圈红栏 · 不含安排方式/司机/电话",
+  };
+  const MIDTOUR_SCHEMAS = {
+    midtour_fee_collect: [
+      { key: "category", label: "项目类别" },
+      { key: "name", label: "项目名称" },
+      { key: "unit_price", label: "单价" },
+      { key: "qty", label: "数量" },
+      { key: "unit", label: "单位" },
+    ],
+    midtour_tickets: [
+      { key: "scenic", label: "景区景点" },
+      { key: "ticket_type", label: "门票类别" },
+      { key: "date", label: "日期" },
+      { key: "unit_price", label: "单价" },
+      { key: "qty", label: "数量" },
+      { key: "remark", label: "备注" },
+    ],
+    midtour_hotels: [
+      { key: "hotel", label: "酒店公司" },
+      { key: "room_type", label: "房种类型" },
+      { key: "checkin", label: "入住日期" },
+      { key: "unit_price", label: "单价" },
+      { key: "qty", label: "数量" },
+      { key: "days", label: "天数" },
+      { key: "remark", label: "备注" },
+    ],
+    midtour_vehicles: [
+      { key: "fleet", label: "车队公司" },
+      { key: "vehicle_type", label: "车辆类型" },
+      { key: "project", label: "项目名称" },
+      { key: "use_date", label: "用车日期" },
+      { key: "return_date", label: "返程日期" },
+      { key: "unit_price", label: "单价" },
+      { key: "qty", label: "数量" },
+      { key: "remark", label: "备注" },
+    ],
+  };
+  function emptyMidtourRow(key) {
+    const row = {};
+    (MIDTOUR_SCHEMAS[key] || []).forEach(function (col) {
+      row[col.key] = "";
+    });
+    return row;
+  }
+  function normalizeMidtourRow(key, raw) {
+    const schema = MIDTOUR_SCHEMAS[key] || [];
+    const src = raw && typeof raw === "object" ? raw : {};
+    const row = {};
+    schema.forEach(function (col) {
+      row[col.key] = src[col.key] == null ? "" : String(src[col.key]).trim();
+    });
+    return row;
+  }
+  function midtourRowHasContent(row) {
+    if (!row || typeof row !== "object") return false;
+    return Object.keys(row).some(function (k) {
+      return String(row[k] || "").trim();
+    });
+  }
+  function parseMidtourValue(key, val) {
+    const schema = MIDTOUR_SCHEMAS[key];
+    if (!schema) return [];
+    if (Array.isArray(val)) {
+      return val.map(function (r) {
+        return normalizeMidtourRow(key, r);
+      }).filter(midtourRowHasContent);
+    }
+    const s = String(val == null ? "" : val).trim();
+    if (!s) return [];
+    if (s.charAt(0) === "[") {
+      try {
+        const arr = JSON.parse(s);
+        if (Array.isArray(arr)) {
+          return arr.map(function (r) {
+            return normalizeMidtourRow(key, r);
+          }).filter(midtourRowHasContent);
+        }
+      } catch (e) {}
+    }
+    // 兼容旧版：管道分隔 / 团中代收「金额+说明」自由文本
+    return s.split(/\n+/).map(function (line) {
+      line = String(line || "").trim();
+      if (!line) return null;
+      const parts = line.split("|").map(function (p) {
+        return String(p || "").trim();
+      });
+      const row = emptyMidtourRow(key);
+      if (key === "midtour_fee_collect" && parts.length === 1) {
+        const m = line.match(/^(-?\d+(?:\.\d+)?)\s*[×x*]?\s*(\d+(?:\.\d+)?)?\s*(.*)$/);
+        if (m && m[1]) {
+          row.unit_price = m[1];
+          if (m[2]) row.qty = m[2];
+          else row.qty = "1";
+          row.name = (m[3] || "").trim();
+          if (!row.name) row.name = line;
+        } else {
+          row.name = line;
+        }
+        return row;
+      }
+      schema.forEach(function (col, i) {
+        row[col.key] = parts[i] || "";
+      });
+      return row;
+    }).filter(midtourRowHasContent);
+  }
+  function serializeMidtourRows(key, rows) {
+    const cleaned = (rows || [])
+      .map(function (r) {
+        return normalizeMidtourRow(key, r);
+      })
+      .filter(midtourRowHasContent);
+    return cleaned.length ? JSON.stringify(cleaned) : "";
+  }
+  function formatMidtourForNotify(key, val) {
+    const schema = MIDTOUR_SCHEMAS[key] || [];
+    const rows = parseMidtourValue(key, val);
+    if (!rows.length) return "";
+    return rows
+      .map(function (r) {
+        return schema
+          .map(function (c) {
+            return r[c.key] || "";
+          })
+          .join("|");
+      })
+      .join("；");
+  }
   function hasMidtourAddons(f) {
     f = f || {};
-    return MIDTOUR_KEYS.some((k) => String(f[k] || "").trim());
+    return MIDTOUR_KEYS.some(function (k) {
+      return parseMidtourValue(k, f[k]).length > 0;
+    });
   }
 
   const SAMPLE_TEXT =
@@ -3261,6 +3439,204 @@ const MingdanUpload = (function () {
     );
   }
 
+  function midtourRowHtml(key, row) {
+    const schema = MIDTOUR_SCHEMAS[key] || [];
+    const r = normalizeMidtourRow(key, row || {});
+    const cells = schema
+      .map(function (col) {
+        const ph = esc(col.label);
+        const isNum = col.key === "unit_price" || col.key === "qty" || col.key === "days";
+        const typ = isNum ? "number" : "text";
+        const step = col.key === "unit_price" ? ' step="any"' : col.key === "qty" || col.key === "days" ? ' step="1"' : "";
+        return (
+          '<input type="' +
+          typ +
+          '" class="midtour-cell" data-midtour-field="' +
+          esc(col.key) +
+          '" placeholder="' +
+          ph +
+          '" value="' +
+          esc(r[col.key] || "") +
+          '" autocomplete="off" spellcheck="false"' +
+          step +
+          "/>"
+        );
+      })
+      .join("");
+    return (
+      '<div class="midtour-row midtour-cols midtour-cols-' +
+      esc(key) +
+      '" data-midtour-key="' +
+      esc(key) +
+      '">' +
+      cells +
+      '<button type="button" class="midtour-del" title="删除此行" aria-label="删除此行">×</button>' +
+      "</div>"
+    );
+  }
+
+  function midtourFieldHtml(key, label, need, val) {
+    let rows = parseMidtourValue(key, val);
+    if (!rows.length) rows = [emptyMidtourRow(key)];
+    const schema = MIDTOUR_SCHEMAS[key] || [];
+    const head =
+      '<div class="midtour-head midtour-cols midtour-cols-' +
+      esc(key) +
+      '">' +
+      schema
+        .map(function (col) {
+          return "<span>" + esc(col.label) + "</span>";
+        })
+        .join("") +
+      "<span></span></div>";
+    const body = rows.map(function (r) {
+      return midtourRowHtml(key, r);
+    }).join("");
+    const hiddenVal = serializeMidtourRows(key, rows.filter(midtourRowHasContent));
+    const hintCols = schema
+      .map(function (c) {
+        return c.label;
+      })
+      .join(" · ");
+    const midHint = MIDTOUR_HINTS[key] || "";
+    return (
+      '<label class="fuzzy-field midtour midtour-list-field span-2' +
+      (need ? " need" : "") +
+      '" data-midtour-block="' +
+      esc(key) +
+      '">' +
+      '<span class="fuzzy-field-lab">' +
+      esc(label) +
+      (need ? " <em>需核对</em>" : "") +
+      ' <span class="guest-list-hint">' +
+      esc(hintCols) +
+      "</span>" +
+      (midHint ? '<span class="fuzzy-field-hint">' + esc(midHint) + "</span>" : "") +
+      "</span>" +
+      '<div class="midtour-list-wrap" id="midtourWrap_' +
+      esc(key) +
+      '" data-midtour-key="' +
+      esc(key) +
+      '">' +
+      '<div class="midtour-list-scroll">' +
+      head +
+      '<div class="midtour-list-rows" id="midtourRows_' +
+      esc(key) +
+      '">' +
+      body +
+      "</div>" +
+      "</div>" +
+      '<div class="midtour-list-actions"><button type="button" class="btn midtour-add-btn" data-midtour-add="' +
+      esc(key) +
+      '">＋ 添加一行</button></div>' +
+      "</div>" +
+      '<textarea class="guest-list-hidden midtour-hidden" data-k="' +
+      esc(key) +
+      '" rows="1" aria-hidden="true" tabindex="-1">' +
+      esc(hiddenVal) +
+      "</textarea>" +
+      "</label>"
+    );
+  }
+
+  function readMidtourRowsFromDom(key) {
+    const box = document.getElementById("midtourRows_" + key);
+    if (!box) return [];
+    const out = [];
+    box.querySelectorAll(".midtour-row").forEach(function (rowEl) {
+      const row = emptyMidtourRow(key);
+      (MIDTOUR_SCHEMAS[key] || []).forEach(function (col) {
+        const inp = rowEl.querySelector('[data-midtour-field="' + col.key + '"]');
+        row[col.key] = inp ? String(inp.value || "").trim() : "";
+      });
+      if (midtourRowHasContent(row)) out.push(row);
+    });
+    return out;
+  }
+
+  function syncMidtourHidden(key) {
+    const ta = document.querySelector('#fuzzyFields textarea[data-k="' + key + '"]');
+    if (!ta) return "";
+    const text = serializeMidtourRows(key, readMidtourRowsFromDom(key));
+    ta.value = text;
+    return text;
+  }
+
+  function syncAllMidtourHidden() {
+    MIDTOUR_KEYS.forEach(function (k) {
+      syncMidtourHidden(k);
+    });
+  }
+
+  function rebuildMidtourRows(key, rows) {
+    const box = document.getElementById("midtourRows_" + key);
+    if (!box) return;
+    let list = Array.isArray(rows) ? rows.slice() : [];
+    if (!list.length) list = [emptyMidtourRow(key)];
+    box.innerHTML = list
+      .map(function (r) {
+        return midtourRowHtml(key, r);
+      })
+      .join("");
+    syncMidtourHidden(key);
+  }
+
+  function fillMidtourRowsFromValue(key, val) {
+    const rows = parseMidtourValue(key, val);
+    rebuildMidtourRows(key, rows.length ? rows : [emptyMidtourRow(key)]);
+  }
+
+  function bindMidtourListUi() {
+    const box = $("fuzzyFields");
+    if (!box || box._midtourBound) return;
+    box._midtourBound = true;
+    box.addEventListener("input", function (ev) {
+      const t = ev && ev.target;
+      if (!t || !t.getAttribute) return;
+      if (!t.getAttribute("data-midtour-field")) return;
+      const row = t.closest(".midtour-row");
+      const key = row && row.getAttribute("data-midtour-key");
+      if (key) syncMidtourHidden(key);
+    });
+    box.addEventListener("change", function (ev) {
+      const t = ev && ev.target;
+      if (!t || !t.getAttribute) return;
+      if (!t.getAttribute("data-midtour-field")) return;
+      const row = t.closest(".midtour-row");
+      const key = row && row.getAttribute("data-midtour-key");
+      if (key) syncMidtourHidden(key);
+    });
+    box.addEventListener("click", function (ev) {
+      const t = ev.target;
+      if (!t) return;
+      const addBtn = t.closest ? t.closest("[data-midtour-add]") : null;
+      if (addBtn || (t.getAttribute && t.getAttribute("data-midtour-add"))) {
+        ev.preventDefault();
+        const key = (addBtn || t).getAttribute("data-midtour-add");
+        const rowsBox = document.getElementById("midtourRows_" + key);
+        if (!rowsBox) return;
+        rowsBox.insertAdjacentHTML("beforeend", midtourRowHtml(key, emptyMidtourRow(key)));
+        syncMidtourHidden(key);
+        const last = rowsBox.querySelector(".midtour-row:last-child input");
+        if (last) last.focus();
+        return;
+      }
+      if (t.classList && t.classList.contains("midtour-del")) {
+        ev.preventDefault();
+        const row = t.closest(".midtour-row");
+        const key = row && row.getAttribute("data-midtour-key");
+        const rowsBox = key ? document.getElementById("midtourRows_" + key) : null;
+        if (row && rowsBox) {
+          row.remove();
+          if (!rowsBox.querySelector(".midtour-row")) {
+            rowsBox.insertAdjacentHTML("beforeend", midtourRowHtml(key, emptyMidtourRow(key)));
+          }
+          syncMidtourHidden(key);
+        }
+      }
+    });
+  }
+
   function guestListFieldHtml(label, need, val) {
     let guests = parseGuestListText(val);
     if (!guests.length) guests = [emptyGuest()];
@@ -3485,33 +3861,35 @@ const MingdanUpload = (function () {
     if (raw) raw.textContent = d.raw_text || d.file_name || "（无原文）";
     $("fuzzyFields").innerHTML = FIELD_KEYS.map(([k, label]) => {
       const need = (d.needs_human_confirm || []).includes(k);
-      let val = f[k] == null ? "" : String(f[k]);
+      let val = f[k] == null ? "" : (typeof f[k] === "string" ? f[k] : (Array.isArray(f[k]) ? JSON.stringify(f[k]) : String(f[k])));
       if (k === "guest_list") return guestListFieldHtml(label, need, val);
+      if (MIDTOUR_KEYS.includes(k)) return midtourFieldHtml(k, label, need, f[k] == null ? "" : f[k]);
       if (k === "collect_on_tour") {
         val = shouldAutoFillCollect(val, f.full_amount, f.deposit);
       }
-      const isMidtour = MIDTOUR_KEYS.includes(k);
-      const wide = k === "settlement_detail" || k === "remarks" || k === "outbound_transport" || k === "return_transport" || isMidtour;
+      const wide = k === "settlement_detail" || k === "remarks" || k === "outbound_transport" || k === "return_transport";
       const keyKind = KEY_FIELDS[k];
       const keyCls = keyKind ? ` key ${keyKind === "key" ? "" : keyKind}`.trimEnd() : "";
       const hint = k === "collect_on_tour" ? ' <span class="fuzzy-money-hint">全款−定金</span>' : "";
-      const midHint = MIDTOUR_HINTS[k]
-        ? `<span class="fuzzy-field-hint">${esc(MIDTOUR_HINTS[k])}</span>`
-        : "";
       const agencyCheck = k === "agency" && f.agency_needs_check;
       const agencyHint = agencyCheck
         ? ' <span class="fuzzy-agency-check" title="一对多已默认，请核对客户单位">待核</span><span class="fuzzy-agency-check-note">一对多已默认，请核对</span>'
         : "";
-      const rows = k === "remarks" || k === "settlement_detail" || isMidtour ? 3 : 1;
-      return `<label class="fuzzy-field${keyCls}${need || agencyCheck ? " need" : ""}${wide ? " span-2" : ""}${agencyCheck ? " agency-needs-check" : ""}${isMidtour ? " midtour" : ""}">
-        <span class="fuzzy-field-lab">${esc(label)}${hint}${agencyHint}${need ? " <em>需核对</em>" : ""}${midHint}</span>
+      const rows = k === "remarks" || k === "settlement_detail" ? 3 : 1;
+      return `<label class="fuzzy-field${keyCls}${need || agencyCheck ? " need" : ""}${wide ? " span-2" : ""}${agencyCheck ? " agency-needs-check" : ""}">
+        <span class="fuzzy-field-lab">${esc(label)}${hint}${agencyHint}${need ? " <em>需核对</em>" : ""}</span>
         <textarea data-k="${esc(k)}" rows="${rows}">${esc(val)}</textarea>
       </label>`;
     }).join("");
+    // midtour 绑定挂在 fuzzyFields 上，innerHTML 重建后需允许重新绑定
+    const ff = $("fuzzyFields");
+    if (ff) ff._midtourBound = false;
     bindGuestListUi();
+    bindMidtourListUi();
     bindCollectAuto();
     bindAgencyNeedsCheckClear();
     syncGuestListHidden();
+    syncAllMidtourHidden();
     refreshCollectFromMoneyFields();
     const notes = $("fuzzyChangeNotes");
     if (notes) notes.value = "";
@@ -3573,6 +3951,7 @@ const MingdanUpload = (function () {
 
   function readFieldsFromForm() {
     syncGuestListHidden();
+    syncAllMidtourHidden();
     const fields = {};
     $("fuzzyFields").querySelectorAll("textarea[data-k]").forEach((el) => {
       fields[el.getAttribute("data-k")] = el.value;
@@ -3998,18 +4377,10 @@ const MingdanUpload = (function () {
       `KB=${f.kb || ""}`,
       `跟单价纯数字=${f.gendan_pure || ""}`,
     ];
-    if (String(f.midtour_fee_collect || "").trim()) {
-      lines.push(`团中代收团款=${String(f.midtour_fee_collect).trim()}`);
-    }
-    if (String(f.midtour_tickets || "").trim()) {
-      lines.push(`代订门票明细=${String(f.midtour_tickets).trim()}`);
-    }
-    if (String(f.midtour_hotels || "").trim()) {
-      lines.push(`代订酒店明细=${String(f.midtour_hotels).trim()}`);
-    }
-    if (String(f.midtour_vehicles || "").trim()) {
-      lines.push(`代订用车=${String(f.midtour_vehicles).trim()}`);
-    }
+    MIDTOUR_KEYS.forEach(function (k) {
+      const pretty = formatMidtourForNotify(k, f[k]);
+      if (pretty) lines.push((MIDTOUR_LABELS[k] || k) + "=" + pretty);
+    });
     if (hasMidtourAddons(f)) {
       lines.push("团中加项说明=易途只录圈红栏；无标号栏不录；团中代收→团费加一行。");
     }
@@ -6778,11 +7149,17 @@ const MingdanUpload = (function () {
     const box = $("fuzzyFields");
     if (!box) return;
     const ta = box.querySelector('textarea[data-k="' + k + '"]');
-    const text = v == null ? "" : String(v);
+    let text = v == null ? "" : v;
+    if (Array.isArray(text)) text = JSON.stringify(text);
+    else text = String(text);
     if (ta) ta.value = text;
     if (k === "guest_list") {
       if ($("guestListRows")) fillGuestRowsFromText(text);
       else if (ta) ta.value = text;
+    }
+    if (MIDTOUR_KEYS.includes(k)) {
+      if (document.getElementById("midtourRows_" + k)) fillMidtourRowsFromValue(k, v);
+      else if (ta) ta.value = typeof v === "string" || v == null ? text : serializeMidtourRows(k, parseMidtourValue(k, v));
     }
   }
 
@@ -6792,6 +7169,9 @@ const MingdanUpload = (function () {
     if (k === "guest_list") {
       const synced = syncGuestListHidden();
       if (synced !== undefined && $("guestListRows")) return synced;
+    }
+    if (MIDTOUR_KEYS.includes(k)) {
+      if (document.getElementById("midtourRows_" + k)) return syncMidtourHidden(k);
     }
     const ta = box.querySelector('textarea[data-k="' + k + '"]');
     return ta ? ta.value : "";
