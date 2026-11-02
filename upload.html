@@ -217,6 +217,8 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-field.agency-needs-check{border-left-color:#ea580c!important;background:rgba(124,45,18,.22)!important;border-color:#9a3412!important}
 .fuzzy-yitu-at{font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;
   background:#0f766e;color:#ccfbf1;border:1px solid #2dd4bf;letter-spacing:.01em;white-space:nowrap}
+.fuzzy-warn{width:100%;margin:0 0 8px;padding:6px 10px;border-radius:8px;font-size:12.5px;font-weight:700;line-height:1.45;
+  color:#fecaca;background:rgba(127,29,29,.45);border:1px solid #f87171;letter-spacing:.01em}
 .fuzzy-draft-actions{display:flex;flex-wrap:wrap;gap:6px}
 .fuzzy-review{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}
 .fuzzy-review-bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;
@@ -435,7 +437,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 14:58 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 15:01 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -498,7 +500,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     </div>
   </section>
   <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 14:58 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 15:01 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -518,7 +520,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 14:58 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 15:01 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2683,6 +2685,26 @@ const MingdanUpload = (function () {
         .join("；");
   }
 
+
+  /** 从备注或变更记录抽出「提醒：…」供列表卡展示 */
+  function extractYituWarnText(d) {
+    const f = (d && d.fields) || {};
+    const remarks = String(f.remarks || "");
+    const fromRemarks = remarks
+      .split(/\n+/)
+      .map(function (l) { return String(l || "").trim(); })
+      .filter(function (l) { return /^提醒[：:]/.test(l); });
+    if (fromRemarks.length) return fromRemarks[fromRemarks.length - 1];
+    const hist = Array.isArray(d && d.change_history) ? d.change_history : [];
+    for (let i = hist.length - 1; i >= 0; i--) {
+      const notes = String((hist[i] && hist[i].notes) || "");
+      const m = notes.match(/提醒[：:][^·\n]+/);
+      if (m) return m[0].trim();
+    }
+    if (d && d.yitu_warn) return String(d.yitu_warn).trim();
+    return "";
+  }
+
   function renderHistory(d) {
     const box = $("fuzzyHistory");
     if (!box) return;
@@ -2764,6 +2786,10 @@ const MingdanUpload = (function () {
         const yituAtBadge = yituAt
           ? `<span class="fuzzy-yitu-at" title="录完系统时间（中国时间）">录完 ${esc(yituAt)}</span>`
           : "";
+        const warnText = extractYituWarnText(d);
+        const warnLine = warnText
+          ? `<div class="fuzzy-warn" title="录易途缺项提醒">${esc(warnText)}</div>`
+          : "";
         return `<div class="fuzzy-draft ${isDraftLike(d.status) ? "is-draft-todo" : "is-shared"} ${d.id === activeId ? "active" : ""}" data-id="${esc(d.id)}">
           <div class="fuzzy-draft-h">
             ${draftBadge}
@@ -2773,6 +2799,7 @@ const MingdanUpload = (function () {
             <span class="fuzzy-agency">${esc(f.agency || "")}${f.agency_needs_check ? '<span class="fuzzy-agency-check" title="一对多已默认，请核对客户单位">待核</span>' : ""}${d.yitu_order_no ? " · " + esc(d.yitu_order_no) : ""}</span>
             ${byLine}
           </div>
+          ${warnLine}
           <div class="fuzzy-draft-actions">
             <button type="button" class="btn fuzzy-open" data-id="${esc(d.id)}">${isReviewOpenFor(d.id) ? "收起核对" : "打开核对"}</button>
             <button type="button" class="btn fuzzy-del" data-id="${esc(d.id)}">删除</button>
@@ -3466,6 +3493,8 @@ const MingdanUpload = (function () {
       if (f.line_name) bits.push(f.line_name);
       if (d.yitu_order_no) bits.push("订单号 " + d.yitu_order_no);
       if (d.yitu_entered_at) bits.push("录完 " + formatYituAt(d.yitu_entered_at));
+      const warnOpen = extractYituWarnText(d);
+      if (warnOpen) bits.push(warnOpen);
       if (bits.length) statusExtra = " · " + bits.join(" · ");
     }
     $("fuzzyStatusLine").textContent =
