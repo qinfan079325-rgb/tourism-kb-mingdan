@@ -287,10 +287,18 @@ body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hid
 .fuzzy-confirm-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;
   padding-top:12px;border-top:1px dashed rgba(45,58,79,.7)}
 .fuzzy-check{font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px}
-.fuzzy-overlay{background:#122018;border:1px dashed #166534;border-radius:12px;padding:10px 12px;margin-bottom:14px}
-.fuzzy-overlay-title{font-size:12px;color:#86efac;font-weight:650;margin-bottom:8px}
-.fuzzy-overlay-card{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:6px 0;border-top:1px solid rgba(22,101,52,.35);font-size:13px}
-.fuzzy-overlay-card:first-of-type{border-top:none}
+.fuzzy-overlay{display:none!important} /* 旧「本页进行中」已并入订单看板 */
+.fuzzy-orders-panel{background:var(--card);border:1px solid #166534;border-radius:16px;
+  padding:18px clamp(14px,1.5vw,22px);margin:0 0 18px;
+  box-shadow:0 8px 28px rgba(0,0,0,.22);border-top:3px solid #22c55e}
+.fuzzy-orders-panel .fuzzy-panel-h{margin-bottom:10px}
+.fuzzy-orders-panel .fuzzy-panel-h h2{color:#bbf7d0}
+.fuzzy-orders-panel .fuzzy-list-filters{margin:0 0 12px}
+.fuzzy-orders-list{margin-top:4px}
+.fuzzy-draft-toolbar{margin-top:4px}
+.fuzzy-list-section[data-sec^="date:"] .fuzzy-sec-h{background:rgba(20,83,45,.35);border-color:#166534}
+.fuzzy-list-section[data-sec="nodate"] .fuzzy-sec-h{background:rgba(51,65,85,.45)}
+.fuzzy-orders-empty{color:var(--muted);font-size:13px;padding:10px 2px}
 
 .fuzzy-side{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.35fr);gap:14px 18px;margin-top:8px}
 .fuzzy-side-raw,.fuzzy-side-fields{min-width:0;background:rgba(15,23,42,.35);border:1px solid var(--line);
@@ -516,7 +524,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 20:31 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-02 21:27 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -532,20 +540,13 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       </div>
     </div>
     <div id="fuzzyMsg" class="fuzzy-msg hidden"></div>
-    <div class="fuzzy-list-toolbar">
+    <div class="fuzzy-list-toolbar fuzzy-draft-toolbar">
       <div class="fuzzy-list-toolbar-row">
-        <span class="fuzzy-list-hint">草稿列表：待办仅本人 · 销售确认后全员可见</span>
+        <span class="fuzzy-list-hint">草稿区：仅为草稿·待办（仅本账号）· 销售确认后进下方订单看板</span>
         <button type="button" class="btn" id="fuzzyRefreshListBtn" title="重新拉取本人待办 + 全员已确认">刷新列表</button>
       </div>
-      <div class="fuzzy-list-filters" role="toolbar" aria-label="列表筛选">
-        <button type="button" class="fuzzy-filter-chip is-active" id="fuzzyFilterAll" data-tab="all">全部</button>
-        <button type="button" class="fuzzy-filter-chip" id="fuzzyFilterTodo" data-tab="todo">待处理</button>
-        <button type="button" class="fuzzy-filter-chip" id="fuzzyFilterChange" data-tab="change">改单</button>
-        <button type="button" class="fuzzy-filter-chip" id="fuzzyFilterDone" data-tab="done">已进易途</button>
-        <input type="search" id="fuzzyListSearch" class="fuzzy-list-search" placeholder="搜姓名 / 出团日 / 客户 / 易途单号" autocomplete="off"/>
-      </div>
     </div>
-    <div id="fuzzyDraftList" class="fuzzy-draft-list"></div>
+    <div id="fuzzyDraftList" class="fuzzy-draft-list" aria-label="草稿列表"></div>
     <div id="fuzzyReview" class="fuzzy-review hidden">
       <div class="fuzzy-review-bar">
         <div class="fuzzy-review-bar-title" id="fuzzyReviewBarTitle">核对区</div>
@@ -587,8 +588,23 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       </div>
     </div>
   </section>
-  <div id="fuzzyOverlay" class="fuzzy-overlay hidden"></div>
-  <div class="cs-fab" id="csFab" data-build="2026-11-02 20:31 Asia/Shanghai" aria-live="polite">
+
+  <section id="fuzzyOrdersPanel" class="fuzzy-orders-panel" aria-label="订单看板">
+    <div class="fuzzy-panel-h">
+      <h2>订单看板（已确认 · 不进未出团/钉钉）</h2>
+      <span class="fuzzy-hint">按预定日期汇总 · 可折叠打开 · 不含草稿</span>
+    </div>
+    <div class="fuzzy-list-filters" role="toolbar" aria-label="订单筛选">
+      <button type="button" class="fuzzy-filter-chip is-active" id="fuzzyFilterAll" data-tab="all">全部</button>
+      <button type="button" class="fuzzy-filter-chip" id="fuzzyFilterTodo" data-tab="todo">待处理</button>
+      <button type="button" class="fuzzy-filter-chip" id="fuzzyFilterChange" data-tab="change">改单</button>
+      <button type="button" class="fuzzy-filter-chip" id="fuzzyFilterDone" data-tab="done">已进易途</button>
+      <input type="search" id="fuzzyListSearch" class="fuzzy-list-search" placeholder="搜姓名 / 出团日 / 客户 / 易途单号" autocomplete="off"/>
+    </div>
+    <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
+  </section>
+
+  <div class="cs-fab" id="csFab" data-build="2026-11-02 21:27 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -608,7 +624,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 20:31 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-02 21:27 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -3051,11 +3067,9 @@ const MingdanUpload = (function () {
   }
 
   const LIST_VIEW_KEY = "fuzzyListView";
-  const LIST_DONE_COLLAPSE_KEY = "fuzzyDoneCollapsed";
-  const TODO_STATUSES = new Set([
-    "draft_todo",
-    "pending_parse",
-    "pending_sales_confirm",
+  const ORDERS_DATE_COLLAPSE_KEY = "fuzzyOrdersDateCollapsed";
+  /** 订单看板「待处理」：不含草稿 */
+  const ORDER_TODO_STATUSES = new Set([
     "confirmed_await_yitu",
     "notified_await_yitu",
     "pending_change_sync",
@@ -3076,19 +3090,27 @@ const MingdanUpload = (function () {
       localStorage.setItem(LIST_VIEW_KEY, JSON.stringify({ tab: listView.tab, q: listView.q || "" }));
     } catch (ePersist) {}
   }
-  function isDoneCollapsedDefault() {
+  function loadOrdersDateCollapsedMap() {
     try {
-      const v = localStorage.getItem(LIST_DONE_COLLAPSE_KEY);
-      if (v === null || v === undefined || v === "") return true;
-      return v === "1" || v === "true";
-    } catch (eCol) {
-      return true;
+      const raw = localStorage.getItem(ORDERS_DATE_COLLAPSE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (eMap) {
+      return {};
     }
   }
-  function setDoneCollapsed(collapsed) {
+  function setOrdersDateCollapsed(dateKey, collapsed) {
     try {
-      localStorage.setItem(LIST_DONE_COLLAPSE_KEY, collapsed ? "1" : "0");
+      const map = loadOrdersDateCollapsedMap();
+      map[String(dateKey || "nodate")] = !!collapsed;
+      localStorage.setItem(ORDERS_DATE_COLLAPSE_KEY, JSON.stringify(map));
     } catch (eSet) {}
+  }
+  function isOrdersDateCollapsed(dateKey) {
+    const map = loadOrdersDateCollapsedMap();
+    const k = String(dateKey || "nodate");
+    return !!map[k];
   }
   function draftMatchesQuery(d, q) {
     if (!q) return true;
@@ -3097,6 +3119,7 @@ const MingdanUpload = (function () {
     const hay = [
       f.guest_name,
       f.depart_date,
+      f.book_date,
       f.agency,
       d.yitu_order_no,
       stLabel,
@@ -3113,13 +3136,30 @@ const MingdanUpload = (function () {
     if (d.status === "pending_change_sync" || d.status === "yitu_updated") return true;
     return hasMidtourAddons(d.fields || {});
   }
-  function bucketOf(d) {
+  /** 订单看板筛选桶（不含草稿） */
+  function orderBucketOf(d) {
     const st = d && d.status;
-    if (st === "yitu_updated") return "recent";
     if (st === "in_yitu") return "done";
-    if (TODO_STATUSES.has(st)) return "todo";
-    // 未知状态先放待处理，避免从列表消失
+    if (st === "yitu_updated") return "recent";
+    if (ORDER_TODO_STATUSES.has(st)) return "todo";
+    if (SHARED_STATUSES.has(st)) return "todo";
     return "todo";
+  }
+  function normalizeBookDateKey(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return "";
+    let m = s.match(/^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/);
+    if (m) {
+      return m[1] + "-" + String(m[2]).padStart(2, "0") + "-" + String(m[3]).padStart(2, "0");
+    }
+    m = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (m) return m[1] + "-" + m[2] + "-" + m[3];
+    // 宽松：含 YYYY-MM-DD 子串
+    m = s.match(/(20\d{2})-(\d{1,2})-(\d{1,2})/);
+    if (m) {
+      return m[1] + "-" + String(m[2]).padStart(2, "0") + "-" + String(m[3]).padStart(2, "0");
+    }
+    return "";
   }
   function syncListFilterUi() {
     const chips = document.querySelectorAll(".fuzzy-filter-chip");
@@ -3171,6 +3211,7 @@ const MingdanUpload = (function () {
         </div>`;
   }
   function bindDraftListActions(box) {
+    if (!box) return;
     box.querySelectorAll(".fuzzy-open").forEach((b) =>
       b.addEventListener("click", () => toggleOrOpenDraft(b.getAttribute("data-id")))
     );
@@ -3200,7 +3241,13 @@ const MingdanUpload = (function () {
         if (!sec) return;
         const nowCollapsed = !sec.classList.contains("is-collapsed");
         sec.classList.toggle("is-collapsed", nowCollapsed);
-        if (sec.getAttribute("data-sec") === "done") setDoneCollapsed(nowCollapsed);
+        btn.setAttribute("aria-expanded", nowCollapsed ? "false" : "true");
+        const secKey = sec.getAttribute("data-sec") || "";
+        if (secKey.indexOf("date:") === 0) {
+          setOrdersDateCollapsed(secKey.slice(5), nowCollapsed);
+        } else if (secKey === "nodate") {
+          setOrdersDateCollapsed("nodate", nowCollapsed);
+        }
       })
     );
   }
@@ -3221,81 +3268,95 @@ const MingdanUpload = (function () {
       <div class="fuzzy-sec-body">${body}</div>
     </section>`;
   }
+  /** 解析区草稿列表：仅 DRAFT_LIKE */
   function renderList() {
     const box = $("fuzzyDraftList");
-    if (!box) return;
-    syncListFilterUi();
-    const drafts = loadDrafts();
-    if (!drafts.length) {
-      box.innerHTML =
-        '<div class="fuzzy-empty">暂无草稿。点「保留草稿」→仅本人可见的待办；点「销售确认」→全员可见「已确认待易途」。都不进未出团。</div>';
-      renderOverlay();
+    if (!box) {
+      renderOrdersPanel();
       return;
     }
+    syncListFilterUi();
+    const drafts = loadDrafts().filter(function (d) {
+      return isDraftLike(d && d.status);
+    });
+    if (!drafts.length) {
+      box.innerHTML =
+        '<div class="fuzzy-empty">暂无草稿。点「保留草稿」→仅本人可见；销售确认后进下方「订单看板」。</div>';
+    } else {
+      const sorted = sortDraftsNewest(drafts);
+      box.innerHTML =
+        '<div class="fuzzy-list-section" data-sec="drafts">' +
+        '<div class="fuzzy-sec-body">' +
+        sorted.map(renderDraftCard).join("") +
+        "</div></div>";
+      bindDraftListActions(box);
+    }
+    renderOrdersPanel();
+  }
+  /** 订单看板：非草稿，按预定日期分组 */
+  function renderOrdersPanel() {
+    const box = $("fuzzyOrdersList");
+    const panel = $("fuzzyOrdersPanel");
+    if (!box) return;
+    syncListFilterUi();
     const q = String(listView.q || "").trim().toLowerCase();
     const tab = listView.tab || "all";
-    let filtered = drafts.filter(function (d) {
+    let orders = loadDrafts().filter(function (d) {
+      if (!d) return false;
+      if (isDraftLike(d.status)) return false;
+      return SHARED_STATUSES.has(d.status) || belongsOnShared(d);
+    });
+    orders = orders.filter(function (d) {
       return draftMatchesQuery(d, q);
     });
     if (tab === "todo") {
-      filtered = filtered.filter(function (d) {
-        return bucketOf(d) === "todo";
+      orders = orders.filter(function (d) {
+        return orderBucketOf(d) === "todo";
       });
     } else if (tab === "done") {
-      filtered = filtered.filter(function (d) {
-        return bucketOf(d) === "done";
+      orders = orders.filter(function (d) {
+        return d.status === "in_yitu";
       });
     } else if (tab === "change") {
-      filtered = filtered.filter(isChangeRelated);
+      orders = orders.filter(isChangeRelated);
     }
-    if (!filtered.length) {
+    if (panel) panel.classList.remove("hidden");
+    if (!orders.length) {
       box.innerHTML =
-        '<div class="fuzzy-empty">没有符合筛选的订单。可改筛选或清空搜索。</div>';
-      renderOverlay();
+        '<div class="fuzzy-orders-empty">暂无已确认订单' +
+        (q || tab !== "all" ? "（当前筛选无结果，可改筛选/清空搜索）" : "。销售确认后会出现在此，按预定日期汇总。") +
+        "</div>";
       return;
     }
-    let html = "";
-    if (tab === "change") {
-      const changeList = sortDraftsNewest(filtered);
-      html = renderSectionHtml("change", "改单相关", changeList, { forceShow: true, collapsed: false });
-    } else if (tab === "todo") {
-      const todoList = sortDraftsNewest(filtered);
-      html = renderSectionHtml("todo", "待处理", todoList, { forceShow: true, collapsed: false });
-    } else if (tab === "done") {
-      const doneList = sortDraftsNewest(filtered);
-      html = renderSectionHtml("done", "已办完", doneList, { forceShow: true, collapsed: false });
-    } else {
-      const todo = [];
-      const recent = [];
-      const done = [];
-      filtered.forEach(function (d) {
-        const b = bucketOf(d);
-        if (b === "recent") recent.push(d);
-        else if (b === "done") done.push(d);
-        else todo.push(d);
-      });
-      html += renderSectionHtml("todo", "待处理", sortDraftsNewest(todo), {
-        forceShow: false,
-        collapsed: false,
-      });
-      html += renderSectionHtml("recent", "最近更新", sortDraftsNewest(recent), {
-        forceShow: false,
-        collapsed: false,
-      });
-      html += renderSectionHtml("done", "已办完", sortDraftsNewest(done), {
-        forceShow: false,
-        collapsed: isDoneCollapsedDefault(),
-      });
-      if (!html) {
-        box.innerHTML =
-          '<div class="fuzzy-empty">没有符合筛选的订单。可改筛选或清空搜索。</div>';
-        renderOverlay();
-        return;
+    const groups = {};
+    const orderKeys = [];
+    orders.forEach(function (d) {
+      const f = d.fields || {};
+      const norm = normalizeBookDateKey(f.book_date);
+      const key = norm || "nodate";
+      if (!groups[key]) {
+        groups[key] = [];
+        orderKeys.push(key);
       }
-    }
-    box.innerHTML = html;
+      groups[key].push(d);
+    });
+    orderKeys.sort(function (a, b) {
+      if (a === "nodate") return 1;
+      if (b === "nodate") return -1;
+      return a < b ? 1 : a > b ? -1 : 0; // newest date first
+    });
+    let html = "";
+    orderKeys.forEach(function (key) {
+      const items = sortDraftsNewest(groups[key] || []);
+      const title = key === "nodate" ? "无预定日" : "预定 " + key;
+      const secKey = key === "nodate" ? "nodate" : "date:" + key;
+      html += renderSectionHtml(secKey, title, items, {
+        forceShow: false,
+        collapsed: isOrdersDateCollapsed(key),
+      });
+    });
+    box.innerHTML = html || '<div class="fuzzy-orders-empty">暂无已确认订单</div>';
     bindDraftListActions(box);
-    renderOverlay();
   }
 
   function updateActionButtons(d) {
@@ -4964,32 +5025,8 @@ const MingdanUpload = (function () {
   }
 
   function renderOverlay() {
-    const host = $("fuzzyOverlay");
-    if (!host) return;
-    const watch = loadDrafts().filter((d) =>
-      ["confirmed_await_yitu", "notified_await_yitu", "in_yitu", "pending_change_sync", "yitu_updated"].includes(d.status)
-    );
-    if (!watch.length) {
-      host.classList.add("hidden");
-      host.innerHTML = "";
-      return;
-    }
-    host.classList.remove("hidden");
-    host.innerHTML =
-      `<div class="fuzzy-overlay-title">本页进行中（未写入未出团 / 钉钉正式数据）</div>` +
-      watch
-        .map((d) => {
-          const f = d.fields || {};
-          return `<div class="fuzzy-overlay-card">
-            <span class="fuzzy-st st-${esc(d.status)}">${esc(STATUS[d.status] || d.status)}</span>
-            <span>${esc(f.depart_date || "")}</span>
-            <b>${esc(f.guest_name || "")}</b>
-            <span>${esc(f.party_size || "")}</span>
-            <span>${esc(f.agency || "")}${f.agency_needs_check ? ' <span class="fuzzy-agency-check" title="一对多已默认，请核对">待核</span>' : ""}</span>
-            <span class="g-kb">KB ${esc(f.kb ?? "—")}</span>
-          </div>`;
-        })
-        .join("");
+    // 旧「本页进行中」扁平列表已并入订单看板；保留空函数兼容旧调用点
+    renderOrdersPanel();
   }
 
 
