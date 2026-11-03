@@ -524,7 +524,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-03 12:09 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-03 12:25 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -604,7 +604,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-03 12:09 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-03 12:25 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -624,7 +624,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-03 12:09 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-03 12:25 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -5271,6 +5271,12 @@ const MingdanUpload = (function () {
   /** Tesseract 常在汉字/数字间插空格；折叠后便于正则 */
   function collapseOcrNoise(raw) {
     let t = String(raw || "").replace(/\r/g, "\n");
+    // 全角数字/字母 → 半角（微信/表格粘贴常见；否则「证件号码：１２５４７３３４」匹配不到 [A-Za-z0-9]）
+    t = t.replace(/[\uFF10-\uFF19]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30); });
+    t = t.replace(/[\uFF21-\uFF3A]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFF21 + 0x41); });
+    t = t.replace(/[\uFF41-\uFF5A]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFF41 + 0x61); });
+    // 繁体证件标签 → 简体，避免「證件號碼」走行内启发式变成「件號碼」
+    t = t.replace(/證件/g, "证件").replace(/號碼/g, "号码").replace(/身分證/g, "身份证").replace(/性別/g, "性别");
     // 名单标签块先拆行，避免后面汉字粘连把「姓名/性别/出生日期」糊成一行
     t = t.replace(/([^\n])(?=(?:姓名|性别|出生日期|证件号码|证件有效期|Passport|Sex|Gender|Date\s*of\s*Birth)\s*[:：])/gi, "$1\n");
     // 汉字之间的空白去掉（陈 秋 燕 → 陈秋燕）；勿吞换行，否则标签块会粘成「姓名:xx性别:男」
@@ -5829,19 +5835,15 @@ const MingdanUpload = (function () {
     const lookPass = /护照|Passport\b|P<[A-Z]{3}/i.test(flat);
 
     // 组团社标签名单块：姓名 / 性别 / 出生日期 / 证件号码 / 证件有效期（台胞证 8 位或身份证 18 位）
-    // 优先于 nearbyName，避免中间夹性别/出生日期时姓名落空
+    // 用 collapse 后的 lines（已半角化全角数字、繁简标签），勿用 raw，否则「１２５４７３３４」会丢前几人只留最后一人
     {
-      const rawLines = String(ocrText || "")
-        .replace(/\r/g, "\n")
-        .split(/\n+/)
-        .map(function (l) { return l.trim(); })
-        .filter(Boolean);
-      const labelHas = rawLines.some(function (l) {
+      const labelLines = lines;
+      const labelHas = labelLines.some(function (l) {
         return /^(?:姓名|证件号码)\s*[:：]/.test(l) || /^出生日期\s*[:：]/.test(l);
       });
       if (labelHas) {
-        for (let i = 0; i < rawLines.length; i++) {
-          const nmM = rawLines[i].match(/^(?:姓名|Name)\s*[:：]\s*(.+)$/i);
+        for (let i = 0; i < labelLines.length; i++) {
+          const nmM = labelLines[i].match(/^(?:姓名|Name)\s*[:：]\s*(.+)$/i);
           if (!nmM) continue;
           let nameRaw = String(nmM[1] || "").trim();
           // 同行粘连「姓名：张三性别：男…」时只取姓名
@@ -5852,19 +5854,29 @@ const MingdanUpload = (function () {
           let dobRaw = "";
           let idNum = "";
           let idTyp = "";
-          const winEnd = Math.min(rawLines.length, i + 8);
+          const winEnd = Math.min(labelLines.length, i + 10);
           for (let j = i; j < winEnd; j++) {
-            const L = rawLines[j];
+            const L = labelLines[j];
             if (j > i && /^(?:姓名|Name)\s*[:：]/i.test(L)) break;
             const gM = L.match(/(?:性别|Sex|Gender)\s*[:：]\s*([男女MF]|Male|Female)/i);
             if (gM && !gender) gender = normalizeSexValue(gM[1]);
             const dM = L.match(/(?:出生日期|出生|生日|Date\s*of\s*Birth|DOB)\s*[:：]\s*([^\n]+)/i);
             if (dM && !dobRaw) dobRaw = String(dM[1] || "").trim().split(/(?:性别|证件)/)[0].trim();
-            const idM =
+            // 证件号码：值同行；或「证件号码：」空值时取下一行纯证号
+            let idM =
               L.match(/(?:证件号码|身份证号(?:码)?|台胞证|通行证|护照号码?|Passport\s*(?:No\.?|Number)?)\s*[:：]?\s*([A-Za-z0-9]{8,18})/i) ||
               (j > i ? L.match(/^([1-9]\d{16}[\dXx]|\d{8})$/) : null);
+            if (!idM && /(?:证件号码|身份证号(?:码)?|台胞证|通行证|护照号码?)\s*[:：]?\s*$/i.test(L) && j + 1 < winEnd) {
+              const next = String(labelLines[j + 1] || "").trim();
+              idM = next.match(/^([1-9]\d{16}[\dXx]|\d{8}|[A-Z][A-Z0-9]{5,9})$/i);
+            }
             if (idM && !idNum) {
-              const cand = String(idM[1] || "").toUpperCase();
+              let cand = String(idM[1] || "").toUpperCase();
+              // OCR 把 0/1 认成 O/I/l 时，8 位台胞证可回退成数字
+              if (/^[0-9OIL]{8}$/.test(cand) && !/^\d{8}$/.test(cand)) {
+                const fixed = cand.replace(/O/g, "0").replace(/[IL]/g, "1");
+                if (/^\d{8}$/.test(fixed) && !isYyyymmdd(fixed)) cand = fixed;
+              }
               if (/^[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dX]$/.test(cand)) {
                 idNum = cand;
                 idTyp = "身份证";
@@ -5891,7 +5903,7 @@ const MingdanUpload = (function () {
     // 标签块已完整解析（每人有真名+证号）时，跳过后续台胞证/行内/lookTw 配对启发式，避免「证件号码：8位」把姓名打成「件号码」
     var labeledComplete = false;
     {
-      const idLabs = (String(ocrText || "").match(/(?:证件号码|身份证号(?:码)?|台胞证|通行证|护照号码?)\s*[:：]?\s*([A-Za-z0-9]{8,18})/gi) || [])
+      const idLabs = (String(text || "").match(/(?:证件号码|身份证号(?:码)?|台胞证|通行证|护照号码?)\s*[:：]?\s*([A-Za-z0-9]{8,18})/gi) || [])
         .map(function (x) {
           const m = String(x).match(/([A-Za-z0-9]{8,18})$/);
           return m ? m[1].toUpperCase() : "";
