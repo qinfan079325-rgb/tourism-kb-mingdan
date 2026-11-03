@@ -524,7 +524,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-03 09:45 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-03 09:50 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -604,7 +604,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-03 09:45 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-03 09:50 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -624,7 +624,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-03 09:45 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-03 09:50 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -1719,6 +1719,7 @@ const MingdanUpload = (function () {
     let s = raw.split("=")[0].trim();
     s = s.replace(/[Ｋｋ]/g, "k").replace(/[×ｘxX]/g, "*");
     if (/^[-+]?\d+(?:\.\d+)?$/.test(s)) return Math.round(parseFloat(s));
+    if (/^[\d.+\-*\/()（）×xX＊÷\s]+$/.test(s)) { const ev = evalMoneyExpr(s); if (ev !== null) return Math.round(ev); }
     const re = /([+-]?)(\d+(?:\.\d+)?(?:\s*\*\s*\d+(?:\.\d+)?)?)([^\d+\-]*)/g;
     let total = 0;
     let any = false;
@@ -2162,7 +2163,31 @@ const MingdanUpload = (function () {
     return isTransportLine(v) ? v : "";
   }
 
+  /** 通用算式求值：+ - * × x ＊ / ÷ 及括号，按优先级；取文本中第一段算式 */
+  function normMathText(s) {
+    return String(s || "").replace(/,/g, "").replace(/[×xX＊✕]/g, "*").replace(/[÷／]/g, "/")
+      .replace(/＋/g, "+").replace(/[－—–]/g, "-").replace(/（/g, "(").replace(/）/g, ")");
+  }
+  function evalMoneyExpr(s) {
+    const tx = normMathText(s);
+    const ms = tx.match(/[-+(]*\s*\d+(?:\.\d+)?(?:\s*[)]*\s*[-+*\/]\s*[(]*\s*\d+(?:\.\d+)?\s*[)]*)+/);
+    if (!ms) return null;
+    let e = ms[0].trim();
+    if (e.replace(/\D/g, "").length >= 15) return null;
+    // 括号配平：去多余右括号/补左括号
+    let d = 0, out = "";
+    for (const c of e) { if (c === "(") d++; if (c === ")") { if (!d) continue; d--; } out += c; }
+    out += ")".repeat(d);
+    if (!/^[\d.+\-*\/()\s]+$/.test(out)) return null;
+    try {
+      const v = Function('"use strict";return (' + out + ')')();
+      if (typeof v === "number" && isFinite(v) && Math.abs(v) < 1e8) return Math.round(v * 100) / 100;
+    } catch (e2) {}
+    return null;
+  }
+
   function moneyNumber(s) {
+    if (!/=/.test(String(s || ""))) { const ev0 = evalMoneyExpr(s); if (ev0 !== null) return ev0; }
     const m = String(s || "").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
     return m ? parseFloat(m[0]) : NaN;
   }
@@ -2179,18 +2204,8 @@ const MingdanUpload = (function () {
         return Math.round(n) === n ? String(Math.round(n)) : String(n);
       }
     }
-    // 算式：1099*2、平台1099×2、1099*2+200-100 → 求值
-    const tx = t.replace(/,/g, "").replace(/[×xX＊✕·]/g, "*").replace(/[＋]/g, "+").replace(/[－—–]/g, "-").replace(/[（(]/g, "(").replace(/[）)]/g, ")");
-    const ex = tx.match(/\d+(?:\.\d+)?(?:\s*[-+*\/]\s*\d+(?:\.\d+)?)+/);
-    if (ex && /[*\/+-]/.test(ex[0]) && ex[0].replace(/\D/g, "").length < 15) {
-      try {
-        const v = Function('"use strict";return (' + ex[0] + ')')();
-        if (isFinite(v) && Math.abs(v) < 1e8) {
-          const r = Math.round(v * 100) / 100;
-          return String(r);
-        }
-      } catch (e) {}
-    }
+    const ev = evalMoneyExpr(t);
+    if (ev !== null) return String(ev);
     const m = t.replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
     if (!m) return "";
     if (/^\d{15,}$/.test(m[0].replace(/^-/, ""))) return "";
@@ -2269,6 +2284,14 @@ const MingdanUpload = (function () {
       const t = ev && ev.target;
       if (!t || !t.getAttribute) return;
       const k = t.getAttribute("data-k");
+      // 手填算式（无等号、纯数字运算）→ 直接换成结果
+      if (k && /amount|deposit|balance|collect|settle|rebate|refund|price|fee|weikuan|money/.test(k) && !/detail|formula/.test(k)) {
+        const v = String(t.value || "").trim();
+        if (v && !/=/.test(v) && /^[\d.,+\-*\/()（）×xX＊÷＋－\s]+$/.test(v) && /\d\s*[)）]*\s*[+\-*\/×xX＊÷＋－]/.test(v)) {
+          const r = evalMoneyExpr(v);
+          if (r !== null) t.value = String(r);
+        }
+      }
       if (k === "full_amount" || k === "deposit") refreshCollectFromMoneyFields();
     });
   }
