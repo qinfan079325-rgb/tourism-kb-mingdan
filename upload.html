@@ -524,7 +524,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-03 09:50 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-03 11:39 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -604,7 +604,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-03 09:50 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-03 11:39 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -624,7 +624,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-03 09:50 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-03 11:39 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2397,8 +2397,14 @@ const MingdanUpload = (function () {
       if (rm) return_date = yearDate(rm[1] + "月" + rm[2]);
     }
     // 出行区间：2026-11-15—2026-11-21 / 11.15-11.21 → 出团取起、返程取止（优先于按线路天数推算）
+    // 勿把「证件有效期/Validity」里的起止日当成出团–返程
     if (!return_date) {
-      const rangeSrc = [departRaw, t].filter(Boolean).join("\n");
+      function stripIdValidityRanges(s) {
+        return String(s || "")
+          .replace(/(?:证件\s*)?有效期\s*[:：]?[^\n]*/gi, " ")
+          .replace(/(?:Validity|Expiry|Date\s*of\s*Expiry|Expiration(?:\s*Date)?)\s*[:：]?[^\n]*/gi, " ");
+      }
+      const rangeSrc = stripIdValidityRanges([departRaw, t].filter(Boolean).join("\n"));
       const isoR = String(rangeSrc).match(
         /(20\d{2})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?\s*[-—–―−－~～至到]\s*(20\d{2})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/
       );
@@ -3544,7 +3550,7 @@ const MingdanUpload = (function () {
       }
     }
     // Require separators so check digits are not misread as Y-M-D
-    m = raw.match(/^(19|20)(\d{2})[-\/.年](0?[1-9]|1[0-2])[-\/.月](0?[1-9]|[12]\d|3[01])/);
+    m = raw.match(/^(19|20)(\d{2})[-\/.年](1[0-2]|0?[1-9])[-\/.月](3[01]|[12]\d|0?[1-9])/);
     if (m) {
       const y = +(m[1] + m[2]), mo = +m[3], d = +m[4];
       const age = ageFromYmd(y, mo, d);
@@ -5213,8 +5219,10 @@ const MingdanUpload = (function () {
   /** Tesseract 常在汉字/数字间插空格；折叠后便于正则 */
   function collapseOcrNoise(raw) {
     let t = String(raw || "").replace(/\r/g, "\n");
-    // 汉字之间的空白去掉（陈 秋 燕 → 陈秋燕）
-    t = t.replace(/([\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])/g, "$1");
+    // 名单标签块先拆行，避免后面汉字粘连把「姓名/性别/出生日期」糊成一行
+    t = t.replace(/([^\n])(?=(?:姓名|性别|出生日期|证件号码|证件有效期|Passport|Sex|Gender|Date\s*of\s*Birth)\s*[:：])/gi, "$1\n");
+    // 汉字之间的空白去掉（陈 秋 燕 → 陈秋燕）；勿吞换行，否则标签块会粘成「姓名:xx性别:男」
+    t = t.replace(/([\u4e00-\u9fff])[^\S\n]+(?=[\u4e00-\u9fff])/g, "$1");
     // 标题与姓名粘连时拆开，便于按行取中文名
     t = t.replace(/(通行证|台胞证|护照|身份证)([\u4e00-\u9fff]{2,4})/g, "$1\n$2");
     t = t.replace(/([\u4e00-\u9fff]{2,4})(证件号码|签发次数|签发机关)/g, "$1\n$2");
@@ -5255,8 +5263,9 @@ const MingdanUpload = (function () {
     // 台胞证号旁签发次数：30384335""01 / 02215633 "04 / 07042222 °03
     // 必须是独立 8 位（前一位非数字），避免把 18 位身份证 / 11 位手机末段误切成「签发次数」
     t = t.replace(/(^|[^\d])(\d{8})\s*["“”'`'*°·.=]{0,4}\s*(0[1-9]|[1-9])(?!\d)/g, "$1$2 签发次数$3");
-    // 证件号码 OCR 粘连/错字
-    t = t.replace(/证\s*[件仲体忻]\s*[号码纺名]?\s*[码码友]?/g, "证件号码");
+    // 证件号码 OCR 粘连/错字（须带「号/码」类字，勿把「证件有效期」改成「证件号码有效期」）
+    t = t.replace(/证\s*[件仲体忻]\s*[号码纺名]\s*[码码友]?/g, "证件号码");
+    t = t.replace(/证件号(?!码)/g, "证件号码");
     // 英文名逗号被认成分号/空
     t = t.replace(/\b([A-Z]{2,20})\s*[;；]\s*([A-Z][A-Z\-]{1,30})\b/g, "$1, $2");
     t = t.replace(/\b([A-Z]{2,20})\s*[W_]\s*([A-Z][A-Z\-]{1,30})\b/g, "$1, $2");
@@ -5638,7 +5647,8 @@ const MingdanUpload = (function () {
       if (aHan && bHan && a !== b && b.length <= a.length) return a;
       return b.length >= a.length ? b : a;
     }
-    function push(name, typ, num) {
+    function push(name, typ, num, extra) {
+      extra = extra || {};
       const id = String(num || "").trim().toUpperCase().replace(/\s+/g, "");
       if (!id) return;
       if (/^\d{8}$/.test(id) && isYyyymmdd(id)) return;
@@ -5654,10 +5664,17 @@ const MingdanUpload = (function () {
         // 纯 8 位更像台胞证；若调用方标护照但无护照语境，仍允许（由上层 lookPass 决定）
       }
       const nm = cleanPersonName(name);
+      function mergeExtra(prev) {
+        if (!prev || !extra) return;
+        const g = normalizeSexValue(extra.gender || extra.sex || "");
+        if (g && !prev.gender) prev.gender = g;
+        if (extra.age && !prev.age) prev.age = String(extra.age);
+        if (extra.birth_date && !prev.birth_date) prev.birth_date = String(extra.birth_date);
+      }
       if (seen[id]) {
-        if (nm) {
-          const prev = found.find((g) => g.number === id);
-          if (prev) {
+        const prev = found.find((g) => g.number === id);
+        if (prev) {
+          if (nm) {
             const better = preferName(prev.name, nm);
             if (better && better !== prev.name) {
               prev.name = better;
@@ -5665,20 +5682,37 @@ const MingdanUpload = (function () {
               prev.line = better + " " + prev.type + " " + id;
             }
           }
+          mergeExtra(prev);
         }
         return;
       }
       seen[id] = true;
-      found.push({
+      const row = {
         name: nm,
         type: typ,
         number: id,
         line: (nm ? nm + " " : "") + typ + " " + id,
-      });
+      };
+      mergeExtra(row);
+      found.push(row);
     }
 
     function nearbyName(idx, hay) {
       const before = hay.slice(Math.max(0, idx - (lookTw ? 120 : 200)), idx);
+      // 窗口内最后一次「姓名：汉字名」优先（中间可夹性别/出生日期）；拒业务员等前缀
+      {
+        const labRe = /(?:姓名|Name|Surname|Given\s*Names?)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Za-z][A-Za-z,\-\s]{1,40})/gi;
+        let bestLab = "";
+        let mm;
+        while ((mm = labRe.exec(before))) {
+          const ctx = before.slice(Math.max(0, mm.index - 10), mm.index);
+          if (/(?:业务员|客服|对接人|销售|联系人员)\s*$/.test(ctx)) continue;
+          const labeled = cleanPersonName(mm[1]);
+          if (labeled) bestLab = labeled;
+        }
+        if (bestLab && /[\u4e00-\u9fff]/.test(bestLab)) return bestLab;
+        if (bestLab) return bestLab;
+      }
       let m = before.match(/(?:姓名|Name|Surname|Given\s*Names?)\s*[:：]?\s*([\u4e00-\u9fff]{2,4}|[A-Za-z][A-Za-z,\-\s]{1,40})\s*$/i);
       if (m) {
         const labeled = cleanPersonName(m[1]);
@@ -5734,6 +5768,66 @@ const MingdanUpload = (function () {
         flat
       );
     const lookPass = /护照|Passport\b|P<[A-Z]{3}/i.test(flat);
+
+    // 组团社标签名单块：姓名 / 性别 / 出生日期 / 证件号码 / 证件有效期（台胞证 8 位或身份证 18 位）
+    // 优先于 nearbyName，避免中间夹性别/出生日期时姓名落空
+    {
+      const rawLines = String(ocrText || "")
+        .replace(/\r/g, "\n")
+        .split(/\n+/)
+        .map(function (l) { return l.trim(); })
+        .filter(Boolean);
+      const labelHas = rawLines.some(function (l) {
+        return /^(?:姓名|证件号码)\s*[:：]/.test(l) || /^出生日期\s*[:：]/.test(l);
+      });
+      if (labelHas) {
+        for (let i = 0; i < rawLines.length; i++) {
+          const nmM = rawLines[i].match(/^(?:姓名|Name)\s*[:：]\s*(.+)$/i);
+          if (!nmM) continue;
+          let nameRaw = String(nmM[1] || "").trim();
+          // 同行粘连「姓名：张三性别：男…」时只取姓名
+          nameRaw = nameRaw.split(/(?:性别|出生日期|证件号码|证件有效期|Sex|Gender|Date\s*of\s*Birth)\s*[:：]/i)[0].trim();
+          const nm = cleanPersonName(nameRaw);
+          if (!nm) continue;
+          let gender = "";
+          let dobRaw = "";
+          let idNum = "";
+          let idTyp = "";
+          const winEnd = Math.min(rawLines.length, i + 8);
+          for (let j = i; j < winEnd; j++) {
+            const L = rawLines[j];
+            if (j > i && /^(?:姓名|Name)\s*[:：]/i.test(L)) break;
+            const gM = L.match(/(?:性别|Sex|Gender)\s*[:：]\s*([男女MF]|Male|Female)/i);
+            if (gM && !gender) gender = normalizeSexValue(gM[1]);
+            const dM = L.match(/(?:出生日期|出生|生日|Date\s*of\s*Birth|DOB)\s*[:：]\s*([^\n]+)/i);
+            if (dM && !dobRaw) dobRaw = String(dM[1] || "").trim().split(/(?:性别|证件)/)[0].trim();
+            const idM =
+              L.match(/(?:证件号码|身份证号(?:码)?|台胞证|通行证|护照号码?|Passport\s*(?:No\.?|Number)?)\s*[:：]?\s*([A-Za-z0-9]{8,18})/i) ||
+              (j > i ? L.match(/^([1-9]\d{16}[\dXx]|\d{8})$/) : null);
+            if (idM && !idNum) {
+              const cand = String(idM[1] || "").toUpperCase();
+              if (/^[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dX]$/.test(cand)) {
+                idNum = cand;
+                idTyp = "身份证";
+              } else if (/^\d{8}$/.test(cand) && !isYyyymmdd(cand)) {
+                idNum = cand;
+                idTyp = "台胞证";
+              } else if (/^[A-Z][A-Z0-9]{5,9}$/.test(cand) && /\d/.test(cand)) {
+                idNum = cand;
+                idTyp = "护照";
+              }
+            }
+          }
+          if (!idNum) continue;
+          const demo = demographicsFromDob(dobRaw);
+          push(nm, idTyp || (lookTw ? "台胞证" : "证件"), idNum, {
+            gender: gender,
+            age: demo.age || "",
+            birth_date: demo.birth || "",
+          });
+        }
+      }
+    }
 
     // 身份证 18 位（正文/截图均可：姓名紧挨或「身份证/身份证号」标签）
     const id18 = /([1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])/g;
