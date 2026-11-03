@@ -524,7 +524,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-03 11:39 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-03 11:45 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -604,7 +604,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-03 11:39 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-03 11:45 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -624,7 +624,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-03 11:39 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-03 11:45 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2397,12 +2397,28 @@ const MingdanUpload = (function () {
       if (rm) return_date = yearDate(rm[1] + "月" + rm[2]);
     }
     // 出行区间：2026-11-15—2026-11-21 / 11.15-11.21 → 出团取起、返程取止（优先于按线路天数推算）
-    // 勿把「证件有效期/Validity」里的起止日当成出团–返程
+    // 勿把「证件有效期/Validity」里的起止日当成出团–返程（含标签与日期分行）
     if (!return_date) {
       function stripIdValidityRanges(s) {
-        return String(s || "")
-          .replace(/(?:证件\s*)?有效期\s*[:：]?[^\n]*/gi, " ")
-          .replace(/(?:Validity|Expiry|Date\s*of\s*Expiry|Expiration(?:\s*Date)?)\s*[:：]?[^\n]*/gi, " ");
+        let out = String(s || "");
+        // 有效期标签行；若下一行仅是起止日，一并去掉（OCR 常把日期拆到下一行）
+        out = out.replace(
+          /(?:证件\s*)?有效期\s*[:：]?[^\n]*(?:\n\s*(?:20\d{2}|\d{1,2})[^\n]*[-—–―−－~～至到][^\n]*)?/gi,
+          " "
+        );
+        out = out.replace(
+          /(?:Validity|Expiry|Date\s*of\s*Expiry|Expiration(?:\s*Date)?)\s*[:：]?[^\n]*(?:\n\s*(?:20\d{2}|\d{1,2})[^\n]*[-—–―−－~～至到][^\n]*)?/gi,
+          " "
+        );
+        return out;
+      }
+      function tripRangeSpanDays(a, b) {
+        const aa = String(a || "").match(/(\d{4})-(\d{2})-(\d{2})/);
+        const bb = String(b || "").match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (!aa || !bb) return null;
+        const t0 = Date.UTC(+aa[1], +aa[2] - 1, +aa[3]);
+        const t1 = Date.UTC(+bb[1], +bb[2] - 1, +bb[3]);
+        return Math.round((t1 - t0) / 86400000);
       }
       const rangeSrc = stripIdValidityRanges([departRaw, t].filter(Boolean).join("\n"));
       const isoR = String(rangeSrc).match(
@@ -2412,11 +2428,22 @@ const MingdanUpload = (function () {
         /(\d{1,2})\s*[月/\-.\uFF0F]\s*(\d{1,2})\s*日?\s*[-—–―−－~～至到]\s*(\d{1,2})\s*[月/\-.\uFF0F]\s*(\d{1,2})/
       );
       if (isoR) {
-        if (!depart_date) depart_date = yearDate(isoR[1] + "-" + isoR[2] + "-" + isoR[3]);
-        return_date = yearDate(isoR[4] + "-" + isoR[5] + "-" + isoR[6]);
+        const d0 = yearDate(isoR[1] + "-" + isoR[2] + "-" + isoR[3]);
+        const d1 = yearDate(isoR[4] + "-" + isoR[5] + "-" + isoR[6]);
+        const span = tripRangeSpanDays(d0, d1);
+        // 证件有效期常跨数年；真实行程区间通常 ≤45 天
+        if (span != null && span >= 0 && span <= 45) {
+          if (!depart_date) depart_date = d0;
+          return_date = d1;
+        }
       } else if (mdR) {
-        if (!depart_date) depart_date = yearDate(mdR[1] + "月" + mdR[2]);
-        return_date = yearDate(mdR[3] + "月" + mdR[4]);
+        const d0 = yearDate(mdR[1] + "月" + mdR[2]);
+        const d1 = yearDate(mdR[3] + "月" + mdR[4]);
+        const span = tripRangeSpanDays(d0, d1);
+        if (span != null && span >= 0 && span <= 45) {
+          if (!depart_date) depart_date = d0;
+          return_date = d1;
+        }
       }
     }
     let line_name = pick(
