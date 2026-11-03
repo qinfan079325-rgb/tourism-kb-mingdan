@@ -524,7 +524,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-03 12:25 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-03 17:24 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -604,7 +604,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-03 12:25 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-03 17:24 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -624,7 +624,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-03 12:25 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-03 17:24 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -764,6 +764,7 @@ const MingdanAuth = (function () {
 
 </script>
 <script>
+
 /* 模糊订单上传：独立页 upload.html。仅为草稿·待办跟登录账号（Cloudflare KV）；销售确认后进全员共享 drafts:v1:shared_confirmed；改单流程见 STATUS。不写入未出团 DATA。 */
 const MingdanUpload = (function () {
   const LOCAL_STORE_KEY = "mingdan_fuzzy_drafts_v1"; // 仅一次性迁移本机旧草稿
@@ -3686,6 +3687,11 @@ const MingdanUpload = (function () {
     out.id_type = String(out.id_type || out.type || "").trim() || "证件";
     out.id_number = String(out.id_number || out.number || "").trim();
     out.phone = String(out.phone || "").trim();
+    {
+      const idn = String(out.id_number || "").replace(/\s+/g, "");
+      if (out.phone && idn && idn.toUpperCase().indexOf(out.phone) === 0) out.phone = "";
+      else if (out.phone && isFakeMobileFromIdPrefix(out.phone, idn)) out.phone = "";
+    }
     out.gender = normalizeSexValue(out.gender || out.sex || "");
     out.age = String(out.age || "").trim();
     out.guest_kind = String(out.guest_kind || out.kind || out.party_type || "").trim();
@@ -3715,6 +3721,28 @@ const MingdanUpload = (function () {
     return [name, phone, idType, idNumber, gender, age, kind].filter(function (x) { return x !== ""; }).join(" ");
   }
 
+
+  /** 11 位像手机、实为 18 位身份证前缀时拒收 */
+  function isFakeMobileFromIdPrefix(phone, haystack) {
+    const ph = String(phone || "").trim();
+    if (!/^1\d{10}$/.test(ph)) return false;
+    const hay = String(haystack || "");
+    let from = 0;
+    while (from <= hay.length) {
+      const idx = hay.indexOf(ph, from);
+      if (idx < 0) break;
+      const run = hay.slice(idx).replace(/\s+/g, "");
+      if (/^1\d{16}[\dXx]/i.test(run)) return true;
+      from = idx + 1;
+    }
+    return false;
+  }
+
+  function isPhoneLabelJunkName(nm) {
+    const s = String(nm || "").trim();
+    return !s || /身份证|证件|护照|台胞|电话|手机|联系|号码|姓名/.test(s);
+  }
+
   function parseGuestLine(line) {
     let s = String(line || "").trim();
     if (!s) return null;
@@ -3741,10 +3769,19 @@ const MingdanUpload = (function () {
       }
     }
     let phone = "";
-    const phoneM = s.match(/(?:^|[\s,，])(1\d{10})(?:[\s,，]|$)/);
-    if (phoneM) {
+    // 先避开 18 位身份证，再取手机，避免证号前 11 位进电话列
+    let sForPhone = s;
+    const idPreview = s.match(/\b(\d{17}[\dXx])\b/i);
+    if (idPreview) {
+      sForPhone = (s.slice(0, idPreview.index) + " " + s.slice(idPreview.index + idPreview[0].length)).replace(/\s+/g, " ").trim();
+    }
+    const phoneM = sForPhone.match(/(?:^|[\s,，])(1\d{10})(?:[\s,，]|$)/);
+    if (phoneM && !isFakeMobileFromIdPrefix(phoneM[1], s)) {
       phone = phoneM[1];
-      s = (s.slice(0, phoneM.index) + " " + s.slice(phoneM.index + phoneM[0].length)).replace(/\s+/g, " ").trim();
+      const phoneM2 = s.match(new RegExp("(?:^|[\\s,，])(" + phone + ")(?:[\\s,，]|$)"));
+      if (phoneM2) {
+        s = (s.slice(0, phoneM2.index) + " " + s.slice(phoneM2.index + phoneM2[0].length)).replace(/\s+/g, " ").trim();
+      }
     }
     let guest_kind = "";
     const kindM = s.match(/(?:^|[\s,，])(成人|儿童)(?:[\s,，]|$)/);
@@ -5393,19 +5430,25 @@ const MingdanUpload = (function () {
         if (nm && ph) phoneByName[nm] = ph;
       }
 
-      // 姓名紧贴/空格+手机（联系人万成荣1877…）
+      // 姓名紧贴/空格+手机；拒「身份证」标签+证号前11位、拒证号前缀
       m =
-        line.match(/([\u4e00-\u9fff]{2,4})\s*(1\d{10})/) ||
-        line.match(/(?:联系人|客人|代表人)[^\u4e00-\u9fff]{0,4}([\u4e00-\u9fff]{2,4})[^\d]{0,8}(1\d{10})/);
+        line.match(/([\u4e00-\u9fff]{2,4})\s*(1\d{10})(?!\d)/) ||
+        line.match(/(?:联系人|客人|代表人)[^\u4e00-\u9fff]{0,4}([\u4e00-\u9fff]{2,4})[^\d]{0,8}(1\d{10})(?!\d)/);
       if (m) {
         const nm = cleanPersonNameForPhone(m[1]);
-        if (nm) phoneByName[nm] = m[2];
+        const ph = m[2];
+        if (nm && ph && !isPhoneLabelJunkName(nm) && !isFakeMobileFromIdPrefix(ph, line)) {
+          phoneByName[nm] = ph;
+        }
       }
 
       nameLabeledPhoneRe.lastIndex = 0;
       while ((m = nameLabeledPhoneRe.exec(line))) {
         const nm = cleanPersonNameForPhone(m[1]);
-        if (nm) phoneByName[nm] = m[2];
+        const ph = m[2];
+        if (nm && ph && !isPhoneLabelJunkName(nm) && !isFakeMobileFromIdPrefix(ph, line)) {
+          phoneByName[nm] = ph;
+        }
       }
     }
 
@@ -8364,6 +8407,7 @@ const MingdanUpload = (function () {
   } catch (e) {}
   return api;
 })();
+
 
 
 </script>
