@@ -524,7 +524,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-04 16:37 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-04 16:42 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -604,7 +604,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-04 16:37 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-04 16:42 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -624,7 +624,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-04 16:37 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-04 16:42 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2997,8 +2997,10 @@ const MingdanUpload = (function () {
               }
             }
           }
-          if (!fields.party_size && idParsed.guests.length) {
-            fields.party_size = idParsed.guests.length + "大";
+          // 名单权威：按年龄重算（见下方 applyPartySizeFromGuestList）
+          if (idParsed.guests.length) {
+            const ps = partySizeFromGuests(idParsed.guests.map(function (g) { return enrichGuestFields(g); }));
+            if (ps) fields.party_size = ps;
           }
         }
       }
@@ -3043,12 +3045,12 @@ const MingdanUpload = (function () {
         // 车票/机票上的姓名是游客，只填客人姓名，不填第5条联系人员
         if (!fields.guest_name) fields.guest_name = pass;
       }
-      if (train && train.ticket_count && !fields.party_size) {
+      if (train && train.ticket_count && !fields.party_size && !parseGuestListText(fields.guest_list || "").length) {
         fields.party_size = train.ticket_count + "大";
       }
     } catch (e) {}
 
-    // 无人数关键词：按客人名单人数推断（证件名单 / 正文姓名行）
+    // 无人数关键词：按客人名单人数推断（证件名单 / 正文姓名行）——仅无名单明细时用，一律先记为大
     if (!fields.party_size) {
       const nGuest = countGuestsForPartySize(fields, t);
       if (nGuest > 0) fields.party_size = nGuest + "大";
@@ -3060,8 +3062,15 @@ const MingdanUpload = (function () {
       if (pm) fields.party_size = pm[1] + (/大/.test(pm[0]) ? "大" : "人");
     }
 
+    // 有客人名单：参团人数必须以名单为准（≥18 大 / <18 小），覆盖正文人数
+    const partyFromGuestList = applyPartySizeFromGuestList(fields);
+
     // 无明确返程日 → 默认 4 天行程（出团后第 4 天）
     ensureDefaultReturnDate(fields);
+
+    const needsConfirm = ["depart_date"];
+    // 名单权威算出的人数不再标「需核对」；无人数或仅正文推断时仍需核对
+    if (!partyFromGuestList || !(fields.party_size || "").trim()) needsConfirm.push("party_size");
 
     return {
       id: uid(),
@@ -3071,7 +3080,7 @@ const MingdanUpload = (function () {
       raw_text: t,
       file_name: "",
       fields,
-      needs_human_confirm: ["depart_date", "party_size"],
+      needs_human_confirm: needsConfirm,
       badge: "仅为草稿·待办",
       sales_confirmed: false,
       change_history: [],
@@ -3685,13 +3694,62 @@ const MingdanUpload = (function () {
     return { gender: gender, age: age, birth: birth };
   }
 
-  /** 有年龄：<12 儿童，否则成人；无年龄：保留已有，默认成人 */
+  /** 有年龄：<18 儿童/小孩，≥18 成人；无年龄：保留已有，默认成人 */
   function inferGuestKind(ageStr, existing) {
     const age = parseInt(String(ageStr || "").trim(), 10);
-    if (!isNaN(age) && age >= 0 && age <= 120) return age < 12 ? "儿童" : "成人";
+    if (!isNaN(age) && age >= 0 && age <= 120) return age < 18 ? "儿童" : "成人";
     const ex = String(existing || "").trim();
-    if (ex === "成人" || ex === "儿童") return ex;
+    if (ex === "成人" || ex === "儿童" || ex === "小孩") return ex === "小孩" ? "儿童" : ex;
     return "成人";
+  }
+
+  /** 名单计人：有年龄以年龄为准（≥18 大 / <18 小）；无年龄看类型；默认成人 */
+  function isChildGuest(g) {
+    const age = parseInt(String((g && g.age) || "").trim(), 10);
+    if (!isNaN(age) && age >= 0 && age <= 120) return age < 18;
+    const kind = String((g && (g.guest_kind || g.kind)) || "").trim();
+    if (kind === "儿童" || kind === "小孩") return true;
+    if (kind === "成人") return false;
+    return false;
+  }
+
+  function guestCountsTowardParty(g) {
+    if (!g) return false;
+    const name = typeof guestDisplayName === "function" ? guestDisplayName(g) : String((g && g.name) || "").trim();
+    const id = String((g && (g.id_number || g.number)) || "").trim();
+    return !!(name || id);
+  }
+
+  /** 格式：5大3小；一侧为 0 则省略（3小 / 5大） */
+  function formatPartySizeLabel(adults, children) {
+    const a = adults | 0;
+    const c = children | 0;
+    if (a <= 0 && c <= 0) return "";
+    if (c <= 0) return a + "大";
+    if (a <= 0) return c + "小";
+    return a + "大" + c + "小";
+  }
+
+  function partySizeFromGuests(guests) {
+    let adults = 0;
+    let children = 0;
+    (guests || []).forEach(function (g) {
+      if (!guestCountsTowardParty(g)) return;
+      if (isChildGuest(g)) children += 1;
+      else adults += 1;
+    });
+    return formatPartySizeLabel(adults, children);
+  }
+
+  /** 有名单则按名单年龄重写参团人数；返回是否已权威写入 */
+  function applyPartySizeFromGuestList(fields) {
+    const f = fields || {};
+    const guests = parseGuestListText(f.guest_list || "");
+    if (!guests.length) return false;
+    const label = partySizeFromGuests(guests);
+    if (!label) return false;
+    f.party_size = label;
+    return true;
   }
 
   function enrichGuestFields(g) {
@@ -4226,13 +4284,35 @@ const MingdanUpload = (function () {
   function syncGuestListHidden() {
     const ta = document.querySelector('#fuzzyFields textarea[data-k="guest_list"]');
     if (!ta) return "";
-    const text = readGuestsFromDom()
+    const guests = readGuestsFromDom();
+    const text = guests
       .map(function (g) {
         return g.line;
       })
       .filter(Boolean)
       .join("\n");
     ta.value = text;
+    // 有名单时参团人数跟名单走，避免手工改年龄后仍显示旧的「N大」
+    const label = partySizeFromGuests(guests);
+    if (label) {
+      const pta = document.querySelector('#fuzzyFields textarea[data-k="party_size"]');
+      if (pta) pta.value = label;
+      if (workingDraft) {
+        if (!workingDraft.fields) workingDraft.fields = {};
+        workingDraft.fields.party_size = label;
+        workingDraft.needs_human_confirm = (workingDraft.needs_human_confirm || []).filter(function (k) {
+          return k !== "party_size";
+        });
+      }
+      if (pta) {
+        const wrap = pta.closest(".fuzzy-field");
+        if (wrap) {
+          wrap.querySelectorAll("em").forEach(function (em) {
+            if (/需核对/.test(em.textContent || "")) em.remove();
+          });
+        }
+      }
+    }
     return text;
   }
 
@@ -8060,7 +8140,16 @@ const MingdanUpload = (function () {
     writeField("guest_list", mergedText);
     if ($("guestListRows")) rebuildGuestRows(mergedGuests);
     if (!readField("guest_name") && ids.names[0]) writeField("guest_name", ids.names[0]);
-    if (!readField("party_size") && ids.guests.length) writeField("party_size", ids.guests.length + "大");
+    {
+      const ps = partySizeFromGuests(mergedGuests);
+      if (ps) writeField("party_size", ps);
+      else if (!readField("party_size") && mergedGuests.length) writeField("party_size", mergedGuests.length + "大");
+      if (workingDraft) {
+        workingDraft.needs_human_confirm = (workingDraft.needs_human_confirm || []).filter(function (k) {
+          return k !== "party_size";
+        });
+      }
+    }
     persistActiveFromForm();
     setOcrMsg("已写入客人名单 " + mergedGuests.length + " 人（姓名/电话/证件类型/证件号码/性别/年龄/类型，按证件号去重）。请再核对。", "ok");
     const review = $("fuzzyReview");
@@ -8175,7 +8264,9 @@ const MingdanUpload = (function () {
       // 乘客是游客代表人 → 客人姓名；不写入业务员联系人
       if (!readField("guest_name")) writeField("guest_name", pass);
     }
-    if (count && !readField("party_size")) writeField("party_size", count + "大");
+    if (count && !readField("party_size") && !parseGuestListText(readField("guest_list") || "").length) {
+      writeField("party_size", count + "大");
+    }
 
     persistActiveFromForm();
     const label = target === "return" ? "返程交通" : "去程交通";
