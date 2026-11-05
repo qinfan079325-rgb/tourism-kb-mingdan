@@ -459,6 +459,23 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
 .cs-msg.assistant{border-color:#ea580c;background:#431407;color:#ffedd5}
 .cs-msg .cs-msg-meta{display:block;font-size:10px;opacity:.75;margin-bottom:3px;font-weight:650}
 .cs-replies-empty{font-size:12px;color:#64748b;padding:4px 2px}
+.cs-attach{margin:8px 0 0}
+.cs-attach-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.cs-attach-thumbs:empty{display:none;margin:0}
+.cs-attach-item{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid #475569;background:#020617}
+.cs-attach-item img{width:100%;height:100%;object-fit:cover;display:block}
+.cs-attach-item button{position:absolute;top:2px;right:2px;width:18px;height:18px;border:none;border-radius:50%;
+  background:rgba(15,23,42,.85);color:#fecaca;font-size:12px;line-height:1;cursor:pointer;padding:0}
+.cs-attach-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cs-attach-btn{background:#1e293b;border:1px solid #475569;color:#e2e8f0;border-radius:8px;padding:6px 10px;
+  font-size:12px;font-weight:650;cursor:pointer;font-family:inherit}
+.cs-attach-btn:hover{border-color:#f97316;color:#fdba74}
+.cs-attach-hint{font-size:11px;color:#64748b}
+.cs-msg-imgs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.cs-msg-imgs a{display:block;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1px solid #475569}
+.cs-msg-imgs img{width:100%;height:100%;object-fit:cover;display:block}
+.cs-panel.cs-drag{outline:2px dashed #f97316;outline-offset:-4px}
+
 @media(max-width:720px){
   .cs-fab{right:12px;bottom:14px}
   .cs-fab-btn{padding:11px 14px;font-size:13px}
@@ -532,7 +549,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-05 20:00 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-05 20:35 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -612,15 +629,23 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-05 20:00 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-05 20:35 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
         <button type="button" class="cs-panel-close" id="csClose" title="关闭" aria-label="关闭">×</button>
       </div>
-      <p class="cs-panel-hint">写清问题后点「发给总助」。会自动投递并带上页面、账号、草稿与版本；同时复制到剪贴板作备份。下方可看总助回复。</p>
+      <p class="cs-panel-hint">写清问题（可粘贴/选图）后点「发给总助」。会自动投递并带上页面、账号、草稿、图片与版本；同时复制到剪贴板作备份。下方可看总助回复。</p>
       <label for="csIssue">问题描述</label>
-      <textarea id="csIssue" rows="4" placeholder="例如：代收算错了 / 打开草稿没有边框 / 不明白「已确认待易途」下一步点哪…"></textarea>
+      <textarea id="csIssue" rows="4" placeholder="例如：代收算错了 / 打开草稿没有边框…（可 Ctrl+V 粘贴截图）"></textarea>
+      <div class="cs-attach" id="csAttach">
+        <div class="cs-attach-thumbs" id="csAttachThumbs"></div>
+        <div class="cs-attach-bar">
+          <button type="button" class="cs-attach-btn" id="csPickImgBtn">选图</button>
+          <span class="cs-attach-hint" id="csAttachHint">可粘贴截图，最多 6 张</span>
+          <input type="file" id="csFileInput" accept="image/*" multiple hidden />
+        </div>
+      </div>
       <div class="cs-meta" id="csMeta">打开面板后自动填上下文</div>
       <div class="cs-panel-actions">
         <button type="button" class="cs-copy" id="csCopyBtn">发给总助</button>
@@ -636,7 +661,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-05 20:00 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-05 20:35 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -4966,7 +4991,151 @@ const MingdanUpload = (function () {
     }, 9000);
   }
 
-  function renderCsReplies(messages) {
+  const CS_ATTACH_MAX = 6;
+  const CS_ATTACH_MAX_EDGE = 1280;
+  const CS_ATTACH_QUALITY = 0.72;
+  let csAttachFiles = []; // {id, blob, previewUrl, name}
+
+  function csClearAttaches() {
+    csAttachFiles.forEach(function (f) {
+      try { if (f.previewUrl) URL.revokeObjectURL(f.previewUrl); } catch (e) {}
+    });
+    csAttachFiles = [];
+    renderCsAttachThumbs();
+  }
+
+  function renderCsAttachThumbs() {
+    const box = $("csAttachThumbs");
+    const hint = $("csAttachHint");
+    if (!box) return;
+    if (!csAttachFiles.length) {
+      box.innerHTML = "";
+      if (hint) hint.textContent = "可粘贴截图，最多 " + CS_ATTACH_MAX + " 张";
+      return;
+    }
+    box.innerHTML = csAttachFiles
+      .map(function (f, idx) {
+        return (
+          '<div class="cs-attach-item"><img src="' +
+          esc(f.previewUrl) +
+          '" alt=""/><button type="button" data-cs-rm="' +
+          idx +
+          '" title="移除" aria-label="移除">×</button></div>'
+        );
+      })
+      .join("");
+    if (hint) hint.textContent = "已选 " + csAttachFiles.length + "/" + CS_ATTACH_MAX + " 张";
+  }
+
+  function compressCsImage(file) {
+    return new Promise(function (resolve, reject) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function () {
+        try {
+          let w = img.naturalWidth || img.width;
+          let h = img.naturalHeight || img.height;
+          const edge = Math.max(w, h) || 1;
+          const scale = edge > CS_ATTACH_MAX_EDGE ? CS_ATTACH_MAX_EDGE / edge : 1;
+          w = Math.max(1, Math.round(w * scale));
+          h = Math.max(1, Math.round(h * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob(
+            function (blob) {
+              URL.revokeObjectURL(url);
+              if (!blob) {
+                reject(new Error("compress_failed"));
+                return;
+              }
+              resolve(blob);
+            },
+            "image/jpeg",
+            CS_ATTACH_QUALITY
+          );
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          reject(e);
+        }
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error("image_load_failed"));
+      };
+      img.src = url;
+    });
+  }
+
+  async function addCsImageFiles(fileList) {
+    const files = Array.prototype.slice.call(fileList || []).filter(function (f) {
+      return f && (f.type || "").indexOf("image/") === 0;
+    });
+    if (!files.length) return;
+    for (let i = 0; i < files.length; i++) {
+      if (csAttachFiles.length >= CS_ATTACH_MAX) {
+        setCsFeedback("最多 " + CS_ATTACH_MAX + " 张图", "err");
+        break;
+      }
+      try {
+        const blob = await compressCsImage(files[i]);
+        if (blob.size > 900 * 1024) {
+          setCsFeedback("有图片压缩后仍过大，已跳过", "err");
+          continue;
+        }
+        const id = "csimg_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+        csAttachFiles.push({
+          id: id,
+          blob: blob,
+          previewUrl: URL.createObjectURL(blob),
+          name: (files[i].name || "screenshot").replace(/\.[^.]+$/, "") + ".jpg",
+        });
+      } catch (e) {
+        setCsFeedback("图片处理失败，请换一张", "err");
+      }
+    }
+    renderCsAttachThumbs();
+  }
+
+  function blobToBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      const fr = new FileReader();
+      fr.onload = function () {
+        const s = String(fr.result || "");
+        const i = s.indexOf(",");
+        resolve(i >= 0 ? s.slice(i + 1) : s);
+      };
+      fr.onerror = function () { reject(fr.error || new Error("read_failed")); };
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  async function uploadCsImages() {
+    const urls = [];
+    for (let i = 0; i < csAttachFiles.length; i++) {
+      const f = csAttachFiles[i];
+      const b64 = await blobToBase64(f.blob);
+      const res = await fetchWithTimeout(
+        workerBaseUrl() + "/cs-media",
+        {
+          method: "POST",
+          headers: draftsAuthHeaders(),
+          body: JSON.stringify({ mime: "image/jpeg", data_base64: b64, name: f.name }),
+        },
+        30000
+      );
+      const data = await res.json().catch(function () { return null; });
+      if (!res.ok || !data || !data.ok || !data.url) {
+        throw new Error((data && data.error) || ("upload_http_" + res.status));
+      }
+      urls.push(String(data.url));
+    }
+    return urls;
+  }
+
+    function renderCsReplies(messages) {
     const box = $("csReplies");
     if (!box) return;
     const list = Array.isArray(messages) ? messages : [];
@@ -4980,6 +5149,20 @@ const MingdanUpload = (function () {
         const who = role === "assistant" ? ("总助" + (m.by ? "·" + m.by : "")) : "我";
         const at = m && m.at ? String(m.at) : "";
         const txt = esc(String((m && m.text) || ""));
+        const imgs = Array.isArray(m && m.images) ? m.images : [];
+        let imgHtml = "";
+        if (imgs.length) {
+          imgHtml =
+            '<div class="cs-msg-imgs">' +
+            imgs
+              .map(function (u) {
+                const url = esc(String(u || ""));
+                if (!url) return "";
+                return '<a href="' + url + '" target="_blank" rel="noopener"><img src="' + url + '" alt="附图"/></a>';
+              })
+              .join("") +
+            "</div>";
+        }
         return (
           '<div class="cs-msg ' +
           (role === "assistant" ? "assistant" : "user") +
@@ -4988,6 +5171,7 @@ const MingdanUpload = (function () {
           (at ? " · " + esc(at) : "") +
           "</span>" +
           txt +
+          imgHtml +
           "</div>"
         );
       })
@@ -5073,14 +5257,15 @@ const MingdanUpload = (function () {
   async function copyCsReport() {
     const ta = $("csIssue");
     const issue = ((ta && ta.value) || "").trim();
-    if (!issue) {
-      setCsFeedback("请先填写问题描述", "err");
+    if (!issue && !csAttachFiles.length) {
+      setCsFeedback("请先填写问题或粘贴图片", "err");
       if (ta) ta.focus();
       return;
     }
+    const issueText = issue || "（附图）";
     const lines = csContextLines();
     lines.push("问题描述=");
-    lines.push(issue);
+    lines.push(issueText);
     lines.push("");
     lines.push("（已尝试发给总助；若未送达请粘贴到与总助的聊天）");
     const text = lines.join("\n");
@@ -5088,7 +5273,7 @@ const MingdanUpload = (function () {
 
     const ctx = {
       text: text,
-      issue: issue,
+      issue: issueText,
       account: currentUser() || "(未登录)",
       draft_id: "(无打开草稿)",
       status: "-",
@@ -5097,6 +5282,7 @@ const MingdanUpload = (function () {
       build: csBuildStamp() || "",
       page: location.href || "",
       at: new Date().toISOString(),
+      images: [],
     };
     const d = getActiveDraft();
     if (d) {
@@ -5115,8 +5301,14 @@ const MingdanUpload = (function () {
       return;
     }
 
-    setCsFeedback("正在发给总助…", "");
+    setCsFeedback(csAttachFiles.length ? "正在上传图片并发给总助…" : "正在发给总助…", "");
     try {
+      if (csAttachFiles.length) {
+        ctx.images = await uploadCsImages();
+        if (ctx.images.length) {
+          ctx.text = ctx.text + "\n图片=\n" + ctx.images.join("\n");
+        }
+      }
       const res = await fetchWithTimeout(
         workerBaseUrl() + "/cs-notify",
         {
@@ -5131,6 +5323,7 @@ const MingdanUpload = (function () {
         setCsFeedback("已发给总助，回复会出现在下方", "");
         setMsg("客服对接已发给总助", "ok");
         if (ta) ta.value = "";
+        csClearAttaches();
         refreshCsReplies(true);
         return;
       }
@@ -5146,7 +5339,8 @@ const MingdanUpload = (function () {
       setMsg("客服对接已复制（自动投递失败）", "warn");
       refreshCsReplies(false);
     } catch (e) {
-      setCsFeedback("已复制；网络异常，请粘贴到与总助的聊天", "err");
+      const detail = e && e.message ? String(e.message) : "";
+      setCsFeedback("已复制；" + (detail.indexOf("upload") >= 0 || detail.indexOf("http") >= 0 ? "图片上传失败，" : "网络异常，") + "请粘贴到与总助的聊天", "err");
       setMsg("客服对接已复制（网络异常）", "warn");
     }
   }
@@ -5155,15 +5349,63 @@ const MingdanUpload = (function () {
     const fabBtn = $("csFabBtn");
     const closeBtn = $("csClose");
     const copyBtn = $("csCopyBtn");
+    const pickBtn = $("csPickImgBtn");
+    const fileInput = $("csFileInput");
+    const ta = $("csIssue");
+    const panel = $("csPanel");
+    const thumbs = $("csAttachThumbs");
     if (fabBtn) {
       fabBtn.addEventListener("click", function () {
-        const panel = $("csPanel");
-        const open = !(panel && panel.classList.contains("open"));
+        const p = $("csPanel");
+        const open = !(p && p.classList.contains("open"));
         openCsPanel(open);
       });
     }
     if (closeBtn) closeBtn.addEventListener("click", function () { openCsPanel(false); });
     if (copyBtn) copyBtn.addEventListener("click", function () { copyCsReport(); });
+    if (pickBtn && fileInput) {
+      pickBtn.addEventListener("click", function () { fileInput.click(); });
+      fileInput.addEventListener("change", function () {
+        addCsImageFiles(fileInput.files);
+        try { fileInput.value = ""; } catch (e) {}
+      });
+    }
+    if (thumbs) {
+      thumbs.addEventListener("click", function (ev) {
+        const btn = ev.target && ev.target.closest ? ev.target.closest("[data-cs-rm]") : null;
+        if (!btn) return;
+        const idx = parseInt(btn.getAttribute("data-cs-rm"), 10);
+        if (isNaN(idx) || idx < 0 || idx >= csAttachFiles.length) return;
+        const removed = csAttachFiles.splice(idx, 1)[0];
+        try { if (removed && removed.previewUrl) URL.revokeObjectURL(removed.previewUrl); } catch (e) {}
+        renderCsAttachThumbs();
+      });
+    }
+    if (ta) {
+      ta.addEventListener("paste", function (ev) {
+        const file = clipboardImage(ev);
+        if (!file) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        addCsImageFiles([file]);
+      });
+    }
+    if (panel) {
+      panel.addEventListener("dragover", function (ev) {
+        if (!ev.dataTransfer) return;
+        ev.preventDefault();
+        panel.classList.add("cs-drag");
+      });
+      panel.addEventListener("dragleave", function () {
+        panel.classList.remove("cs-drag");
+      });
+      panel.addEventListener("drop", function (ev) {
+        panel.classList.remove("cs-drag");
+        if (!ev.dataTransfer || !ev.dataTransfer.files || !ev.dataTransfer.files.length) return;
+        ev.preventDefault();
+        addCsImageFiles(ev.dataTransfer.files);
+      });
+    }
   }
 
   function buildNotifyClipboardText(d, f, liveNotes) {
