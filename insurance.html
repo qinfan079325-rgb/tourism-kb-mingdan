@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>保险名单上传</title>
+<style>
+  :root { --bg:#f4f6f8; --card:#fff; --line:#d9dee5; --ink:#1f2937; --muted:#6b7280; --pri:#2563eb; --ok:#059669; --warn:#b45309; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  label { display:block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; }
+  .row > div { flex:1; min-width: 160px; }
+  input[type=text], input[type=date], select, textarea {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff;
+  }
+  textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height:1.45; resize: vertical; }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center; }
+  button {
+    border:0; border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; background:#e5e7eb; color:var(--ink);
+  }
+  button.primary { background: var(--pri); color:#fff; }
+  button.danger { background:#fee2e2; color:#991b1b; }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  .toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:12px 16px; border-radius:10px; font-size:13px; max-width:360px; display:none; z-index:50; }
+  .toast.show { display:block; }
+  .toast.ok { background: var(--ok); }
+  .toast.err { background:#b91c1c; }
+  table { width:100%; border-collapse: collapse; font-size:13px; }
+  th, td { border-bottom:1px solid var(--line); padding:8px 6px; text-align:left; vertical-align:middle; }
+  th { color:var(--muted); font-weight:600; background:#fafbfc; position:sticky; top:0; }
+  .table-wrap { max-height: 480px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+  td input, td select { padding:6px 8px; font-size:13px; }
+  .seq { width:40px; color:var(--muted); text-align:center; }
+  .del { width:36px; text-align:center; }
+  .group-bar td { background:#f3f4f6; color:var(--muted); font-size:12px; border-bottom:1px dashed #cfd5dd; }
+  .stats { font-size:13px; color:var(--muted); }
+  .stats b { color:var(--ink); }
+  .build { font-size:11px; color:#9ca3af; margin-top:18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>保险名单上传</h1>
+  <div class="sub">合同同事：① 国内身份证：从 Excel 复制「姓名 + 身份证号」整段粘贴，自动算性别/生日；② 护照 / 港澳台 / 外籍：在下方「手动添加」逐个录入。核对后提交给总助（此页不直接买保险）。</div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>上传账号 / 姓名（选填）</label>
+        <input id="account" type="text" placeholder="如：秦凡 / 合同-小李" />
+      </div>
+      <div>
+        <label>出团日（选填）</label>
+        <input id="depart" type="date" />
+      </div>
+      <div>
+        <label>回团日（选填）</label>
+        <input id="returnDate" type="date" />
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label>备注（选填）</label>
+      <input id="note" type="text" placeholder="团号 / 线路 / 其他说明" />
+    </div>
+  </div>
+
+  <div class="card">
+    <label>① 粘贴国内身份证名单（批量）</label>
+    <textarea id="paste" placeholder="从 Excel 复制两列粘贴，例如：&#10;张三&#9;110101199001011234&#10;李四&#9;33010219881212567X&#10;&#10;王五&#9;440301199503033456&#10;&#10;空行可表示家庭/小组分隔；左侧若有 11.5 这类日期会忽略。"></textarea>
+    <div class="hint">只识别<b>大陆 18 位身份证</b>（末位可为 X）：自动推算性别与出生日期。支持 Tab / 多空格 / 逗号分隔；空行=家庭/小组分隔；行首 11.5 这类日期忽略。<br/>护照、港澳回乡证、台胞证、外籍证件<b>不能</b>粘贴识别，请用下方「手动添加」。</div>
+    <div class="hint" id="rejectBox" style="display:none;color:var(--warn)"></div>
+    <div class="actions">
+      <button class="primary" id="btnParse" type="button">解析名单</button>
+      <button id="btnClearPaste" type="button">清空粘贴区</button>
+      <span class="stats" id="parseStats"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>② 手动添加（护照 / 港澳台 / 外籍）</label>
+    <div class="row">
+      <div><label>姓名</label><input id="mName" type="text" placeholder="中文名或护照拼音" /></div>
+      <div><label>证件类型</label><select id="mType"><option>护照</option><option>港澳回乡证</option><option>台胞证</option><option>外国人永久居留证</option><option>其他</option></select></div>
+      <div><label>证件号码</label><input id="mIdNo" type="text" /></div>
+      <div style="max-width:120px"><label>性别</label><select id="mGender"><option value=""></option><option>男</option><option>女</option></select></div>
+      <div><label>出生日期</label><input id="mBirth" type="date" /></div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="btnManualAdd" type="button">添加到名单</button>
+      <span class="hint" style="margin:0">五项都必填；添加后在下方核对区显示。</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="actions" style="margin-top:0; margin-bottom:10px; justify-content:space-between;">
+      <div class="stats" id="tableStats">核对区：尚未解析</div>
+      <div class="actions" style="margin:0">
+                <button id="btnClearRows" type="button" class="danger">清空表格</button>
+        <button class="primary" id="btnSubmit" type="button">提交给总助</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="seq">序号</th>
+            <th>姓名</th>
+            <th>证件类型</th>
+            <th>证件号码</th>
+            <th>性别</th>
+            <th>出生日期</th>
+            <th>状态</th>
+            <th class="del"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="build" id="buildLabel"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  const BUILD = "2026-11-05 23:15";
+  const ID_OCR_WORKER_URL = "https://tourism-kb-id-ocr.qinfan079325.workers.dev";
+  const ID_OCR_TOKEN = "a544dc8e2fc392e59303f3b59968e91bec96da25c56198e5";
+  const ID_TYPES = ["身份证", "护照", "港澳回乡证", "台胞证", "外国人永久居留证", "其他"];
+
+  const els = {
+    account: document.getElementById("account"),
+    depart: document.getElementById("depart"),
+    returnDate: document.getElementById("returnDate"),
+    note: document.getElementById("note"),
+    paste: document.getElementById("paste"),
+    tbody: document.getElementById("tbody"),
+    parseStats: document.getElementById("parseStats"),
+    tableStats: document.getElementById("tableStats"),
+    toast: document.getElementById("toast"),
+    buildLabel: document.getElementById("buildLabel"),
+  };
+  els.buildLabel.textContent = "保险名单上传 · build " + BUILD;
+
+  /** @type {{name:string,id_type:string,id_no:string,gender:string,birth:string,group:number|null,_break?:boolean}[]} */
+  let rows = [];
+
+  function toast(msg, kind) {
+    els.toast.textContent = msg;
+    els.toast.className = "toast show" + (kind ? " " + kind : "");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { els.toast.className = "toast"; }, 4500);
+  }
+
+  function workerBaseUrl() {
+    try {
+      const h = location.hostname || "";
+      if (h === "maozi.io" || h.endsWith(".maozi.io")) return ""; // same-origin proxy later
+    } catch (_) {}
+    return ID_OCR_WORKER_URL;
+  }
+
+  function authHeaders() {
+    const headers = { "Content-Type": "application/json" };
+    const tok = String(ID_OCR_TOKEN || "").trim();
+    if (tok) headers.Authorization = "Bearer " + tok;
+    return headers;
+  }
+
+  function isId18(s) {
+    return /^[0-9]{17}[0-9Xx]$/.test(String(s || "").trim());
+  }
+
+  function id18ChecksumOk(id) {
+    const s = String(id || "").trim().toUpperCase();
+    if (!isId18(s)) return false;
+    const w = [7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2];
+    const c = "10X98765432";
+    let sum = 0;
+    for (let i = 0; i < 17; i++) sum += (+s[i]) * w[i];
+    return c[sum % 11] === s[17];
+  }
+
+  function deriveFromId(id) {
+    const s = String(id || "").trim().toUpperCase();
+    if (!isId18(s)) return { gender: "", birth: "" };
+    const y = s.slice(6, 10), m = s.slice(10, 12), d = s.slice(12, 14);
+    const birth = y + "-" + m + "-" + d;
+    const gender = (parseInt(s.charAt(16), 10) % 2 === 0) ? "女" : "男";
+    // sanity
+    if (!(+y >= 1900 && +y <= 2100 && +m >= 1 && +m <= 12 && +d >= 1 && +d <= 31)) {
+      return { gender: "", birth: "" };
+    }
+    return { gender, birth };
+  }
+
+  function looksLikeDateToken(tok) {
+    const t = String(tok || "").trim();
+    if (!t) return false;
+    if (/^\d{1,2}\.\d{1,2}(\.\d{2,4})?$/.test(t)) return true;
+    if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(t)) return true;
+    if (/^\d{1,2}[-/]\d{1,2}$/.test(t)) return true;
+    return false;
+  }
+
+  function splitLine(line) {
+    let s = String(line || "").replace(/\u00a0/g, " ").trim();
+    if (!s) return [];
+    if (s.indexOf("\t") >= 0) return s.split(/\t+/).map((x) => x.trim()).filter(Boolean);
+    if (s.indexOf(",") >= 0 || s.indexOf("，") >= 0) {
+      return s.split(/[,，]+/).map((x) => x.trim()).filter(Boolean);
+    }
+    // spaces: last token that looks like id, rest name
+    const parts = s.split(/\s+/).filter(Boolean);
+    return parts;
+  }
+
+  function parsePaste(text) {
+    const lines = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+    const out = [];
+    const rejects = [];
+    let group = 1;
+    let sawPersonInGroup = false;
+    for (const line of lines) {
+      if (!String(line).trim()) {
+        if (sawPersonInGroup) {
+          out.push({ _break: true, group });
+          group += 1;
+          sawPersonInGroup = false;
+        }
+        continue;
+      }
+      let parts = splitLine(line);
+      if (!parts.length) continue;
+      // drop leading date-like tokens (e.g. 11.5)
+      while (parts.length && looksLikeDateToken(parts[0])) parts = parts.slice(1);
+      if (!parts.length) continue;
+      // find id token
+      let idIdx = -1;
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const p = parts[i].replace(/\s+/g, "");
+        if (isId18(p) || /^[A-Za-z0-9]{6,18}$/.test(p) && /\d/.test(p)) {
+          // prefer 18-digit; else last alphanumeric id-ish
+          if (isId18(p) || idIdx < 0) idIdx = i;
+          if (isId18(p)) break;
+        }
+      }
+      if (idIdx < 0 || !isId18(parts[idIdx].replace(/\s+/g, ""))) {
+        rejects.push(String(line).trim());
+        continue;
+      }
+      const idNo = parts[idIdx].replace(/\s+/g, "").toUpperCase();
+      const name = parts.slice(0, idIdx).join("").replace(/\s+/g, "");
+      const derived = deriveFromId(idNo);
+      out.push({
+        name,
+        id_type: "身份证",
+        id_no: idNo,
+        gender: derived.gender,
+        birth: derived.birth,
+        group,
+        source: "paste",
+        warn: !name ? "缺姓名" : (!id18ChecksumOk(idNo) ? "校验位不符，请核对" : (!derived.birth ? "出生日期异常" : "")),
+      });
+      sawPersonInGroup = true;
+    }
+    while (out.length && out[out.length - 1]._break) out.pop();
+    out.rejects = rejects;
+    return out;
+  }
+
+  function guestRowsOnly() {
+    return rows.filter((r) => !r._break);
+  }
+
+  function renumber() {
+    let n = 0;
+    rows.forEach((r) => { if (!r._break) { n += 1; r._seq = n; } });
+  }
+
+  function render() {
+    renumber();
+    const guests = guestRowsOnly();
+    els.tbody.innerHTML = "";
+    let lastGroup = null;
+    rows.forEach((r, idx) => {
+      if (r._break) {
+        const tr = document.createElement("tr");
+        tr.className = "group-bar";
+        tr.innerHTML = '<td colspan="8">—— 分隔 ——</td>';
+        els.tbody.appendChild(tr);
+        return;
+      }
+      if (r.group != null && lastGroup != null && r.group !== lastGroup) {
+        // already have breaks; no extra
+      }
+      lastGroup = r.group;
+      const locked = isId18(r.id_no) && r.id_type === "身份证";
+      const tr = document.createElement("tr");
+      const typeOpts = ID_TYPES.map((t) => '<option value="' + t + '"' + (t === r.id_type ? " selected" : "") + ">" + t + "</option>").join("");
+      tr.innerHTML =
+        '<td class="seq">' + (r._seq || "") + "</td>" +
+        '<td><input data-k="name" data-i="' + idx + '" type="text" value="' + esc(r.name) + '" /></td>' +
+        '<td><select data-k="id_type" data-i="' + idx + '">' + typeOpts + "</select></td>" +
+        '<td><input data-k="id_no" data-i="' + idx + '" type="text" value="' + esc(r.id_no) + '" /></td>' +
+        '<td><select data-k="gender" data-i="' + idx + '"' + (locked && r.gender ? " data-locked=1" : "") + ">" +
+          '<option value=""></option>' +
+          '<option value="男"' + (r.gender === "男" ? " selected" : "") + ">男</option>" +
+          '<option value="女"' + (r.gender === "女" ? " selected" : "") + ">女</option>" +
+        "</select></td>" +
+        '<td><input data-k="birth" data-i="' + idx + '" type="date" value="' + esc(r.birth) + '"' + (locked && r.birth ? " data-locked=1" : "") + " /></td>" +
+        '<td style="font-size:12px;color:' + (r.warn ? 'var(--warn)' : 'var(--muted)') + '">' + esc(r.warn || (r.source === "manual" ? "手动" : "自动")) + "</td>" +
+        '<td class="del"><button type="button" data-del="' + idx + '" title="删除">×</button></td>';
+      els.tbody.appendChild(tr);
+    });
+    els.tableStats.innerHTML = "核对区：共 <b>" + guests.length + "</b> 人" +
+      (rows.some((r) => r._break) ? "（含小组分隔）" : "");
+  }
+
+  function esc(s) {
+    return String(s || "").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+  }
+
+  els.tbody.addEventListener("input", onEdit);
+  els.tbody.addEventListener("change", onEdit);
+  els.tbody.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-del]");
+    if (!btn) return;
+    const i = +btn.getAttribute("data-del");
+    rows.splice(i, 1);
+    render();
+  });
+
+  function onEdit(e) {
+    const el = e.target;
+    const i = el.getAttribute("data-i");
+    const k = el.getAttribute("data-k");
+    if (i == null || !k) return;
+    const row = rows[+i];
+    if (!row || row._break) return;
+    row[k] = el.value;
+    if (k === "id_no" || k === "id_type") {
+      const id = String(row.id_no || "").trim().toUpperCase();
+      row.id_no = id;
+      if (isId18(id) && (row.id_type === "身份证" || !row.id_type)) {
+        row.id_type = "身份证";
+        const d = deriveFromId(id);
+        if (d.gender) row.gender = d.gender;
+        if (d.birth) row.birth = d.birth;
+        row.warn = id18ChecksumOk(id) ? "" : "校验位不符，请核对";
+        render();
+      }
+    }
+  }
+
+  document.getElementById("btnParse").onclick = () => {
+    const parsed = parsePaste(els.paste.value);
+    const people = parsed.filter((r) => !r._break);
+    const rejects = parsed.rejects || [];
+    const rb = document.getElementById("rejectBox");
+    if (rejects.length) {
+      rb.style.display = "block";
+      rb.innerHTML = "以下 " + rejects.length + " 行不是大陆 18 位身份证，未导入（护照/港澳台/外籍请用「手动添加」）：<br/>" + rejects.slice(0, 30).map(esc).join("<br/>");
+    } else { rb.style.display = "none"; rb.innerHTML = ""; }
+    if (!people.length) {
+      toast("没有解析到「姓名 + 18 位身份证」，请检查粘贴内容", "err");
+      els.parseStats.textContent = "";
+      return;
+    }
+    // 重新解析时替换旧的粘贴行，保留手动添加的
+    const manual = rows.filter((r) => r.source === "manual");
+    rows = parsed.slice();
+    if (manual.length) {
+      rows.push({ _break: true });
+      rows = rows.concat(manual);
+    }
+    els.parseStats.textContent = "已解析 " + people.length + " 人" + (rejects.length ? "，" + rejects.length + " 行未识别" : "");
+    render();
+    toast("已解析 " + people.length + " 人，请核对后提交", "ok");
+  };
+
+  document.getElementById("btnClearPaste").onclick = () => { els.paste.value = ""; };
+  document.getElementById("btnClearRows").onclick = () => { rows = []; render(); };
+  document.getElementById("btnManualAdd").onclick = () => {
+    const v = (id) => String(document.getElementById(id).value || "").trim();
+    const g = { name: v("mName"), id_type: v("mType") || "护照", id_no: v("mIdNo").toUpperCase(), gender: v("mGender"), birth: v("mBirth") };
+    if (!g.name || !g.id_no || !g.gender || !g.birth) {
+      toast("手动添加需填写：姓名、证件号码、性别、出生日期", "err");
+      return;
+    }
+    if (!rows.some((r) => r.source === "manual") && guestRowsOnly().length) rows.push({ _break: true });
+    rows.push(Object.assign(g, { group: null, source: "manual", warn: "" }));
+    ["mName", "mIdNo", "mBirth"].forEach((id) => { document.getElementById(id).value = ""; });
+    document.getElementById("mGender").value = "";
+    render();
+    toast("已添加 " + g.name + "（" + g.id_type + "）", "ok");
+  };
+
+  document.getElementById("btnSubmit").onclick = async () => {
+    const guests = guestRowsOnly().map((r, i) => ({
+      seq: i + 1,
+      name: String(r.name || "").trim(),
+      id_type: String(r.id_type || "身份证").trim(),
+      id_no: String(r.id_no || "").trim().toUpperCase(),
+      gender: String(r.gender || "").trim(),
+      birth: String(r.birth || "").trim(),
+      group: r.group != null ? r.group : null,
+      source: r.source || "paste",
+    })).filter((g) => g.name || g.id_no);
+    if (!guests.length) {
+      toast("请先粘贴并解析名单", "err");
+      return;
+    }
+    const missing = guests.filter((g) => !g.name || !g.id_no || !g.gender || !g.birth);
+    if (missing.length) {
+      toast("有 " + missing.length + " 行缺姓名/证件号/性别/出生日期，请先补全", "err");
+      return;
+    }
+    const btn = document.getElementById("btnSubmit");
+    btn.disabled = true;
+    try {
+      const body = {
+        type: "insurance_list",
+        account: String(els.account.value || "").trim() || "(未填)",
+        depart: els.depart.value || "",
+        return_date: els.returnDate.value || "",
+        note: String(els.note.value || "").trim(),
+        guests,
+        raw_paste: String(els.paste.value || "").slice(0, 20000),
+        submitted_at: new Date().toISOString(),
+        build: BUILD,
+      };
+      const res = await fetch(workerBaseUrl() + "/insurance-list", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        toast("提交失败：" + (data.error || res.status), "err");
+        return;
+      }
+      const wh = data.webhook_configured ? (data.delivered ? "，已通知总助" : "，名单已存但通知失败（请告知总助配置 webhook）") : "，名单已存（总助 webhook 待配置）";
+      toast("提交成功 id=" + data.id + "（" + data.guest_count + "人）" + wh, "ok");
+    } catch (err) {
+      toast("网络错误：" + (err && err.message ? err.message : err), "err");
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  // unit-ish self check in console
+  try {
+    const sample = "11.5\t张三\t110101199001011234\n\n李四 33010219881212567X\n王五,440301199503033456";
+    const p = parsePaste(sample).filter((x) => !x._break);
+    console.log("[insurance-upload] parse sample", p);
+  } catch (_) {}
+
+  render();
+})();
+</script>
+</body>
+</html>
