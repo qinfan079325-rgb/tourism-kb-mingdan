@@ -549,7 +549,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-05 20:35 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-05 20:46 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -629,7 +629,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-05 20:35 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-05 20:46 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -661,7 +661,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-05 20:35 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-05 20:46 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -6062,8 +6062,13 @@ const MingdanUpload = (function () {
     }
 
     // 名单块后单独一行手机：姓名+证号\n姓名+证号\n13380854498 → 挂块内第一位（代表人）
+    // 亦认「电话：/手机：158…」单独成行（无姓名紧贴时）
     for (let i = 0; i < lines.length; i++) {
-      const alone = String(lines[i] || "").trim().match(/^(1\d{10})$/);
+      const alone =
+        String(lines[i] || "").trim().match(/^(1\d{10})$/) ||
+        String(lines[i] || "")
+          .trim()
+          .match(/^(?:电话|手机(?:号码)?|联系电话)\s*[：:=\-]?\s*(1\d{10})$/);
       if (!alone) continue;
       let prev = "";
       for (let p = i - 1; p >= 0; p--) {
