@@ -549,7 +549,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-05 20:46 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-05 21:10 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -629,7 +629,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-05 20:46 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-05 21:10 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -661,7 +661,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-05 20:46 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-05 21:10 Asia/Shanghai</div>
 </div>
 
 <script>
@@ -2150,6 +2150,9 @@ const MingdanUpload = (function () {
     if (!s) return true;
     if (isPlaceholder(s)) return true;
     if (/身份|证件|护照|台胞|通行|出行人|名单|见图|后补|待补|联系方式|联系人员?/.test(s)) return true;
+    // 「身份证信息」被拆行/切片后的裸「信息」；以及各类「××信息」标签尾
+    if (/^(?:信息|身份信息|证件信息|备注信息|到站信息|接站信息|返程信息|来程信息)$/.test(s)) return true;
+    if (s === "信息" || /信息$/.test(s) && s.length <= 4 && /身份|证件|备注|到站|接站|返程|来程|名单/.test(s)) return true;
     // 标签碎片：证件号码 → nearEng 切片后的「件号码」/「号码」等
     if (/号码|件号码|有效期|出生日期|签发|机关|管理/.test(s)) return true;
     if (/^(?:姓名|客人|代表人|乘客|旅客|联系人|业务员|客服|性别|证件|护照|号码)$/.test(s)) return true;
@@ -2743,6 +2746,10 @@ const MingdanUpload = (function () {
         /预定姓名\s*[：:]\s*([^\n]+)/,
         /[【《]\s*客户姓名\s*[】》]\s*[：:]?\s*([^\n]+)/,
         /客户姓名\s*[：:]\s*([^\n]+)/,
+        /[【《]\s*游客名字\s*[】》]\s*[：:]?\s*([^\n]+)/,
+        /游客名字\s*[：:]\s*([^\n]+)/,
+        /[【《]\s*游客姓名\s*[】》]\s*[：:]?\s*([^\n]+)/,
+        /游客姓名\s*[：:]\s*([^\n]+)/,
         /【?\s*客人姓名及联系方式\s*[】\]]?\s*：?\s*([^\n]+)/,
         /客人姓名\s*[：:]\s*([^\n]+)/,
         /代表人\s*[：:]\s*([^\n]+)/,
@@ -2769,21 +2776,21 @@ const MingdanUpload = (function () {
       pick(
         [
           /[【《]\s*总团费\s*[】》]\s*[：:]?\s*([^\n]+)/,
-          /总团费\s*[：:]?\s*([\d.,]+)/,
+          /总团费\s*[：:]?\s*([^\n]+)/,
           /[【《]\s*团费\s*[】》]\s*[：:]?\s*([^\n]+)/,
           /(?:^|\n|[、，,;；\s])团费\s*[：:]?\s*([\d.,]+)/,
           /[【《]\s*报名费\s*[】》]\s*[：:]?\s*([^\n]+)/,
           /报名费\s*[：:]?\s*([\d.,]+)/,
           /[【《]\s*总团款\s*[】》]\s*[：:]?\s*([^\n]+)/,
-          /总团款\s*[：:]?\s*([\d.,]+)/,
+          /总团款\s*[：:]?\s*([^\n]+)/,
           /[【《]\s*全款\s*[】》]\s*[：:]?\s*([^\n]+)/,
-          /全款\s*[：:]?\s*([\d.,]+)/,
+          /全款\s*[：:]?\s*([^\n]+)/,
           /[【《]\s*团款报价\s*[】》]\s*[：:]?\s*([^\n]+)/,
           /团款报价\s*[：:]?\s*([\d.,]+)/,
           /[【《]\s*报价\s*[】》]\s*[：:]?\s*([^\n]+)/,
           /(?:^|\n|[、，,;；\s])报价\s*[：:]?\s*([\d.,]+)/,
           /[【《]\s*团款\s*[】》]\s*[：:]?\s*([^\n]+)/,
-          /(?:^|\n|[、，,;；\s])团款\s*[：:]?\s*([\d.,]+)/,
+          /(?:^|\n|[、，,;；\s])团款\s*[：:]?\s*([^\n]+)/,
           /[【《]\s*合同金额\s*[】》\]]\s*：?\s*([^\n]+)/,
           /合同金额\s*[：:]?\s*([\d.,]+)/,
         ],
@@ -2803,6 +2810,8 @@ const MingdanUpload = (function () {
           /定金数额\s*[：:]?\s*([\d.,]+)/,
           /[【《]\s*预定金额\s*[】》]\s*[：:]?\s*([^\n]+)/,
           /预定金额\s*[：:]?\s*([\d.,]+)/,
+          /[【《]\s*预定金\s*[】》]\s*[：:]?\s*([^\n]+)/,
+          /预定金\s*[：:]?\s*([\d.,]+)/,
           /[【《]\s*定金\s*[】》\]]\s*：?\s*([^\n]+)/,
           /(?:^|\n|[、，,;；\s])定金\s*[：:]?\s*([\d.,]+)/,
           /[【《]\s*订金\s*[】》\]]\s*：?\s*([^\n]+)/,
@@ -2866,6 +2875,8 @@ const MingdanUpload = (function () {
       }
     }
     if (!collect_on_tour && balance_due !== "") collect_on_tour = balance_due;
+    // 普通「尾款：3060」即代收（团上收）；有全款+定金时 shouldAutoFillCollect 仍会写成公式
+    if (!collect_on_tour && weikuan !== "") collect_on_tour = weikuan;
     // 结算明细别名：结算明细/结算/明细/回传；多条择优，冒号后不跨行
     let settle = pickSettlementBlock(t);
     // 同一行尾部「结算：…=-4382」兜底
@@ -5835,7 +5846,7 @@ const MingdanUpload = (function () {
     // 汉字之间的空白去掉（陈 秋 燕 → 陈秋燕）；勿吞换行，否则标签块会粘成「姓名:xx性别:男」
     t = t.replace(/([\u4e00-\u9fff])[^\S\n]+(?=[\u4e00-\u9fff])/g, "$1");
     // 标题与姓名粘连时拆开，便于按行取中文名
-    t = t.replace(/(通行证|台胞证|护照|身份证)([\u4e00-\u9fff]{2,4})/g, "$1\n$2");
+    t = t.replace(/(通行证|台胞证|护照|身份证)(?!信息|号码|证件)([\u4e00-\u9fff]{2,4})/g, "$1\n$2");
     t = t.replace(/([\u4e00-\u9fff]{2,4})(证件号码|签发次数|签发机关)/g, "$1\n$2");
     // 证件号空格折叠：仅当去空格后恰好 8 或 18 位才合并。
     // 禁止把「30384335 01」(证号+签发次数)拼成 10 位。
@@ -6250,12 +6261,12 @@ const MingdanUpload = (function () {
       if (han.length < 2 || han.length > 6) return "";
       if (isBadGuestName(han)) return "";
       if (/号$|码$|局$|证$|关$/.test(han)) return "";
-      if (/[证号机关局管出入境国]/.test(han) && han.length >= 2) return ""; // 标签碎片
+      if (/[证号机关局管出入境]/.test(han) && han.length >= 2) return ""; // 标签碎片（勿含「国」：沈国良/王国伟）
       if (/[了区]/.test(han)) return ""; // OCR 碎字
       if (/[二三四五六七八九十]/.test(han) && !/^[\u4e00-\u9fff]{2,3}$/.test(han)) return "";
       // 「万/千」也是真实姓氏，不能当数字抬头拒掉（如 万成荣）
       if (/^[一二三四五六七八九十百]/.test(han)) return "";
-      const labelRe = /证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|订单|居民|来往|通行|签发|机关|管理|共和|福建|广东|次数|有效|出生|性别|联系|还人|和人|市硬|医汪|中华|人民|出入|境管|台湾|丽人|理号|发电|六本|县二|证忻|号友|仲名|全证|管理局|共和国|天和|国出|华人|和国|复发|民居|所证|和二|从关|次娄|各外|外二|红了|三友|韩华|大民|志和|共和/;
+      const labelRe = /证件|护照|台胞|身份|号码|姓名|旅客|乘客|大陆|订单|居民|来往|通行|签发|机关|管理|共和|福建|广东|次数|有效|出生|性别|联系|信息|还人|和人|市硬|医汪|中华|人民|出入|境管|台湾|丽人|理号|发电|六本|县二|证忻|号友|仲名|全证|管理局|共和国|天和|国出|华人|和国|复发|民居|所证|和二|从关|次娄|各外|外二|红了|三友|韩华|大民|志和|共和/;
       // 紧挨英文名时放宽「疝树/树页」等近形字拒绝，避免 尚树贞/林锦红 被误杀
       // 树页/疝树 是「尚树贞」近形误识，不再一票否决
       const harshRe = /秋末/;
@@ -6268,6 +6279,8 @@ const MingdanUpload = (function () {
       const b = cleanPersonName(newNm, { nearEng: true });
       if (!b) return a;
       if (!a) return b;
+      if (isBadGuestName(a) && !isBadGuestName(b)) return b;
+      if (!isBadGuestName(a) && isBadGuestName(b)) return a;
       const aHan = /[\u4e00-\u9fff]/.test(a);
       const bHan = /[\u4e00-\u9fff]/.test(b);
       if (bHan && !aHan) return b;
@@ -6675,7 +6688,7 @@ const MingdanUpload = (function () {
       }
       if (!nameRaw) {
         const hm = lines[i].match(/^([\u4e00-\u9fff]{2,4})$/);
-        if (hm && !/证件|护照|台胞|居民|通行|大陆|签发|福建|广东/.test(hm[1])) nameRaw = hm[1];
+        if (hm && !/证件|护照|台胞|居民|通行|大陆|签发|福建|广东|信息/.test(hm[1])) nameRaw = hm[1];
       }
       const name = cleanPersonName(nameRaw);
       if (!name) continue;
