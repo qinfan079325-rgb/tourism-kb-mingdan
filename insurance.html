@@ -5,43 +5,50 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>保险名单上传</title>
 <style>
-  :root { --bg:#f4f6f8; --card:#fff; --line:#d9dee5; --ink:#1f2937; --muted:#6b7280; --pri:#2563eb; --ok:#059669; --warn:#b45309; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background:var(--bg); color:var(--ink); }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
-  h1 { font-size: 22px; margin: 0 0 6px; }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
-  label { display:block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-  .row { display:flex; flex-wrap:wrap; gap:12px; }
-  .row > div { flex:1; min-width: 160px; }
-  input[type=text], input[type=date], select, textarea {
-    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff;
-  }
-  textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height:1.45; resize: vertical; }
-  .hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
-  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center; }
-  button {
-    border:0; border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; background:#e5e7eb; color:var(--ink);
-  }
-  button.primary { background: var(--pri); color:#fff; }
-  button.danger { background:#fee2e2; color:#991b1b; }
-  button:disabled { opacity:.55; cursor:not-allowed; }
-  .toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:12px 16px; border-radius:10px; font-size:13px; max-width:360px; display:none; z-index:50; }
-  .toast.show { display:block; }
-  .toast.ok { background: var(--ok); }
-  .toast.err { background:#b91c1c; }
-  table { width:100%; border-collapse: collapse; font-size:13px; }
-  th, td { border-bottom:1px solid var(--line); padding:8px 6px; text-align:left; vertical-align:middle; }
-  th { color:var(--muted); font-weight:600; background:#fafbfc; position:sticky; top:0; }
-  .table-wrap { max-height: 480px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
-  td input, td select { padding:6px 8px; font-size:13px; }
-  .seq { width:40px; color:var(--muted); text-align:center; }
-  .del { width:36px; text-align:center; }
-  .group-bar td { background:#f3f4f6; color:var(--muted); font-size:12px; border-bottom:1px dashed #cfd5dd; }
-  .stats { font-size:13px; color:var(--muted); }
-  .stats b { color:var(--ink); }
-  .build { font-size:11px; color:#9ca3af; margin-top:18px; }
+  :root {
+  --bg:#0f1419; --card:#1a2332; --card2:#243044; --line:#2d3a4f;
+  --ink:#e7ecf3; --muted:#9aa4b2; --pri:#3b82f6; --ok:#10b981; --warn:#f59e0b; --danger:#ef4444;
+}
+* { box-sizing: border-box; }
+body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background:var(--bg); color:var(--ink); }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 6px; color:#fff; }
+.sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; line-height:1.55; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+label { display:block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.row { display:flex; flex-wrap:wrap; gap:12px; }
+.row > div { flex:1; min-width: 140px; }
+input[type=text], input[type=date], select, textarea {
+  width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px;
+  background:var(--card2); color:var(--ink);
+}
+input:focus, select:focus, textarea:focus { outline:none; border-color:var(--pri); }
+textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height:1.45; resize: vertical; }
+.hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.55; }
+.hint b { color: var(--ink); }
+.actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center; }
+button {
+  border:1px solid var(--line); border-radius:10px; padding:10px 16px; font-size:14px; cursor:pointer;
+  background:var(--card2); color:var(--ink);
+}
+button.primary { background: var(--pri); border-color: var(--pri); color:#fff; }
+button.danger { background:#3f1d1d; border-color:#7f1d1d; color:#fecaca; }
+button:disabled { opacity:.55; cursor:not-allowed; }
+.toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:12px 16px; border-radius:10px; font-size:13px; max-width:360px; display:none; z-index:50; border:1px solid var(--line); }
+.toast.show { display:block; }
+.toast.ok { background: #065f46; border-color:#047857; }
+.toast.err { background:#7f1d1d; border-color:#991b1b; }
+table { width:100%; border-collapse: collapse; font-size:13px; }
+th, td { border-bottom:1px solid var(--line); padding:8px 6px; text-align:left; vertical-align:middle; }
+th { color:var(--muted); font-weight:600; background:var(--card2); position:sticky; top:0; }
+.table-wrap { max-height: 480px; overflow:auto; border:1px solid var(--line); border-radius:10px; }
+td input, td select { padding:6px 8px; font-size:13px; }
+.seq { width:40px; color:var(--muted); text-align:center; }
+.del { width:36px; text-align:center; }
+.group-bar td { background:var(--card2); color:var(--muted); font-size:12px; border-bottom:1px dashed var(--line); }
+.stats { font-size:13px; color:var(--muted); }
+.stats b { color:var(--ink); }
+.build { font-size:11px; color:#6b7280; margin-top:18px; }
 </style>
 </head>
 <body>
@@ -130,7 +137,7 @@
 
 <script>
 (function () {
-  const BUILD = "2026-11-05 23:15";
+  const BUILD = "2026-11-05 23:15-dark";
   const ID_OCR_WORKER_URL = "https://tourism-kb-id-ocr.qinfan079325.workers.dev";
   const ID_OCR_TOKEN = "a544dc8e2fc392e59303f3b59968e91bec96da25c56198e5";
   const ID_TYPES = ["身份证", "护照", "港澳回乡证", "台胞证", "外国人永久居留证", "其他"];
