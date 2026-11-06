@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; base-uri 'none'; img-src 'none'; object-src 'none'">
+  <title>秦凡管理员初始化</title>
+</head>
+<body>
+  <main>
+    <h1>秦凡管理员初始化</h1>
+    <p>当前页面仅供本机安全填表。仅在帽子云真实同源显示时，才可发送请求；不会公开此页面。</p>
+    <p id="origin-check">尚未检测到帽子云同源页面，禁止提交。</p>
+    <form id="setup">
+      <label for="username">管理员账号</label>
+      <input id="username" name="username" value="秦凡" readonly required>
+      <label for="authorization">初始化授权（用户安全表提供一次）</label>
+      <input id="authorization" name="authorization" type="password" autocomplete="off" required>
+      <label for="password">秦凡初始密码</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+      <button id="submit" type="submit" disabled>提交秦凡管理员初始化</button>
+    </form>
+    <p id="status" role="status" aria-live="polite">尚未提交。</p>
+  </main>
+  <script>
+    const origin = 'https://mingdanupload-10m363dc.maozi.io';
+    const submit = document.getElementById('submit');
+    const statusMessage = text => document.getElementById('status').replaceChildren(document.createTextNode(text));
+    if (location.origin !== origin) {
+      document.getElementById('origin-check').textContent = '当前不是帽子云真实同源页面：仅为本机准备，禁止提交。';
+    } else {
+      document.getElementById('origin-check').textContent = '帽子云真实同源：仅可填写后由你主动提交一次。';
+      submit.disabled = false;
+    }
+    document.getElementById('setup').addEventListener('submit', async event => {
+      event.preventDefault();
+      if (location.origin !== origin || submit.disabled) {
+        statusMessage('已阻止：不是帽子云真同源页面，未发送请求。');
+        return;
+      }
+      submit.disabled = true;
+      statusMessage('正在提交，请等待明确结果。');
+      try {
+        const response = await fetch('/api/setup', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + document.getElementById('authorization').value,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value
+          }),
+          credentials: 'omit',
+          cache: 'no-store',
+          redirect: 'error'
+        });
+        const data = await response.json();
+        const safe = {
+          status: response.status,
+          ok: data.ok === true,
+          username: data.user && data.user.username,
+          role: data.user && data.user.role,
+          must_change_password: data.user && data.user.must_change_password,
+          error: data.error
+        };
+        statusMessage(JSON.stringify(safe));
+        if (response.status === 201 && safe.ok) {
+          document.getElementById('setup').inert = true;
+          return;
+        }
+      } catch (_) {
+        statusMessage('未收到明确成功结果，停止并报告。');
+      }
+      submit.disabled = false;
+    });
+  </script>
+</body>
+</html>
