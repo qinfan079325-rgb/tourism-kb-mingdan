@@ -5,26 +5,22 @@
 | 页 | 说明 |
 |---|---|
 | [未出团](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/) | 出团日期 ≥ 今天；按出团日折叠 |
-| [已完团](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html) | 公开页已撤下名单（说明页）。员工不可看已完团数据 |
+| [已完团](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html) | 入库完团日期 ≥ 2026-07-01；按**出团日**折叠 → 导游 → 单组 |
 
 对外名称：**散客数据看板**。与公开收客看板 `tourism-kb-shouke` **完全分离**（独立仓库），不写入 shouke 首页。URL 路径仍为 `tourism-kb-mingdan`。
 
 ## 访问（需登录）
 
-打开页面需输入**用户名 + 密码**。登录打到 Worker 最小账号（`/api/login`、`/api/me`），会话是服务端 Cookie，CSRF 只留在页面内存，不写入 `localStorage`。未出团名单不在本仓库 HTML 里，登录后由同源会话读取 `GET /api/board-kb/upcoming`（`{ok:true,kind:"upcoming",board:...}`）。帽子云走同源 `/api`；GitHub Pages 的相对 `/api` 会落到静态站 404，因此改用 `workerUrl`：`https://tourism-kb-id-ocr.qinfan079325.workers.dev`。
-
-员工可看未出团、模糊订单、保险名单上传。已完团入口只给管理员；公开 `completed.html` 仍是撤下名单的说明页，没有客人数据。初始管理员只有秦凡（在 Worker 上，不在本静态站初始化）。
+打开页面需输入**用户名 + 密码**后方可查看名单正文；未出团 / 已完团两页共用登录态，页内可「退出」。
 
 | 项 | 值 |
 |---|---|
-| GitHub Pages 未出团 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/ |
-| GitHub Pages 已完团（已关闭） | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html |
-| GitHub Pages 模糊订单 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/upload.html |
-| GitHub Pages 保险名单 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/insurance.html |
-| 帽子云上传 | https://mingdanupload-10m363dc.maozi.io/upload |
+| 本地 | `/workspace/tourism-kb-model/web/mingdan/site/index.html` · `completed.html` · `upload.html` |
+| GitHub Pages 未出团子页 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/ |
+| GitHub Pages 已完团子页 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html |
 | 仓库 | https://github.com/qinfan079325-rgb/tourism-kb-mingdan |
 
-所有日期默认折叠，点天头展开。页顶可互相切换。
+所有日期默认折叠，点天头展开。页顶可互相切换。账号由管理员单独发放（前端哈希门禁，非后端鉴权）。
 
 ## 未出团字段
 
@@ -70,7 +66,7 @@ python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --xlsx /path/to
 python3 /workspace/tourism-kb-model/web/mingdan/build_mingdan.py --today 2026-10-26   # 测试
 ```
 
-本仓库页面是无名单静态壳。未出团名单只在登录后的私有接口里，不要再把客人 JSON 写进 `index.html`。
+产物：`web/mingdan/site/index.html` + `completed.html` + `upload.html`（自包含 CSS/JS）。模糊订单仅在 `upload.html`；易途完成前不写入未出团。
 
 ## 一键重建并推送
 

@@ -560,7 +560,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
           <button type="button" class="btn" id="fuzzyOcrRetBtn" title="把识别到的交通写入返程">仅填返程</button>
         </div>
         <div id="fuzzyOcrMsg" class="fuzzy-ocr-msg hidden" aria-live="polite"></div>
-        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-06 20:11 Asia/Shanghai</div>
+        <div id="fuzzyOcrVer" class="fuzzy-ocr-ver">识别 · 2026-11-06 20:51 Asia/Shanghai</div>
         <details class="fuzzy-help" style="margin-top:8px">
           <summary>识别说明</summary>
           <div class="fuzzy-help-body">证件走云识别；火车票/航班本地识别。蓝按钮=当前写入目标。无返程交通时默认 4 天返程日。解析结果不自动存草稿。</div>
@@ -659,7 +659,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <div id="fuzzyOrdersList" class="fuzzy-draft-list fuzzy-orders-list"></div>
   </section>
 
-  <div class="cs-fab" id="csFab" data-build="2026-11-06 20:11 Asia/Shanghai" aria-live="polite">
+  <div class="cs-fab" id="csFab" data-build="2026-11-06 20:51 Asia/Shanghai" aria-live="polite">
     <div class="cs-panel" id="csPanel" role="dialog" aria-labelledby="csTitle" aria-hidden="true">
       <div class="cs-panel-h">
         <strong id="csTitle">客服对接 · 报错/不清楚</strong>
@@ -691,17 +691,13 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-06 20:11 Asia/Shanghai</div>
+  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-06 20:51 Asia/Shanghai</div>
 </div>
 
 <script>
 /* 散客看板：身份/角色/CSRF 以 Worker 为准；浏览器不保存密码或会话令牌。
- * 帽子云（及 Worker 自身）同源 /api。GitHub Pages 的相对 /api 会落到静态站并 404，
- * 改用 localConfig.workerUrl。会话只走服务端 Cookie（credentials），CSRF 只留在内存。 */
+ * 同源优先 /api（帽子云反代）；GitHub Pages 跳转 mingdanupload 同路径，不跨站 Cookie。 */
 const MingdanAuth = (function () {
-  const localConfig = {
-    workerUrl: "https://tourism-kb-id-ocr.qinfan079325.workers.dev",
-  };
   let session = null;
   let csrf = "";
   let onLogin = null;
@@ -709,19 +705,13 @@ const MingdanAuth = (function () {
   let changePromise = null;
   let passwordGate = null;
 
-  function hostname() {
-    try { return String(location.hostname || ""); } catch (_) { return ""; }
+  function isGithubPages() {
+    try { return /\.github\.io$/i.test(location.hostname || ""); } catch (_) { return false; }
   }
-  /** 同源 /api；公开静态站用 workerUrl + /api。不把会话写入 localStorage。 */
+  /** 同源 /api；GH Pages 无反代时标记不可用（避免跨站 Cookie 泄露会话）。 */
   function base() {
-    const host = hostname();
-    if (/(^|\.)maozi\.io$/i.test(host)) return "/api";
-    const w = String(localConfig.workerUrl || "").trim().replace(/\/$/, "");
-    try {
-      if (w && new URL(w).hostname === host) return "/api";
-    } catch (_) {}
-    if (!w) return "/api";
-    return w + "/api";
+    if (isGithubPages()) return "__GH_PAGES_NO_API__";
+    return "/api";
   }
   function authHeaders() {
     return csrf ? { "X-CSRF-Token": csrf } : {};
@@ -743,6 +733,14 @@ const MingdanAuth = (function () {
   }
   async function request(path, opts) {
     const b = base();
+    if (b === "__GH_PAGES_NO_API__") {
+      return {
+        ok: false,
+        status: 0,
+        headers: new Headers(),
+        json: async () => ({ error: "gh_pages_use_maozi" }),
+      };
+    }
     try {
       return await fetch(b + path, opts);
     } catch (e) {
@@ -854,7 +852,7 @@ const MingdanAuth = (function () {
       }
     } finally {
       loggingIn = false;
-      if (btn) btn.disabled = false;
+      if (btn && !isGithubPages()) btn.disabled = false;
     }
   }
   async function promptPasswordChange() {
@@ -923,6 +921,13 @@ const MingdanAuth = (function () {
     if (form) form.addEventListener("submit", login);
     const btnLogout = document.getElementById("btnLogout");
     if (btnLogout) btnLogout.addEventListener("click", logout);
+    if (isGithubPages()) {
+      // 旧 GH 入口仍可用：跳转国内帽子云同路径（同源 /api），不跨站带 Cookie
+      try {
+        location.replace("https://mingdanupload-10m363dc.maozi.io" + (location.pathname || "/") + (location.search || "") + (location.hash || ""));
+      } catch (_) {}
+      return;
+    }
     api("/me")
       .then(async (d) => {
         const user = d && d.user;
@@ -1044,7 +1049,7 @@ const MingdanAuth = (function () {
     });
     loadUsers().catch((e) => adminNotice(e.message));
   }
-  const client = {
+  return {
     require,
     logout,
     currentUser: () => (session ? session.username : ""),
@@ -1053,8 +1058,6 @@ const MingdanAuth = (function () {
     authHeaders,
     promptPasswordChange,
   };
-  try { if (typeof window !== "undefined") window.MingdanAuth = client; } catch (e) {}
-  return client;
 })();
 
 </script>

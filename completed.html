@@ -1,1 +1,1113 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta http-equiv="Cache-Control" content="no-store"><title>已完团 · 散客数据看板</title><style>html{color-scheme:light dark}body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;max-width:42rem;margin:15vh auto;padding:24px;line-height:1.8}a{color:#2563eb}p{color:#64748b}@media(prefers-color-scheme:dark){p{color:#a8b3c7}}</style></head><body><main><h1>已完团暂时关闭</h1><p>正在调整查阅权限，已撤下本页公开名单。员工权限上线期间，未出团、模糊订单、客服对接等其他业务仍按原址使用。</p><p><a href="index.html">返回未出团</a> · <a href="upload.html">进入模糊订单</a></p></main></body></html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>散客数据看板 · 已完团</title>
+<style>
+:root{
+  --bg:#0f1419; --card:#1a2332; --card2:#243044; --line:#2d3a4f;
+  --text:#e8eef7; --muted:#9aabbf; --accent:#3b82f6; --accent2:#22c55e;
+  --warn:#f59e0b; --danger:#ef4444; --chip:#334155;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{width:100%;max-width:min(1680px,98vw);margin:0 auto;
+  padding:18px clamp(14px,2.2vw,36px) 56px}
+.banner{background:linear-gradient(90deg,#1e293b,#172033);color:#94a3b8;border:1px solid var(--line);
+  border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:12.5px;line-height:1.4}
+.nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.nav a{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--muted)}
+.nav a.active{background:#1e3a5f;border-color:var(--accent);color:#93c5fd;font-weight:650}
+h1{font-size:1.35rem;margin:0 0 4px;font-weight:700}
+.sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+.toolbar input[type=search]{flex:1;min-width:160px;background:var(--card);border:1px solid var(--line);
+  color:var(--text);border-radius:10px;padding:10px 12px;font-size:15px;outline:none}
+.toolbar input:focus{border-color:var(--accent)}
+.btn{background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:10px;
+  padding:8px 12px;font-size:13px;cursor:pointer}
+.btn:active{opacity:.85}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px}
+.stat b{color:var(--accent2);font-size:16px}
+.day{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.day-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:12px 14px;cursor:pointer;user-select:none;
+  background:linear-gradient(180deg,var(--card2),var(--card))}
+.day-h:hover{filter:brightness(1.05)}
+.chev{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:6px;background:var(--chip);font-size:12px;color:var(--muted);flex-shrink:0;
+  transition:transform .15s}
+.day.open .chev{transform:rotate(90deg);color:var(--accent)}
+.day-title{font-weight:650;flex:1;min-width:120px}
+.day-meta{color:var(--muted);font-size:13px;white-space:nowrap;flex-shrink:0}
+.day-kb{background:#422006;color:#fbbf24;border:1px solid #a16207;border-radius:999px;
+  padding:2px 10px;font-size:12px;font-weight:700;flex-shrink:0;white-space:nowrap}
+.day-jade{background:#064e3b;color:#6ee7b7;border:1px solid #059669;border-radius:999px;
+  padding:2px 10px;font-size:12px;font-weight:700;flex-shrink:0;white-space:nowrap}
+.day-body{display:none;padding:0 10px 12px;border-top:1px solid var(--line)}
+.day.open .day-body{display:block}
+.guide{background:#121a24;border:1px solid var(--line);border-radius:12px;margin-top:10px;overflow:hidden}
+.guide-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:10px 12px;cursor:pointer;user-select:none;
+  background:linear-gradient(180deg,#1e293b,#162032)}
+.guide-h:hover{filter:brightness(1.06)}
+.guide .chev{width:20px;height:20px;font-size:11px}
+.guide.open > .guide-h .chev{transform:rotate(90deg);color:#a78bfa}
+.guide-title{font-weight:650;flex:1;min-width:100px;color:#e9d5ff}
+.guide-meta{color:var(--muted);font-size:12.5px;white-space:nowrap;flex-shrink:0}
+.guide-tours{color:#94a3b8;font-size:12px;max-width:100%;word-break:break-all}
+.guide-kb{background:#422006;color:#fbbf24;border:1px solid #a16207;border-radius:999px;
+  padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.guide-jade{background:#064e3b;color:#6ee7b7;border:1px solid #059669;border-radius:999px;
+  padding:2px 10px;font-size:12px;font-weight:700;flex-shrink:0;white-space:nowrap}
+.guide-body{display:none;padding:0 8px 10px;border-top:1px solid rgba(45,58,79,.7)}
+.guide.open .guide-body{display:block}
+.guide .group{margin-top:8px}
+.group{background:var(--bg);border:1px solid var(--line);border-radius:12px;margin-top:10px;padding:10px 12px}
+.group-h{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;margin-bottom:8px}
+.g-seq{background:var(--accent);color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700}
+.g-people{color:var(--muted);font-size:13px}
+.g-crowd{background:#1e3a5f;color:#93c5fd;border-radius:8px;padding:2px 8px;font-size:12px}
+.g-hukou{background:#14532d;color:#86efac;border-radius:8px;padding:2px 8px;font-size:12px}
+.g-tour{background:#312e81;color:#c7d2fe;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:650;word-break:break-all}
+.g-guide{background:#4c1d95;color:#e9d5ff;border-radius:8px;padding:2px 8px;font-size:12px}
+.group-main{display:flex;gap:12px;align-items:stretch}
+.group-left{flex:1.15;min-width:0}
+.group-mid{flex:0 0 118px;min-width:100px;display:flex;flex-direction:column}
+.group-right{flex:1;min-width:0;display:flex;flex-direction:column}
+.g-kb{background:#3b1d0f;color:#fdba74;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:650}
+.g-need{background:#7f1d1d;color:#fecaca;border:1px solid #b91c1c;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:650;max-width:100%;word-break:break-word}
+.members{width:100%;border-collapse:collapse;font-size:13.5px;margin:0}
+.members th{text-align:left;color:var(--muted);font-weight:500;padding:4px 6px;border-bottom:1px solid var(--line);font-size:12px}
+.members td{padding:6px;border-bottom:1px solid rgba(45,58,79,.6);vertical-align:top}
+.members tr:last-child td{border-bottom:none}
+.analysis-panel,.kb-panel{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:8px 10px;height:100%;min-height:72px;display:flex;flex-direction:column}
+.analysis-label,.kb-label{color:var(--warn);font-size:12px;font-weight:600;margin-bottom:6px;flex-shrink:0}
+.kb-label{color:#fb923c}
+.analysis-body{white-space:pre-wrap;font-size:12.5px;color:#d1d5db;overflow:auto;flex:1;max-height:320px}
+.analysis-empty,.kb-empty{color:var(--muted);font-size:12px}
+.kb-raw{font-size:14px;font-weight:650;color:#fdba74;word-break:break-all}
+.kb-yuan{font-size:12.5px;color:#e8eef7;margin-top:6px}
+.kb-yuan b{color:var(--accent2);font-size:15px}
+.money-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px}
+.money-cell{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.money-cell .lab{color:var(--muted);font-size:11px;margin-bottom:4px}
+.money-cell .val{font-size:13.5px;font-weight:650;color:#e8eef7;word-break:break-word}
+.money-cell .val.jade{color:#6ee7b7}
+.money-cell .val.empty{color:var(--muted);font-weight:500}
+.empty{color:var(--muted);text-align:center;padding:28px 10px}
+.hidden{display:none!important}
+.footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
+
+/* —— 截图 OCR —— */
+.fuzzy-ocr{margin-top:14px;padding:12px 14px;border:1px solid #334155;border-radius:12px;
+  background:rgba(15,23,42,.5)}
+.fuzzy-ocr-drop{border:1px dashed #475569;border-radius:12px;padding:16px 14px;background:var(--bg);cursor:pointer;
+  display:flex;flex-direction:column;gap:4px;transition:border-color .15s,background .15s,box-shadow .15s}
+.fuzzy-ocr-drop:focus,.fuzzy-ocr-drop.dragover{outline:none;border-color:var(--accent);background:#0f172a;
+  box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.fuzzy-ocr-drop-t{font-size:13.5px;color:var(--text);font-weight:600}
+.fuzzy-ocr-drop-s{font-size:12px;color:var(--muted)}
+.fuzzy-ocr-actions{margin-top:8px;position:relative;z-index:5}
+.fuzzy-ocr-actions .btn{pointer-events:auto;position:relative;z-index:6;cursor:pointer}
+.fuzzy-ocr-busy .fuzzy-ocr-actions,.fuzzy-ocr-busy .fuzzy-ocr-actions .btn{pointer-events:auto!important;opacity:1}
+.fuzzy-ocr-msg{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.45;background:rgba(15,23,42,.7);border:1px solid #334155;color:var(--text)}
+.fuzzy-ocr-msg.ok{border-color:#166534;color:#86efac;background:rgba(22,101,52,.25)}
+.fuzzy-ocr-msg.err{border-color:#991b1b;color:#fca5a5;background:rgba(127,29,29,.28)}
+.fuzzy-ocr-msg.hidden{display:none}
+.fuzzy-ocr-raw-wrap{margin-top:8px;font-size:12.5px;color:var(--muted)}
+.fuzzy-ocr-raw-wrap summary{cursor:pointer;user-select:none;color:#93c5fd;font-weight:650}
+.fuzzy-ocr-raw{max-height:220px;margin-top:6px}
+.fuzzy-ocr-busy .fuzzy-ocr-drop{opacity:.7;pointer-events:none}
+@media(max-width:720px){
+  .group-main{flex-direction:column}
+  .group-mid{flex:1 1 auto;min-width:0}
+  .analysis-body{max-height:220px}
+  .money-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* —— 登录门禁 —— */
+body.locked{overflow:hidden}
+body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hidden;margin:0;padding:0}
+.auth-gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(8,12,18,.92);backdrop-filter:blur(6px)}
+.auth-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:22px 20px 18px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.auth-card h2{margin:0 0 6px;font-size:1.15rem}
+.auth-hint{color:var(--muted);font-size:13px;margin:0 0 16px}
+.auth-card label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+.auth-card input[type=text],.auth-card input[type=password]{
+  width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:11px 12px;font-size:15px;outline:none;margin-bottom:12px}
+.auth-card input:focus{border-color:var(--accent)}
+.auth-card .auth-submit{width:100%;background:var(--accent);border:none;color:#fff;border-radius:10px;
+  padding:11px 12px;font-size:15px;font-weight:650;cursor:pointer;margin-top:4px}
+.auth-card .auth-submit:disabled{opacity:.6;cursor:wait}
+.auth-err{color:#fecaca;background:#7f1d1d;border:1px solid #b91c1c;border-radius:8px;
+  padding:8px 10px;font-size:13px;margin:0 0 12px}
+.auth-who{color:var(--muted);font-size:12px;margin-left:auto;align-self:center}
+.btn-logout{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;
+  padding:5px 12px;font-size:12px;cursor:pointer}
+.btn-logout:hover{color:var(--text);border-color:var(--muted)}
+.nav{align-items:center}
+
+
+/* —— 模糊订单上传（未出团页加法；不改名单卡片样式） —— */
+.fuzzy-panel{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:18px clamp(14px,1.5vw,22px);margin-bottom:16px;
+  box-shadow:0 8px 28px rgba(0,0,0,.22)}
+.fuzzy-panel-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:6px}
+.fuzzy-panel-h h2{margin:0;font-size:1.12rem;letter-spacing:.01em}
+.fuzzy-hint{color:var(--muted);font-size:12px}
+.fuzzy-note{color:var(--muted);font-size:12.5px;margin:0 0 10px}
+.fuzzy-help{margin:0 0 12px;border:1px solid var(--line);border-radius:10px;background:rgba(15,23,42,.35)}
+.fuzzy-help>summary{cursor:pointer;user-select:none;padding:8px 12px;font-size:12.5px;color:#93c5fd;font-weight:650}
+.fuzzy-help[open]>summary{border-bottom:1px solid var(--line)}
+.fuzzy-help-body{padding:8px 12px 10px;color:var(--muted);font-size:12.5px;line-height:1.5}
+.fuzzy-lab{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px;font-weight:600}
+.fuzzy-form textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:12px;padding:12px 14px;font-size:14px;outline:none;resize:vertical;font-family:inherit;
+  min-height:120px}
+.fuzzy-form textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.fuzzy-form input[type=file]{color:var(--muted);font-size:13px}
+.fuzzy-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.fuzzy-primary{background:#1d4ed8;border-color:#2563eb;color:#fff;font-weight:650}
+.fuzzy-primary:hover{filter:brightness(1.08)}
+.fuzzy-msg{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:600;
+  position:static;z-index:auto;background:#1e293b;border:1px solid #475569;color:#e2e8f0}
+.fuzzy-msg.ok{background:#14532d;border:1px solid #166534;color:#bbf7d0}
+.fuzzy-msg.err{background:#7f1d1d;border:1px solid #b91c1c;color:#fecaca}
+.fuzzy-msg.hidden{display:none!important}
+.fuzzy-list-toolbar{display:flex;flex-direction:column;gap:8px;margin:8px 0 6px}
+.fuzzy-list-toolbar-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fuzzy-list-hint{font-size:13px;color:#64748b}
+.fuzzy-list-filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fuzzy-filter-chip{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--muted);
+  border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:650;cursor:pointer;line-height:1.2}
+.fuzzy-filter-chip:hover{border-color:#475569;color:#e2e8f0}
+.fuzzy-filter-chip.is-active{background:#1d4ed8;border-color:#3b82f6;color:#fff;box-shadow:0 0 0 1px rgba(59,130,246,.35)}
+.fuzzy-list-search{flex:1;min-width:180px;max-width:360px;background:var(--card);border:1px solid var(--line);
+  color:var(--text);border-radius:10px;padding:7px 10px;font-size:13px}
+.fuzzy-list-search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px rgba(59,130,246,.35)}
+.fuzzy-list-section{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.fuzzy-list-section + .fuzzy-list-section{margin-top:12px}
+.fuzzy-sec-h{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  text-align:left;background:rgba(30,41,59,.55);border:1px solid var(--line);border-radius:10px;
+  color:#e2e8f0;font-size:13px;font-weight:700;padding:8px 12px;cursor:pointer}
+.fuzzy-sec-h:hover{filter:brightness(1.06)}
+.fuzzy-sec-h .fuzzy-sec-count{font-size:12px;font-weight:650;color:var(--muted);background:var(--chip);
+  border-radius:999px;padding:2px 8px}
+.fuzzy-sec-h .fuzzy-sec-caret{color:var(--muted);font-size:12px;transition:transform .12s}
+.fuzzy-list-section.is-collapsed .fuzzy-sec-caret{transform:rotate(-90deg)}
+.fuzzy-list-section.is-collapsed .fuzzy-sec-body{display:none}
+.fuzzy-sec-body{display:flex;flex-direction:column;gap:8px}
+.fuzzy-list-section[data-sec="done"] .fuzzy-draft{opacity:.82}
+.fuzzy-sec-empty{color:var(--muted);font-size:12.5px;padding:4px 2px 2px}
+
+.fuzzy-draft-list{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.fuzzy-empty{color:var(--muted);font-size:13px;padding:8px 0}
+.fuzzy-draft{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.fuzzy-draft.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(59,130,246,.35)}
+.fuzzy-draft-h{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:8px}
+.fuzzy-st{font-size:12px;font-weight:650;border-radius:999px;padding:2px 9px}
+.fuzzy-st.st-pending_parse{background:#422006;color:#fbbf24}
+.fuzzy-st.st-pending_sales_confirm{background:#1e3a5f;color:#93c5fd}
+
+.fuzzy-draft.is-draft-todo{border-color:#b45309;background:#1c1410}
+.fuzzy-draft-badge{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;
+  background:#9a3412;color:#ffedd5;border:1px solid #f97316;letter-spacing:.02em}
+.fuzzy-shared-badge{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:#14532d;color:#bbf7d0;border:1px solid #22c55e}
+.fuzzy-midtour-badge{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:#7c2d12;color:#fdba74;border:1px solid #fb923c}
+.fuzzy-field-hint{display:block;width:100%;font-size:11px;font-weight:500;color:#94a3b8;margin-top:2px;line-height:1.35;letter-spacing:.01em}
+.fuzzy-field.midtour{border-left:3px solid #fb923c;background:rgba(124,45,18,.12);border-color:#9a3412;border-radius:0 10px 10px 0}
+.fuzzy-field.midtour .fuzzy-field-lab{color:#ffedd5}
+.fuzzy-money-hint{font-size:11px;font-weight:600;color:#86efac;margin-left:4px}
+.fuzzy-draft.is-shared{border-color:#166534}
+.fuzzy-by{font-size:11px;color:var(--muted);margin-left:6px}
+.fuzzy-st.st-draft_todo{background:#7c2d12;color:#fdba74}
+.fuzzy-keep{background:#9a3412;border-color:#ea580c;color:#ffedd5;font-weight:650}
+.fuzzy-keep:hover{filter:brightness(1.08)}
+
+.fuzzy-st.st-confirmed_await_yitu{background:#14532d;color:#86efac}
+.fuzzy-st.st-notified_await_yitu{background:#1e3a8a;color:#93c5fd}
+.fuzzy-st.st-in_yitu{background:#064e3b;color:#6ee7b7}
+.fuzzy-st.st-pending_change_sync{background:#7c2d12;color:#fdba74}
+.fuzzy-st.st-yitu_updated{background:#312e81;color:#c7d2fe}
+.fuzzy-who{font-size:13px}
+.fuzzy-agency{color:var(--muted);font-size:12px}
+.fuzzy-agency-check{display:inline-block;margin-left:6px;font-size:11px;font-weight:750;border-radius:999px;padding:1px 7px;
+  background:#7c2d12;color:#fdba74;border:1px solid #ea580c;vertical-align:middle;letter-spacing:.02em}
+.fuzzy-agency-check-note{margin-left:6px;font-size:11.5px;color:#fdba74;font-weight:650}
+.fuzzy-field.agency-needs-check{border-left-color:#ea580c!important;background:rgba(124,45,18,.22)!important;border-color:#9a3412!important}
+.fuzzy-yitu-at{font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;
+  background:#0f766e;color:#ccfbf1;border:1px solid #2dd4bf;letter-spacing:.01em;white-space:nowrap}
+.fuzzy-warn{display:inline-block;width:fit-content;max-width:100%;margin:0 0 8px;padding:6px 10px;border-radius:8px;font-size:12.5px;font-weight:700;line-height:1.45;
+  color:#fecaca;background:rgba(127,29,29,.45);border:1px solid #f87171;letter-spacing:.01em}
+.fuzzy-draft-actions{display:flex;flex-wrap:wrap;gap:6px}
+.fuzzy-review{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}
+.fuzzy-review-bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;
+  margin-bottom:10px;padding:10px 12px;border-radius:12px;background:rgba(30,41,59,.55);border:1px solid var(--line)}
+.fuzzy-review-bar-title{font-size:13px;font-weight:700;color:#e2e8f0;min-width:0;flex:1}
+.fuzzy-review-bar-actions{display:flex;flex-wrap:wrap;gap:6px}
+.fuzzy-review.is-collapsed .fuzzy-review-body{display:none}
+.fuzzy-review.is-collapsed .fuzzy-review-bar{margin-bottom:0;border-color:#3b82f6;box-shadow:0 0 0 1px rgba(59,130,246,.25)}
+
+.fuzzy-status{font-size:13px;color:var(--muted);margin-bottom:10px}
+.fuzzy-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+.fuzzy-field{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);
+  padding:8px 10px 10px;border-radius:10px;background:transparent;border:1px solid transparent;
+  transition:background .12s,border-color .12s}
+.fuzzy-field-lab{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;
+  font-size:12.5px;font-weight:650;color:#cbd5e1;letter-spacing:.01em;line-height:1.3}
+.fuzzy-field-lab em{color:#fbbf24;font-style:normal;font-weight:750;font-size:11.5px}
+/* 关键核对字段：更大更亮 + 左侧色条，减轻视觉疲劳 */
+.fuzzy-field.key{background:rgba(30,41,59,.55);border:1px solid #334155;
+  border-left:3px solid #3b82f6;padding:10px 12px 12px;border-radius:0 12px 12px 0;
+  box-shadow:0 1px 0 rgba(148,163,184,.06)}
+.fuzzy-field.key .fuzzy-field-lab{font-size:14px;font-weight:750;color:#f1f5f9;letter-spacing:.02em}
+.fuzzy-field.key.need{border-left-color:#f59e0b;background:rgba(66,32,6,.28);border-color:#78350f}
+.fuzzy-field.key.money{border-left-color:#22c55e}
+.fuzzy-field.key.transport{border-left-color:#38bdf8}
+.fuzzy-field.key.guest{border-left-color:#a78bfa}
+.fuzzy-field.key.date{border-left-color:#f472b6}
+.fuzzy-field.need span em,.fuzzy-field.need .fuzzy-field-lab em{color:#fbbf24;font-style:normal;font-weight:750}
+.fuzzy-field textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;resize:vertical;font-weight:500}
+.fuzzy-field.key textarea{border-color:#475569;font-size:14.5px;font-weight:550}
+.fuzzy-field textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.fuzzy-field.need textarea{border-color:#a16207}
+.fuzzy-field.key.need textarea{border-color:#d97706}
+.fuzzy-confirm-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;
+  padding-top:12px;border-top:1px dashed rgba(45,58,79,.7)}
+.fuzzy-check{font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px}
+.fuzzy-overlay{display:none!important} /* 旧「本页进行中」已并入订单看板 */
+.fuzzy-orders-panel{background:var(--card);border:1px solid #166534;border-radius:16px;
+  padding:18px clamp(14px,1.5vw,22px);margin:0 0 18px;
+  box-shadow:0 8px 28px rgba(0,0,0,.22);border-top:3px solid #22c55e}
+.fuzzy-orders-panel .fuzzy-panel-h{margin-bottom:10px}
+.fuzzy-orders-panel .fuzzy-panel-h h2{color:#bbf7d0}
+.fuzzy-orders-panel .fuzzy-list-filters{margin:0 0 12px}
+.fuzzy-orders-list{margin-top:4px}
+.fuzzy-draft-toolbar{margin-top:4px}
+.fuzzy-list-section[data-sec^="date:"] .fuzzy-sec-h{background:rgba(20,83,45,.35);border-color:#166534}
+.fuzzy-list-section[data-sec="nodate"] .fuzzy-sec-h{background:rgba(51,65,85,.45)}
+.fuzzy-orders-empty{color:var(--muted);font-size:13px;padding:10px 2px}
+
+.fuzzy-side{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.35fr);gap:14px 18px;margin-top:8px}
+.fuzzy-side-raw,.fuzzy-side-fields{min-width:0;background:rgba(15,23,42,.35);border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px}
+.fuzzy-side-h{font-size:12px;color:#93c5fd;font-weight:700;margin-bottom:8px;letter-spacing:.02em}
+.fuzzy-raw{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+  font-size:12.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;max-height:560px;overflow:auto;color:#cbd5e1}
+.fuzzy-dup{margin-top:10px;padding:8px 10px;border-radius:8px;font-size:13px;background:#7c2d12;border:1px solid #c2410c;color:#ffedd5}
+.fuzzy-change-box{margin-top:12px;padding:12px 14px;border:1px dashed #a16207;border-radius:10px;background:#1c1917;width:100%;box-sizing:border-box}
+.fuzzy-change-box .fuzzy-lab{margin-top:0}
+.fuzzy-change-box textarea,#fuzzyChangeNotes{display:block;width:100%;box-sizing:border-box;min-height:180px;
+  background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px 14px;
+  font-size:14px;line-height:1.55;outline:none;resize:vertical;font-family:inherit}
+.fuzzy-change-box textarea:focus,#fuzzyChangeNotes:focus{border-color:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,.18)}
+.fuzzy-change-hint{color:var(--muted);font-size:12px;margin:6px 0 0}
+.fuzzy-history{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.fuzzy-history-h{font-size:12px;font-weight:650;color:#93c5fd;margin-bottom:8px}
+.fuzzy-history-item{padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}
+.fuzzy-history-item:first-of-type{border-top:none}
+.fuzzy-history-meta{color:var(--muted);margin-bottom:2px}
+.fuzzy-history-notes{color:var(--text);white-space:pre-wrap}
+
+@media(min-width:1100px){
+  .fuzzy-fields{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .fuzzy-field.guest-list-field,.fuzzy-field.midtour-list-field,.fuzzy-field.span-2{grid-column:1/-1}
+}
+@media(max-width:900px){
+  .fuzzy-side{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+  .fuzzy-fields{grid-template-columns:1fr}
+  .fuzzy-side{grid-template-columns:1fr}
+  .wrap{padding:14px 12px 40px}
+}
+
+.fuzzy-ocr-ver{margin-top:6px;font-size:11px;color:#64748b}
+.footer{margin-top:24px;color:#64748b;font-size:11.5px;text-align:center}
+h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
+.sub{color:var(--muted);font-size:13px;margin-bottom:16px;max-width:70ch}
+
+.fuzzy-ocr-pick-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+.fuzzy-ocr-pick-hint{font-size:12px;color:var(--muted)}
+
+
+/* 客人名单：每人一行 8 列（姓名/电话/证件类型/证件号码/性别/年龄/类型/删）；电话与证件号加宽 */
+.fuzzy-field.guest-list-field{grid-column:1/-1}
+.fuzzy-field.span-2{grid-column:1/-1}
+.guest-list-wrap{display:flex;flex-direction:column;gap:8px;min-width:0}
+.guest-list-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.guest-list-cols{
+  --g-name:72px;--g-phone:118px;--g-idtype:78px;--g-idno:minmax(168px,1.6fr);
+  --g-sex:52px;--g-age:52px;--g-kind:64px;--g-del:30px;
+  display:grid;
+  grid-template-columns:var(--g-name) var(--g-phone) var(--g-idtype) var(--g-idno) var(--g-sex) var(--g-age) var(--g-kind) var(--g-del);
+  gap:5px;align-items:center;min-width:640px
+}
+.guest-list-head.guest-list-cols{font-size:12px;font-weight:700;color:#e2e8f0;padding:4px 4px;background:rgba(51,65,85,.45);border-radius:8px;letter-spacing:.02em}
+.guest-row.guest-list-cols{margin:0}
+.guest-row input,.guest-row select{width:100%;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:6px 6px;font-size:12.5px;font-family:inherit;box-sizing:border-box}
+.guest-row .guest-phone,.guest-row .guest-id-number{font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.guest-row .guest-gender,.guest-row .guest-age,.guest-row .guest-kind,.guest-row .guest-id-type{padding-left:4px;padding-right:4px}
+.guest-row input:focus,.guest-row select:focus{border-color:var(--accent);outline:none}
+.guest-row .guest-del{border:1px solid var(--line);background:transparent;color:#f87171;border-radius:8px;height:32px;width:100%;cursor:pointer;font-size:15px;line-height:1;padding:0}
+.guest-row .guest-del:hover{border-color:#f87171;background:#7f1d1d22}
+.guest-list-actions{display:flex;gap:8px;align-items:center;margin-top:2px}
+.guest-list-hint{font-size:11px;font-weight:500;color:#94a3b8;letter-spacing:0}
+.guest-list-hidden{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
+@media(max-width:720px){
+  /* 窄屏仍单行：横向滚动，不折成两行 */
+  .guest-list-head.guest-list-cols{font-size:11px}
+  .guest-list-cols{min-width:600px;gap:4px}
+}
+
+
+/* 团中加项：行编辑（跟单价下方） */
+.fuzzy-field.midtour-list-field{grid-column:1/-1}
+.midtour-list-wrap{display:flex;flex-direction:column;gap:8px;min-width:0}
+.midtour-list-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.midtour-cols{display:grid;gap:5px;align-items:center}
+.midtour-cols-midtour_fee_collect{
+  --mt-del:30px;
+  grid-template-columns:minmax(88px,.9fr) minmax(120px,1.4fr) minmax(72px,.7fr) minmax(56px,.55fr) minmax(56px,.55fr) var(--mt-del);
+  min-width:520px
+}
+.midtour-cols-midtour_tickets{
+  --mt-del:30px;
+  grid-template-columns:minmax(100px,1.2fr) minmax(88px,.9fr) minmax(88px,.8fr) minmax(72px,.7fr) minmax(56px,.55fr) minmax(88px,1fr) var(--mt-del);
+  min-width:640px
+}
+.midtour-cols-midtour_hotels{
+  --mt-del:30px;
+  grid-template-columns:minmax(100px,1.2fr) minmax(88px,.9fr) minmax(88px,.8fr) minmax(72px,.7fr) minmax(56px,.5fr) minmax(52px,.45fr) minmax(80px,.9fr) var(--mt-del);
+  min-width:700px
+}
+.midtour-cols-midtour_vehicles{
+  --mt-del:30px;
+  grid-template-columns:minmax(90px,1fr) minmax(80px,.85fr) minmax(88px,.95fr) minmax(84px,.8fr) minmax(84px,.8fr) minmax(68px,.65fr) minmax(52px,.5fr) minmax(80px,.9fr) var(--mt-del);
+  min-width:780px
+}
+.midtour-head.midtour-cols{font-size:12px;font-weight:700;color:#ffedd5;padding:4px 4px;background:rgba(124,45,18,.35);border-radius:8px;letter-spacing:.02em}
+.midtour-row.midtour-cols{margin:0}
+.midtour-row input{width:100%;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:6px 6px;font-size:12.5px;font-family:inherit;box-sizing:border-box}
+.midtour-row input:focus{border-color:#fb923c;outline:none;box-shadow:0 0 0 2px rgba(251,146,60,.18)}
+.midtour-row .midtour-del{border:1px solid var(--line);background:transparent;color:#f87171;border-radius:8px;height:32px;width:100%;cursor:pointer;font-size:15px;line-height:1;padding:0}
+.midtour-row .midtour-del:hover{border-color:#f87171;background:#7f1d1d22}
+.midtour-list-actions{display:flex;gap:8px;align-items:center;margin-top:2px}
+.midtour-list-actions .btn{border-color:#9a3412;color:#fdba74}
+@media(max-width:720px){
+  .midtour-head.midtour-cols{font-size:11px}
+  .midtour-cols-midtour_fee_collect{min-width:480px}
+  .midtour-cols-midtour_tickets{min-width:600px}
+  .midtour-cols-midtour_hotels{min-width:660px}
+  .midtour-cols-midtour_vehicles{min-width:740px}
+}
+
+/* —— 浮动客服对接 —— */
+.cs-fab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));
+  z-index:8500;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none}
+.cs-fab>*{pointer-events:auto}
+.cs-fab-btn{border:none;cursor:pointer;border-radius:999px;padding:12px 18px;font-size:14px;font-weight:750;
+  letter-spacing:.02em;color:#fff;background:linear-gradient(135deg,#ea580c,#c2410c);
+  box-shadow:0 8px 24px rgba(194,65,12,.45),0 0 0 1px rgba(251,146,60,.35);
+  font-family:inherit;display:inline-flex;align-items:center;gap:8px}
+.cs-fab-btn:hover{filter:brightness(1.08)}
+.cs-fab-btn:active{transform:scale(.98)}
+.cs-fab-btn .cs-fab-dot{width:8px;height:8px;border-radius:50%;background:#86efac;
+  box-shadow:0 0 0 3px rgba(134,239,172,.25);flex-shrink:0}
+.cs-panel{width:min(360px,calc(100vw - 28px));background:#0f172a;border:1px solid #334155;border-radius:16px;
+  box-shadow:0 16px 48px rgba(0,0,0,.45);padding:14px 14px 12px;display:none}
+.cs-panel.open{display:block}
+.cs-panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.cs-panel-h strong{font-size:14px;color:#ffedd5}
+.cs-panel-close{background:transparent;border:1px solid #475569;color:#cbd5e1;border-radius:8px;
+  width:30px;height:30px;cursor:pointer;font-size:16px;line-height:1}
+.cs-panel-close:hover{border-color:#f97316;color:#fdba74}
+.cs-panel-hint{margin:0 0 10px;font-size:12px;color:#94a3b8;line-height:1.45}
+.cs-panel label{display:block;font-size:12px;color:#94a3b8;font-weight:650;margin-bottom:5px}
+.cs-panel textarea{width:100%;min-height:96px;resize:vertical;background:#020617;border:1px solid #334155;
+  color:#e2e8f0;border-radius:10px;padding:10px 12px;font-size:13.5px;font-family:inherit;outline:none;
+  box-sizing:border-box}
+.cs-panel textarea:focus{border-color:#f97316;box-shadow:0 0 0 3px rgba(249,115,22,.15)}
+.cs-meta{margin:8px 0 10px;padding:8px 10px;border-radius:10px;background:#1e293b;border:1px solid #334155;
+  font-size:11.5px;color:#94a3b8;line-height:1.5;word-break:break-all}
+.cs-meta b{color:#cbd5e1;font-weight:650}
+.cs-panel-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cs-copy{background:#9a3412;border:1px solid #ea580c;color:#ffedd5;font-weight:700;
+  border-radius:10px;padding:9px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+.cs-copy:hover{filter:brightness(1.08)}
+.cs-feedback{margin:8px 0 0;font-size:12px;font-weight:650;min-height:1.2em;color:#86efac}
+.cs-feedback.err{color:#fecaca}
+.cs-replies-wrap{margin-top:10px;padding-top:10px;border-top:1px solid #334155}
+.cs-replies-h{font-size:12px;font-weight:700;color:#fdba74;margin-bottom:6px}
+.cs-replies{max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:2px 0}
+.cs-msg{padding:7px 9px;border-radius:10px;font-size:12px;line-height:1.45;border:1px solid #334155;background:#1e293b;color:#e2e8f0;white-space:pre-wrap;word-break:break-word}
+.cs-msg.user{border-color:#475569;background:#0f172a}
+.cs-msg.assistant{border-color:#ea580c;background:#431407;color:#ffedd5}
+.cs-msg .cs-msg-meta{display:block;font-size:10px;opacity:.75;margin-bottom:3px;font-weight:650}
+.cs-replies-empty{font-size:12px;color:#64748b;padding:4px 2px}
+.cs-attach{margin:8px 0 0}
+.cs-attach-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.cs-attach-thumbs:empty{display:none;margin:0}
+.cs-attach-item{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid #475569;background:#020617}
+.cs-attach-item img{width:100%;height:100%;object-fit:cover;display:block}
+.cs-attach-item button{position:absolute;top:2px;right:2px;width:18px;height:18px;border:none;border-radius:50%;
+  background:rgba(15,23,42,.85);color:#fecaca;font-size:12px;line-height:1;cursor:pointer;padding:0}
+.cs-attach-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cs-attach-btn{background:#1e293b;border:1px solid #475569;color:#e2e8f0;border-radius:8px;padding:6px 10px;
+  font-size:12px;font-weight:650;cursor:pointer;font-family:inherit}
+.cs-attach-btn:hover{border-color:#f97316;color:#fdba74}
+.cs-attach-hint{font-size:11px;color:#64748b}
+.cs-msg-imgs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.cs-msg-imgs a{display:block;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1px solid #475569}
+.cs-msg-imgs img{width:100%;height:100%;object-fit:cover;display:block}
+.cs-panel.cs-drag{outline:2px dashed #f97316;outline-offset:-4px}
+
+@media(max-width:720px){
+  .cs-fab{right:12px;bottom:14px}
+  .cs-fab-btn{padding:11px 14px;font-size:13px}
+}
+/* 通知AI助手录易途：主操作按钮，醒目 */
+.btn.btn-notify{background:linear-gradient(180deg,#4f46e5,#3730a3);border:1px solid #6366f1;color:#fff;
+  font-weight:800;font-size:15px;padding:10px 18px;border-radius:10px;letter-spacing:.5px;
+  box-shadow:0 4px 14px rgba(79,70,229,.45),inset 0 1px 0 rgba(255,255,255,.18);cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:transform .08s,box-shadow .15s,filter .15s}
+.btn.btn-notify .ico{font-size:17px;line-height:1}
+.btn.btn-notify:hover{filter:brightness(1.15);box-shadow:0 6px 18px rgba(99,102,241,.6),inset 0 1px 0 rgba(255,255,255,.2)}
+.btn.btn-notify:active{transform:translateY(1px);opacity:1}
+.btn.btn-notify:focus-visible{outline:3px solid #a5b4fc;outline-offset:2px}
+.btn.btn-notify:disabled,.btn.btn-notify[aria-disabled="true"]{background:#312e81;border-color:#4338ca;color:#c7d2fe;
+  box-shadow:none;filter:none;cursor:not-allowed;opacity:1}
+[hidden]{display:none!important}
+#accountAdmin{margin:22px 0;padding:16px;border:1px solid var(--accent);border-radius:14px;background:var(--card)}
+#accountAdmin input{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;margin:4px 0 12px;max-width:420px}
+.admin-user-table{width:100%;border-collapse:collapse;margin-top:18px}
+.admin-user-table th,.admin-user-table td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+.admin-user-table td:last-child{display:flex;gap:6px;flex-wrap:wrap}
+.admin-danger{border-color:var(--danger);color:#fecaca}
+#adminNotice{margin-top:12px;color:#93c5fd}
+
+/* 账号权限：仅隐藏已完团等 admin-only，勿被其它选择器盖掉 */
+.admin-only[hidden],#accountAdmin[hidden]{display:none!important}
+
+</style>
+</head>
+<body class="locked">
+<div id="authGate" class="auth-gate" aria-modal="true" role="dialog" aria-labelledby="authTitle">
+  <div class="auth-card">
+    <h2 id="authTitle">散客数据看板</h2>
+    <p class="auth-hint">导管内部查阅 · 请登录后查看</p>
+    <div id="authErr" class="auth-err hidden"></div>
+    <form id="authForm" autocomplete="on">
+      <label for="authUser">用户名</label>
+      <input type="text" id="authUser" name="username" autocomplete="username" required placeholder="请输入用户名"/>
+      <label for="authPass">密码</label>
+      <input type="password" id="authPass" name="password" autocomplete="current-password" required placeholder="请输入密码"/>
+      <button type="submit" class="auth-submit">登录</button>
+    </form>
+  </div>
+</div>
+<div id="app" class="wrap">
+  <div class="banner">散客数据看板 · 已完团 · 导管调取用 · 含姓名与初步分析，请勿随意外传。入库筛选：完团日期 ≥ 2026-07-01。层级：出团日 → 导游 → 单组。</div>
+  <nav class="nav">
+    <a href="index.html">未出团</a>
+    <a class="active" href="completed.html">已完团</a>
+    <a href="upload.html">模糊订单</a>
+    <span class="auth-who" id="authWho"></span>
+    <button type="button" class="btn-logout" id="btnLogout">退出</button>
+  </nav>
+  <h1>散客数据看板</h1>
+  <div class="sub" id="metaLine"></div>
+  <div class="stats" id="stats"></div>
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="搜姓名 / 导游 / 团号 / 组团社 / 户籍…" enterkeyhint="search"/>
+    <button type="button" class="btn" id="btnExpand">全部展开</button>
+    <button type="button" class="btn" id="btnCollapse">全部折叠</button>
+  </div>
+  <div id="days"></div>
+  <div class="empty hidden" id="empty">没有匹配的组</div>
+  <div class="footer">需登录访问 · 数据由钉钉导出每日重建 · 不展示完整身份证/电话</div>
+</div>
+
+<script>
+/* 散客看板：身份/角色/CSRF 以 Worker 为准；浏览器不保存密码或会话令牌。
+ * 同源优先 /api（帽子云反代）；GitHub Pages 跳转 mingdanupload 同路径，不跨站 Cookie。 */
+const MingdanAuth = (function () {
+  let session = null;
+  let csrf = "";
+  let onLogin = null;
+  let loggingIn = false;
+  let changePromise = null;
+  let passwordGate = null;
+
+  function isGithubPages() {
+    try { return /\.github\.io$/i.test(location.hostname || ""); } catch (_) { return false; }
+  }
+  /** 同源 /api；GH Pages 无反代时标记不可用（避免跨站 Cookie 泄露会话）。 */
+  function base() {
+    if (isGithubPages()) return "__GH_PAGES_NO_API__";
+    return "/api";
+  }
+  function authHeaders() {
+    return csrf ? { "X-CSRF-Token": csrf } : {};
+  }
+  function message(d, status) {
+    const byCode = {
+      username_or_password_incorrect: "用户名或密码不正确",
+      invalid_credentials: "用户名或密码不正确",
+      must_change_password: "请先修改初始密码",
+      completed_admin_only: "仅管理员可查看已完团",
+      csrf_invalid: "会话校验已失效，请刷新后重试",
+      rate_limited: "尝试次数太多，请稍后再试",
+      password_too_weak: "新密码至少12位，需含字母和数字",
+      proxy_missing: "登录服务尚未接通，请联系管理员",
+      gh_pages_use_maozi: "当前为 GitHub Pages 镜像，请改用国内帽子云入口登录",
+      network_error: "网络异常，请稍后重试",
+    };
+    return byCode[d && d.error] || (d && (d.message || d.error)) || ("服务请求失败（" + status + "）");
+  }
+  async function request(path, opts) {
+    const b = base();
+    if (b === "__GH_PAGES_NO_API__") {
+      return {
+        ok: false,
+        status: 0,
+        headers: new Headers(),
+        json: async () => ({ error: "gh_pages_use_maozi" }),
+      };
+    }
+    try {
+      return await fetch(b + path, opts);
+    } catch (e) {
+      return { ok: false, status: 0, headers: new Headers(), json: async () => ({ error: "network_error" }) };
+    }
+  }
+  function captureCsrf(res, d) {
+    const next = (res && res.headers && res.headers.get("X-CSRF-Token")) || (d && (d.csrf || d.csrf_token || d.csrfToken)) || "";
+    if (next) csrf = next;
+  }
+  async function api(path, opts) {
+    opts = Object.assign({}, opts || {});
+    const method = String(opts.method || "GET").toUpperCase();
+    opts.method = method;
+    opts.credentials = "include";
+    opts.headers = Object.assign({ Accept: "application/json" }, authHeaders(), opts.headers || {});
+    if (opts.body && typeof opts.body !== "string") {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(opts.body);
+    }
+    const res = await request(path, opts);
+    const d = await res.json().catch(() => ({ error: "proxy_missing" }));
+    captureCsrf(res, d);
+    if (res.status === 401 || d.error === "session_expired") {
+      session = null;
+      csrf = "";
+      lockUI();
+      throw new Error("登录已失效，请重新登录");
+    }
+    if (res.status === 403 && (d.must_change_password || d.error === "must_change_password") && !opts.skipPasswordGate) {
+      await promptPasswordChange();
+      return api(path, opts);
+    }
+    if (!res.ok || d.ok === false) throw new Error(message(d, res.status));
+    return d;
+  }
+  function setAdminOnlyVisible(isAdmin) {
+    document.querySelectorAll(".admin-only").forEach((el) => {
+      el.hidden = !isAdmin;
+      // 防止其它 CSS 盖掉 [hidden]
+      if (!isAdmin) el.style.setProperty("display", "none", "important");
+      else el.style.removeProperty("display");
+    });
+    const admin = document.getElementById("accountAdmin");
+    if (admin) {
+      admin.hidden = !isAdmin;
+      if (!isAdmin) admin.style.setProperty("display", "none", "important");
+      else admin.style.removeProperty("display");
+    }
+  }
+  function unlockUI(user) {
+    session = user;
+    document.body.classList.remove("locked");
+    const gate = document.getElementById("authGate");
+    if (gate) gate.classList.add("hidden");
+    const who = document.getElementById("authWho");
+    const isAdmin = !!(user && user.role === "admin");
+    if (who) who.textContent = (user && user.username ? user.username : "") + (isAdmin ? "（管理员）" : "");
+    setAdminOnlyVisible(isAdmin);
+    const admin = document.getElementById("accountAdmin");
+    if (isAdmin && admin && !admin.dataset.bound) {
+      admin.dataset.bound = "1";
+      bindAdmin();
+    }
+  }
+  function lockUI() {
+    document.body.classList.add("locked");
+    const gate = document.getElementById("authGate");
+    if (gate) gate.classList.remove("hidden");
+    const pass = document.getElementById("authPass");
+    if (pass) pass.value = "";
+    setAdminOnlyVisible(false);
+    // GitHub Pages 由 require() 跳转帽子云；此处不再锁死表单
+  }
+  async function login(event) {
+    if (event) event.preventDefault();
+    if (loggingIn) return;
+    loggingIn = true;
+    const btn = document.querySelector('#authForm button[type="submit"]');
+    if (btn) btn.disabled = true;
+    const err = document.getElementById("authErr");
+    if (err) {
+      err.textContent = "";
+      err.classList.add("hidden");
+    }
+    try {
+      const username = document.getElementById("authUser").value.trim();
+      const password = document.getElementById("authPass").value;
+      const d = await api("/login", { method: "POST", body: { username, password } });
+      if (!d.user) throw new Error("登录服务未返回账号信息");
+      captureCsrf(null, d);
+      const pass = document.getElementById("authPass");
+      if (pass) pass.value = "";
+      session = d.user;
+      if (d.user.must_change_password) {
+        await promptPasswordChange();
+      }
+      // 改密后 /me 已刷新 csrf；再拉一次确保角色以服务端为准
+      try {
+        const me = await api("/me");
+        if (me && me.user) session = me.user;
+      } catch (_) {}
+      unlockUI(session);
+      if (onLogin) onLogin(session);
+    } catch (e) {
+      if (err) {
+        err.textContent = e.message || "登录失败，请稍后重试";
+        err.classList.remove("hidden");
+      }
+    } finally {
+      loggingIn = false;
+      if (btn && !isGithubPages()) btn.disabled = false;
+    }
+  }
+  async function promptPasswordChange() {
+    if (changePromise) return changePromise;
+    changePromise = new Promise((resolve, reject) => {
+      passwordGate = document.createElement("div");
+      passwordGate.className = "auth-gate";
+      passwordGate.setAttribute("role", "dialog");
+      passwordGate.setAttribute("aria-modal", "true");
+      passwordGate.setAttribute("aria-labelledby", "passwordTitle");
+      passwordGate.innerHTML =
+        '<div class="auth-card"><h2 id="passwordTitle">请先修改初始密码</h2><p class="auth-hint">至少12位，包含字母和数字；不能与当前密码相同。不要把密码发在聊天中。</p><div id="passwordErr" class="auth-err hidden" role="alert"></div><form id="passwordForm"><label for="oldPassword">当前密码</label><input id="oldPassword" name="current-password" type="password" maxlength="128" autocomplete="current-password" required><label for="newPassword">新密码</label><input id="newPassword" name="new-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required><label for="confirmPassword">再输入新密码</label><input id="confirmPassword" name="new-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required><button class="auth-submit" type="submit">保存新密码</button></form></div>';
+      document.body.appendChild(passwordGate);
+      const form = passwordGate.querySelector("form");
+      form.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const btn = form.querySelector("button");
+        const err = passwordGate.querySelector("#passwordErr");
+        err.classList.add("hidden");
+        const current = document.getElementById("oldPassword").value;
+        const next = document.getElementById("newPassword").value;
+        if (next !== document.getElementById("confirmPassword").value) {
+          err.textContent = "两次输入的新密码不一致";
+          err.classList.remove("hidden");
+          return;
+        }
+        if (next === current) {
+          err.textContent = "新密码不能和当前密码相同";
+          err.classList.remove("hidden");
+          return;
+        }
+        if (next.length < 12 || !/[A-Za-z]/.test(next) || !/\d/.test(next)) {
+          err.textContent = "新密码至少12位，需含字母和数字";
+          err.classList.remove("hidden");
+          return;
+        }
+        btn.disabled = true;
+        try {
+          const d = await api("/change-password", {
+            method: "POST",
+            body: { current_password: current, new_password: next },
+            skipPasswordGate: true,
+          });
+          captureCsrf(null, d);
+          if (d.user) session = Object.assign({}, session || {}, d.user, { must_change_password: false });
+          passwordGate.remove();
+          passwordGate = null;
+          resolve(d);
+        } catch (e) {
+          err.textContent = e.message || "修改失败，请重试";
+          err.classList.remove("hidden");
+          reject(e);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      passwordGate.querySelector("#oldPassword").focus();
+    });
+    return changePromise.finally(() => {
+      changePromise = null;
+    });
+  }
+  function require(callback) {
+    onLogin = callback;
+    const form = document.getElementById("authForm");
+    if (form) form.addEventListener("submit", login);
+    const btnLogout = document.getElementById("btnLogout");
+    if (btnLogout) btnLogout.addEventListener("click", logout);
+    if (isGithubPages()) {
+      // 旧 GH 入口仍可用：跳转国内帽子云同路径（同源 /api），不跨站带 Cookie
+      try {
+        location.replace("https://mingdanupload-10m363dc.maozi.io" + (location.pathname || "/") + (location.search || "") + (location.hash || ""));
+      } catch (_) {}
+      return;
+    }
+    api("/me")
+      .then(async (d) => {
+        const user = d && d.user;
+        if (!user) throw new Error("当前没有登录会话");
+        captureCsrf(null, d);
+        session = user;
+        if (user.must_change_password) await promptPasswordChange();
+        unlockUI(session);
+        if (onLogin) onLogin(session);
+      })
+      .catch(() => lockUI());
+  }
+  async function logout() {
+    try {
+      await api("/logout", { method: "POST", body: "{}" });
+    } catch (e) {}
+    session = null;
+    csrf = "";
+    onLogin = null;
+    try {
+      sessionStorage.removeItem("mingdan_auth_v1");
+    } catch (e) {}
+    location.reload();
+  }
+  function adminNotice(text) {
+    const n = document.getElementById("adminNotice");
+    if (n) n.textContent = text || "";
+  }
+  async function loadUsers() {
+    const d = await api("/admin/users");
+    const host = document.getElementById("adminUsers");
+    if (!host) return;
+    host.replaceChildren();
+    const table = document.createElement("table");
+    table.className = "admin-user-table";
+    const head = document.createElement("thead");
+    head.innerHTML = "<tr><th>账号</th><th>角色</th><th>状态</th><th>操作</th></tr>";
+    table.appendChild(head);
+    const body = document.createElement("tbody");
+    (d.users || []).forEach((u) => {
+      const row = document.createElement("tr");
+      [u.username, u.role === "admin" ? "管理员" : "员工", u.disabled ? "已停用" : "正常"].forEach((text) => {
+        const td = document.createElement("td");
+        td.textContent = text;
+        row.appendChild(td);
+      });
+      const actions = document.createElement("td");
+      if (u.username !== "秦凡") {
+        const reset = document.createElement("button");
+        reset.className = "btn";
+        reset.type = "button";
+        reset.textContent = "重置密码";
+        reset.onclick = async () => {
+          const typed = prompt("给「" + u.username + "」设置至少12位临时密码：", "");
+          if (typed === null) return;
+          try {
+            await api("/admin/users/" + encodeURIComponent(u.username), {
+              method: "PATCH",
+              body: { force_password_reset: true, temporary_password: typed },
+            });
+            adminNotice("密码已重置，该账号旧会话已撤销。");
+            await loadUsers();
+          } catch (e) {
+            adminNotice(e.message);
+          }
+        };
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "btn " + (u.disabled ? "" : "admin-danger");
+        toggle.textContent = u.disabled ? "启用" : "停用";
+        toggle.onclick = async () => {
+          if (!confirm((u.disabled ? "启用" : "停用") + "「" + u.username + "」？")) return;
+          try {
+            await api("/admin/users/" + encodeURIComponent(u.username), {
+              method: "PATCH",
+              body: { disabled: !u.disabled },
+            });
+            await loadUsers();
+          } catch (e) {
+            adminNotice(e.message);
+          }
+        };
+        actions.append(reset, toggle);
+      }
+      row.appendChild(actions);
+      body.appendChild(row);
+    });
+    table.appendChild(body);
+    host.appendChild(table);
+    host.scrollIntoView({ block: "nearest" });
+  }
+  function bindAdmin() {
+    const form = document.getElementById("adminAddUser");
+    if (!form) return;
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector("button");
+      btn.disabled = true;
+      try {
+        const roleEl = document.getElementById("adminNewRole");
+        const role = roleEl && roleEl.value === "admin" ? "admin" : "staff";
+        await api("/admin/users", {
+          method: "POST",
+          body: {
+            username: document.getElementById("adminNewName").value.trim(),
+            password: document.getElementById("adminNewPassword").value,
+            role,
+          },
+        });
+        e.target.reset();
+        if (roleEl) roleEl.value = "staff";
+        adminNotice((role === "admin" ? "管理员" : "员工") + "账号已创建，首次登录需修改临时密码。");
+        await loadUsers();
+      } catch (err) {
+        adminNotice(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    loadUsers().catch((e) => adminNotice(e.message));
+  }
+  return {
+    require,
+    logout,
+    currentUser: () => (session ? session.username : ""),
+    isAdmin: () => !!(session && session.role === "admin"),
+    api,
+    authHeaders,
+    promptPasswordChange,
+  };
+})();
+
+</script>
+<script>
+let DATA = null;
+
+function $(id){return document.getElementById(id)}
+
+function esc(s){
+  return String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function moneyCell(label, val, jade){
+  const empty = (val==null || val==="");
+  const cls = empty ? "val empty" : (jade ? "val jade" : "val");
+  return `<div class="money-cell"><div class="lab">${esc(label)}</div><div class="${cls}">${empty?"—":esc(val)}</div></div>`;
+}
+
+function memberRows(members){
+  return members.map(m => `<tr>
+    <td>${esc(m.name)}</td>
+    <td>${m.age==null?"—":esc(m.age)}</td>
+    <td>${esc(m.band)}</td>
+    <td>${esc(m.hukou)}</td>
+  </tr>`).join("");
+}
+
+function groupCard(g){
+  const analysis = (g.analysis||"").trim();
+  const analysisBlock = analysis
+    ? `<div class="analysis-panel"><div class="analysis-label">初步分析</div><div class="analysis-body">${esc(analysis)}</div></div>`
+    : `<div class="analysis-panel"><div class="analysis-label">初步分析</div><div class="analysis-empty">无</div></div>`;
+  const raw = (g.gendan_raw||"").trim();
+  const kb = g.kb;
+  let kbBlock;
+  if(kb!=null || raw){
+    const rawLine = raw ? `<div class="kb-raw">${esc(raw)}</div>` : "";
+    const yuanLine = kb!=null ? `<div class="kb-yuan">KB <b>${esc(kb)}</b></div>` : `<div class="kb-empty">空</div>`;
+    kbBlock = `<div class="kb-panel"><div class="kb-label">跟单价</div>${rawLine}${yuanLine}</div>`;
+  } else {
+    kbBlock = `<div class="kb-panel"><div class="kb-label">跟单价</div><div class="kb-empty">空</div></div>`;
+  }
+  const kbChip = kb!=null ? `<span class="g-kb">KB ${esc(kb)}</span>` : "";
+  const needQ = (g.need_query||"").trim();
+  const needChip = needQ ? `<span class="g-need">需要查询：${esc(needQ)}</span>` : "";
+  const tour = (g.tour_id||"").trim();
+  const guide = (g.guide||"").trim();
+  const agency = (g.agency||"").trim();
+  const searchBits = [
+    tour, guide, agency,
+    (g.members||[]).map(m=>m.name).join(" "),
+    g.hukou||"", g.crowd||"", analysis, raw, needQ,
+    kb!=null?("KB"+kb):"",
+    g.min_spend!=null?String(g.min_spend):"",
+    g.expect_spend!=null?String(g.expect_spend):"",
+    g.jade!=null?String(g.jade):"",
+    g.jade_avg!=null?String(g.jade_avg):"",
+  ].join(" ");
+  return `<div class="group" data-text="${esc(searchBits)}">
+    <div class="group-h">
+      <span class="g-seq">#${g.seq}</span>
+      ${tour?`<span class="g-tour">团号 ${esc(tour)}</span>`:`<span class="g-tour">团号 —</span>`}
+      ${guide?`<span class="g-guide">导游 ${esc(guide)}</span>`:`<span class="g-guide">导游 —</span>`}
+      <span class="g-people">${g.people}人</span>
+      <span class="g-crowd">${esc(g.crowd||"")}</span>
+      <span class="g-hukou">${esc(g.hukou||"")}</span>
+      ${kbChip}
+      ${needChip}
+    </div>
+    <div class="group-main">
+      <div class="group-left">
+        <table class="members">
+          <thead><tr><th>名字</th><th>年龄</th><th>人群</th><th>户籍地</th></tr></thead>
+          <tbody>${memberRows(g.members||[])}</tbody>
+        </table>
+      </div>
+      <div class="group-mid">${kbBlock}</div>
+      <div class="group-right">${analysisBlock}</div>
+    </div>
+    <div class="money-row">
+      ${moneyCell("最低消费金额", g.min_spend)}
+      ${moneyCell("预期消费金额", g.expect_spend)}
+      ${moneyCell("翡翠金额", g.jade, true)}
+      ${moneyCell("翡翠人均", g.jade_avg, true)}
+      ${moneyCell("组团社", agency || null)}
+    </div>
+  </div>`;
+}
+
+function guideBlock(gu){
+  const jade = (gu.jade_total!=null) ? gu.jade_total : 0;
+  const kbTot = (gu.kb_total!=null) ? gu.kb_total : 0;
+  const tours = (gu.tour_label||"").trim();
+  const tourLine = tours
+    ? `<span class="guide-tours">团号 ${esc(tours)}</span>`
+    : `<span class="guide-tours">团号 —</span>`;
+  return `<section class="guide" data-guide="${esc(gu.name||"")}">
+    <div class="guide-h" role="button" tabindex="0">
+      <span class="chev">▶</span>
+      <span class="guide-title">导游 ${esc(gu.name||"（未填导游）")}</span>
+      <span class="guide-meta">${gu.group_count}组 · ${gu.people_count}人</span>
+      <span class="guide-jade">翡翠总业绩 ${jade}</span>
+      <span class="guide-kb">总KB ${kbTot}</span>
+      ${tourLine}
+    </div>
+    <div class="guide-body">${(gu.groups||[]).map(groupCard).join("")}</div>
+  </section>`;
+}
+
+function dayBlock(d){
+  const jade = (d.jade_total!=null && d.jade_total>0) ? d.jade_total : "—";
+  const guides = d.guides || [];
+  const gmeta = d.guide_count!=null ? `${d.guide_count}导游 · ` : "";
+  return `<section class="day" data-date="${esc(d.date)}">
+    <div class="day-h" role="button" tabindex="0">
+      <span class="chev">▶</span>
+      <span class="day-title">${esc(d.label)}${d.weekday ? `（周${esc(d.weekday)}）` : ""}</span>
+      <span class="day-meta">${gmeta}${d.group_count}组 · ${d.people_count}人</span>
+      <span class="day-jade">翡翠 ${jade}</span>
+    </div>
+    <div class="day-body">${guides.map(guideBlock).join("")}</div>
+  </section>`;
+}
+
+function bindToggle(sel){
+  document.querySelectorAll(sel).forEach(h => {
+    h.addEventListener("click", () => h.parentElement.classList.toggle("open"));
+    h.addEventListener("keydown", e => {
+      if(e.key==="Enter"||e.key===" "){ e.preventDefault(); h.parentElement.classList.toggle("open"); }
+    });
+  });
+}
+
+function render(){
+  if(!DATA){$("empty").classList.remove("hidden");$("empty").textContent="名单尚未加载";return;}
+  const days = DATA.days || [];
+  $("metaLine").textContent = `数据截止 ${DATA.source_date || "—"} · 导出 ${DATA.xlsx_name || ""} · 完团入库 ≥ ${DATA.since} · 按出团日分组 · 共 ${DATA.total_groups} 组 / ${DATA.total_people} 人 / ${days.length} 天 · 构建 ${DATA.built_at || ""}`;
+  const jadeShow = (DATA.total_jade!=null && DATA.total_jade>0) ? DATA.total_jade : "—";
+  $("stats").innerHTML = `
+    <div class="stat">天数 <b>${days.length}</b></div>
+    <div class="stat">家庭组 <b>${DATA.total_groups}</b></div>
+    <div class="stat">游客 <b>${DATA.total_people}</b></div>
+    <div class="stat">翡翠合计 <b>${jadeShow}</b></div>
+  `;
+  $("days").innerHTML = days.map(dayBlock).join("");
+  bindToggle(".day-h");
+  bindToggle(".guide-h");
+  applyFilter();
+}
+
+function applyFilter(){
+  const q = ($("q").value||"").trim().toLowerCase();
+  let shownGroups = 0;
+  document.querySelectorAll(".day").forEach(day => {
+    let dayHit = 0;
+    day.querySelectorAll(".guide").forEach(guide => {
+      let guideHit = 0;
+      guide.querySelectorAll(".group").forEach(g => {
+        const t = (g.getAttribute("data-text")||"").toLowerCase();
+        const ok = !q || t.includes(q);
+        g.style.display = ok ? "" : "none";
+        if(ok) guideHit++;
+      });
+      guide.style.display = guideHit ? "" : "none";
+      if(q && guideHit) guide.classList.add("open");
+      dayHit += guideHit;
+    });
+    day.style.display = dayHit ? "" : "none";
+    if(q && dayHit) day.classList.add("open");
+    shownGroups += dayHit;
+  });
+  $("empty").classList.toggle("hidden", shownGroups>0);
+}
+
+async function loadBoardData(){
+  $("empty").classList.add("hidden");
+  try{
+    const d=await MingdanAuth.api("/board-kb/completed");
+    if(!d || d.data===null || typeof d.data!=="object") throw new Error("名单暂未生成，请联系管理员");
+    if(d.kind!=="completed") throw new Error("名单类型不正确");
+    DATA=d.data;
+  }catch(e){
+    $("empty").textContent="暂无法读取名单："+(e.message||"请稍后重试");
+    $("empty").classList.remove("hidden");
+    throw e;
+  }
+}
+MingdanAuth.require(async function(){  $("q").addEventListener("input", applyFilter);
+  $("btnExpand").onclick = () => {
+    document.querySelectorAll(".day").forEach(d => {
+      if(d.style.display==="none") return;
+      d.classList.add("open");
+      d.querySelectorAll(".guide").forEach(g => {
+        if(g.style.display!=="none") g.classList.add("open");
+      });
+    });
+  };
+  $("btnCollapse").onclick = () => {
+    document.querySelectorAll(".day").forEach(d => d.classList.remove("open"));
+    document.querySelectorAll(".guide").forEach(g => g.classList.remove("open"));
+  };
+  try{await loadBoardData();render();}catch(e){$("metaLine").textContent=(e&&e.message)||"名单接口不可用，请刷新或联系管理员";$("empty")&&($("empty").classList.remove("hidden"),$("empty").textContent=(e&&e.message)||"无法加载已完团");}
+});
+</script>
+</body>
+</html>
