@@ -49,11 +49,46 @@ td input, td select { padding:6px 8px; font-size:13px; }
 .stats { font-size:13px; color:var(--muted); }
 .stats b { color:var(--ink); }
 .build { font-size:11px; color:#6b7280; margin-top:18px; }
+body.locked{overflow:hidden}
+body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hidden;margin:0;padding:0}
+.auth-gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(8,12,18,.92)}
+.auth-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:22px 20px 18px}
+.auth-card h2{margin:0 0 6px;font-size:1.15rem;color:#fff}
+.auth-hint{color:var(--muted);font-size:13px;margin:0 0 16px}
+.auth-card label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+.auth-card input[type=text],.auth-card input[type=password]{
+  width:100%;background:var(--card2);border:1px solid var(--line);color:var(--ink);
+  border-radius:10px;padding:11px 12px;font-size:15px;outline:none;margin-bottom:12px}
+.auth-card input:focus{border-color:var(--pri)}
+.auth-card .auth-submit{width:100%;background:var(--pri);border:1px solid var(--pri);color:#fff;border-radius:10px;
+  padding:11px 12px;font-size:15px;cursor:pointer;margin-top:4px}
+.auth-card .auth-submit:disabled{opacity:.55;cursor:wait}
+.auth-err{color:#fecaca;background:#7f1d1d;border:1px solid #991b1b;border-radius:8px;
+  padding:8px 10px;font-size:13px;margin:0 0 12px}
+.auth-err.hidden,.hidden{display:none!important}
 </style>
 </head>
-<body>
-<div class="wrap">
+<body class="locked">
+<div id="authGate" class="auth-gate" aria-modal="true" role="dialog" aria-labelledby="authTitle">
+  <div class="auth-card">
+    <h2 id="authTitle">保险名单上传</h2>
+    <p class="auth-hint">员工登录后使用 · 非管理员专属</p>
+    <div id="authErr" class="auth-err hidden"></div>
+    <form id="authForm" autocomplete="on">
+      <label for="authUser">用户名</label>
+      <input type="text" id="authUser" name="username" autocomplete="username" required placeholder="请输入用户名"/>
+      <label for="authPass">密码</label>
+      <input type="password" id="authPass" name="password" autocomplete="current-password" required placeholder="请输入密码"/>
+      <button type="submit" class="auth-submit">登录</button>
+    </form>
+  </div>
+</div>
+<div id="app" class="wrap">
+
   <h1>保险名单上传</h1>
+  <div class="sub" id="authBar"><span id="authWho"></span> <button type="button" id="btnLogout">退出</button></div>
   <div class="sub">合同同事：① 国内身份证：从 Excel 复制「姓名 + 身份证号」整段粘贴，自动算性别/生日；② 护照 / 港澳台 / 外籍：在下方「手动添加」逐个录入。核对后提交给总助（此页不直接买保险）。</div>
 
   <div class="card">
@@ -136,10 +171,373 @@ td input, td select { padding:6px 8px; font-size:13px; }
 <div class="toast" id="toast"></div>
 
 <script>
+/* 散客看板：身份/角色/CSRF 以 Worker 为准；浏览器不保存密码或会话令牌。
+ * 帽子云（及 Worker 自身）同源 /api。GitHub Pages 的相对 /api 会落到静态站并 404，
+ * 改用 localConfig.workerUrl。会话只走服务端 Cookie（credentials），CSRF 只留在内存。 */
+const MingdanAuth = (function () {
+  const localConfig = {
+    workerUrl: "https://tourism-kb-id-ocr.qinfan079325.workers.dev",
+  };
+  let session = null;
+  let csrf = "";
+  let onLogin = null;
+  let loggingIn = false;
+  let changePromise = null;
+  let passwordGate = null;
+
+  function hostname() {
+    try { return String(location.hostname || ""); } catch (_) { return ""; }
+  }
+  /** 同源 /api；公开静态站用 workerUrl + /api。不把会话写入 localStorage。 */
+  function base() {
+    const host = hostname();
+    if (/(^|\.)maozi\.io$/i.test(host)) return "/api";
+    const w = String(localConfig.workerUrl || "").trim().replace(/\/$/, "");
+    try {
+      if (w && new URL(w).hostname === host) return "/api";
+    } catch (_) {}
+    if (!w) return "/api";
+    return w + "/api";
+  }
+  function authHeaders() {
+    return csrf ? { "X-CSRF-Token": csrf } : {};
+  }
+  function message(d, status) {
+    const byCode = {
+      username_or_password_incorrect: "用户名或密码不正确",
+      invalid_credentials: "用户名或密码不正确",
+      must_change_password: "请先修改初始密码",
+      completed_admin_only: "仅管理员可查看已完团",
+      csrf_invalid: "会话校验已失效，请刷新后重试",
+      rate_limited: "尝试次数太多，请稍后再试",
+      password_too_weak: "新密码至少12位，需含字母和数字",
+      proxy_missing: "登录服务尚未接通，请联系管理员",
+      gh_pages_use_maozi: "当前为 GitHub Pages 镜像，请改用国内帽子云入口登录",
+      network_error: "网络异常，请稍后重试",
+    };
+    return byCode[d && d.error] || (d && (d.message || d.error)) || ("服务请求失败（" + status + "）");
+  }
+  async function request(path, opts) {
+    const b = base();
+    try {
+      return await fetch(b + path, opts);
+    } catch (e) {
+      return { ok: false, status: 0, headers: new Headers(), json: async () => ({ error: "network_error" }) };
+    }
+  }
+  function captureCsrf(res, d) {
+    const next = (res && res.headers && res.headers.get("X-CSRF-Token")) || (d && (d.csrf || d.csrf_token || d.csrfToken)) || "";
+    if (next) csrf = next;
+  }
+  async function api(path, opts) {
+    opts = Object.assign({}, opts || {});
+    const method = String(opts.method || "GET").toUpperCase();
+    opts.method = method;
+    opts.credentials = "include";
+    opts.headers = Object.assign({ Accept: "application/json" }, authHeaders(), opts.headers || {});
+    if (opts.body && typeof opts.body !== "string") {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(opts.body);
+    }
+    const res = await request(path, opts);
+    const d = await res.json().catch(() => ({ error: "proxy_missing" }));
+    captureCsrf(res, d);
+    if (res.status === 401 || d.error === "session_expired") {
+      session = null;
+      csrf = "";
+      lockUI();
+      throw new Error("登录已失效，请重新登录");
+    }
+    if (res.status === 403 && (d.must_change_password || d.error === "must_change_password") && !opts.skipPasswordGate) {
+      await promptPasswordChange();
+      return api(path, opts);
+    }
+    if (!res.ok || d.ok === false) throw new Error(message(d, res.status));
+    return d;
+  }
+  function setAdminOnlyVisible(isAdmin) {
+    document.querySelectorAll(".admin-only").forEach((el) => {
+      el.hidden = !isAdmin;
+      // 防止其它 CSS 盖掉 [hidden]
+      if (!isAdmin) el.style.setProperty("display", "none", "important");
+      else el.style.removeProperty("display");
+    });
+    const admin = document.getElementById("accountAdmin");
+    if (admin) {
+      admin.hidden = !isAdmin;
+      if (!isAdmin) admin.style.setProperty("display", "none", "important");
+      else admin.style.removeProperty("display");
+    }
+  }
+  function unlockUI(user) {
+    session = user;
+    document.body.classList.remove("locked");
+    const gate = document.getElementById("authGate");
+    if (gate) gate.classList.add("hidden");
+    const who = document.getElementById("authWho");
+    const isAdmin = !!(user && user.role === "admin");
+    if (who) who.textContent = (user && user.username ? user.username : "") + (isAdmin ? "（管理员）" : "");
+    setAdminOnlyVisible(isAdmin);
+    const admin = document.getElementById("accountAdmin");
+    if (isAdmin && admin && !admin.dataset.bound) {
+      admin.dataset.bound = "1";
+      bindAdmin();
+    }
+  }
+  function lockUI() {
+    document.body.classList.add("locked");
+    const gate = document.getElementById("authGate");
+    if (gate) gate.classList.remove("hidden");
+    const pass = document.getElementById("authPass");
+    if (pass) pass.value = "";
+    setAdminOnlyVisible(false);
+    // GitHub Pages 由 require() 跳转帽子云；此处不再锁死表单
+  }
+  async function login(event) {
+    if (event) event.preventDefault();
+    if (loggingIn) return;
+    loggingIn = true;
+    const btn = document.querySelector('#authForm button[type="submit"]');
+    if (btn) btn.disabled = true;
+    const err = document.getElementById("authErr");
+    if (err) {
+      err.textContent = "";
+      err.classList.add("hidden");
+    }
+    try {
+      const username = document.getElementById("authUser").value.trim();
+      const password = document.getElementById("authPass").value;
+      const d = await api("/login", { method: "POST", body: { username, password } });
+      if (!d.user) throw new Error("登录服务未返回账号信息");
+      captureCsrf(null, d);
+      const pass = document.getElementById("authPass");
+      if (pass) pass.value = "";
+      session = d.user;
+      if (d.user.must_change_password) {
+        await promptPasswordChange();
+      }
+      // 改密后 /me 已刷新 csrf；再拉一次确保角色以服务端为准
+      try {
+        const me = await api("/me");
+        if (me && me.user) session = me.user;
+      } catch (_) {}
+      unlockUI(session);
+      if (onLogin) onLogin(session);
+    } catch (e) {
+      if (err) {
+        err.textContent = e.message || "登录失败，请稍后重试";
+        err.classList.remove("hidden");
+      }
+    } finally {
+      loggingIn = false;
+      if (btn) btn.disabled = false;
+    }
+  }
+  async function promptPasswordChange() {
+    if (changePromise) return changePromise;
+    changePromise = new Promise((resolve, reject) => {
+      passwordGate = document.createElement("div");
+      passwordGate.className = "auth-gate";
+      passwordGate.setAttribute("role", "dialog");
+      passwordGate.setAttribute("aria-modal", "true");
+      passwordGate.setAttribute("aria-labelledby", "passwordTitle");
+      passwordGate.innerHTML =
+        '<div class="auth-card"><h2 id="passwordTitle">请先修改初始密码</h2><p class="auth-hint">至少12位，包含字母和数字；不能与当前密码相同。不要把密码发在聊天中。</p><div id="passwordErr" class="auth-err hidden" role="alert"></div><form id="passwordForm"><label for="oldPassword">当前密码</label><input id="oldPassword" name="current-password" type="password" maxlength="128" autocomplete="current-password" required><label for="newPassword">新密码</label><input id="newPassword" name="new-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required><label for="confirmPassword">再输入新密码</label><input id="confirmPassword" name="new-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required><button class="auth-submit" type="submit">保存新密码</button></form></div>';
+      document.body.appendChild(passwordGate);
+      const form = passwordGate.querySelector("form");
+      form.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const btn = form.querySelector("button");
+        const err = passwordGate.querySelector("#passwordErr");
+        err.classList.add("hidden");
+        const current = document.getElementById("oldPassword").value;
+        const next = document.getElementById("newPassword").value;
+        if (next !== document.getElementById("confirmPassword").value) {
+          err.textContent = "两次输入的新密码不一致";
+          err.classList.remove("hidden");
+          return;
+        }
+        if (next === current) {
+          err.textContent = "新密码不能和当前密码相同";
+          err.classList.remove("hidden");
+          return;
+        }
+        if (next.length < 12 || !/[A-Za-z]/.test(next) || !/\d/.test(next)) {
+          err.textContent = "新密码至少12位，需含字母和数字";
+          err.classList.remove("hidden");
+          return;
+        }
+        btn.disabled = true;
+        try {
+          const d = await api("/change-password", {
+            method: "POST",
+            body: { current_password: current, new_password: next },
+            skipPasswordGate: true,
+          });
+          captureCsrf(null, d);
+          if (d.user) session = Object.assign({}, session || {}, d.user, { must_change_password: false });
+          passwordGate.remove();
+          passwordGate = null;
+          resolve(d);
+        } catch (e) {
+          err.textContent = e.message || "修改失败，请重试";
+          err.classList.remove("hidden");
+          reject(e);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      passwordGate.querySelector("#oldPassword").focus();
+    });
+    return changePromise.finally(() => {
+      changePromise = null;
+    });
+  }
+  function require(callback) {
+    onLogin = callback;
+    const form = document.getElementById("authForm");
+    if (form) form.addEventListener("submit", login);
+    const btnLogout = document.getElementById("btnLogout");
+    if (btnLogout) btnLogout.addEventListener("click", logout);
+    api("/me")
+      .then(async (d) => {
+        const user = d && d.user;
+        if (!user) throw new Error("当前没有登录会话");
+        captureCsrf(null, d);
+        session = user;
+        if (user.must_change_password) await promptPasswordChange();
+        unlockUI(session);
+        if (onLogin) onLogin(session);
+      })
+      .catch(() => lockUI());
+  }
+  async function logout() {
+    try {
+      await api("/logout", { method: "POST", body: "{}" });
+    } catch (e) {}
+    session = null;
+    csrf = "";
+    onLogin = null;
+    try {
+      sessionStorage.removeItem("mingdan_auth_v1");
+    } catch (e) {}
+    location.reload();
+  }
+  function adminNotice(text) {
+    const n = document.getElementById("adminNotice");
+    if (n) n.textContent = text || "";
+  }
+  async function loadUsers() {
+    const d = await api("/admin/users");
+    const host = document.getElementById("adminUsers");
+    if (!host) return;
+    host.replaceChildren();
+    const table = document.createElement("table");
+    table.className = "admin-user-table";
+    const head = document.createElement("thead");
+    head.innerHTML = "<tr><th>账号</th><th>角色</th><th>状态</th><th>操作</th></tr>";
+    table.appendChild(head);
+    const body = document.createElement("tbody");
+    (d.users || []).forEach((u) => {
+      const row = document.createElement("tr");
+      [u.username, u.role === "admin" ? "管理员" : "员工", u.disabled ? "已停用" : "正常"].forEach((text) => {
+        const td = document.createElement("td");
+        td.textContent = text;
+        row.appendChild(td);
+      });
+      const actions = document.createElement("td");
+      if (u.username !== "秦凡") {
+        const reset = document.createElement("button");
+        reset.className = "btn";
+        reset.type = "button";
+        reset.textContent = "重置密码";
+        reset.onclick = async () => {
+          const typed = prompt("给「" + u.username + "」设置至少12位临时密码：", "");
+          if (typed === null) return;
+          try {
+            await api("/admin/users/" + encodeURIComponent(u.username), {
+              method: "PATCH",
+              body: { force_password_reset: true, temporary_password: typed },
+            });
+            adminNotice("密码已重置，该账号旧会话已撤销。");
+            await loadUsers();
+          } catch (e) {
+            adminNotice(e.message);
+          }
+        };
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "btn " + (u.disabled ? "" : "admin-danger");
+        toggle.textContent = u.disabled ? "启用" : "停用";
+        toggle.onclick = async () => {
+          if (!confirm((u.disabled ? "启用" : "停用") + "「" + u.username + "」？")) return;
+          try {
+            await api("/admin/users/" + encodeURIComponent(u.username), {
+              method: "PATCH",
+              body: { disabled: !u.disabled },
+            });
+            await loadUsers();
+          } catch (e) {
+            adminNotice(e.message);
+          }
+        };
+        actions.append(reset, toggle);
+      }
+      row.appendChild(actions);
+      body.appendChild(row);
+    });
+    table.appendChild(body);
+    host.appendChild(table);
+    host.scrollIntoView({ block: "nearest" });
+  }
+  function bindAdmin() {
+    const form = document.getElementById("adminAddUser");
+    if (!form) return;
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector("button");
+      btn.disabled = true;
+      try {
+        const roleEl = document.getElementById("adminNewRole");
+        const role = roleEl && roleEl.value === "admin" ? "admin" : "staff";
+        await api("/admin/users", {
+          method: "POST",
+          body: {
+            username: document.getElementById("adminNewName").value.trim(),
+            password: document.getElementById("adminNewPassword").value,
+            role,
+          },
+        });
+        e.target.reset();
+        if (roleEl) roleEl.value = "staff";
+        adminNotice((role === "admin" ? "管理员" : "员工") + "账号已创建，首次登录需修改临时密码。");
+        await loadUsers();
+      } catch (err) {
+        adminNotice(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    loadUsers().catch((e) => adminNotice(e.message));
+  }
+  const client = {
+    require,
+    logout,
+    currentUser: () => (session ? session.username : ""),
+    isAdmin: () => !!(session && session.role === "admin"),
+    api,
+    authHeaders,
+    promptPasswordChange,
+  };
+  try { if (typeof window !== "undefined") window.MingdanAuth = client; } catch (e) {}
+  return client;
+})();
+
+</script>
+<script>
 (function () {
   const BUILD = "2026-11-05 23:16";
   const ID_OCR_WORKER_URL = "https://tourism-kb-id-ocr.qinfan079325.workers.dev";
-  const ID_OCR_TOKEN = "a544dc8e2fc392e59303f3b59968e91bec96da25c56198e5";
   const ID_TYPES = ["身份证", "护照", "港澳回乡证", "台胞证", "外国人永久居留证", "其他"];
 
   const els = {
@@ -175,9 +573,9 @@ td input, td select { padding:6px 8px; font-size:13px; }
   }
 
   function authHeaders() {
-    const headers = { "Content-Type": "application/json" };
-    const tok = String(ID_OCR_TOKEN || "").trim();
-    if (tok) headers.Authorization = "Bearer " + tok;
+    const headers = { "Content-Type": "application/json", Accept: "application/json" };
+    const extra = (window.MingdanAuth && MingdanAuth.authHeaders && MingdanAuth.authHeaders()) || {};
+    Object.assign(headers, extra);
     return headers;
   }
 
@@ -446,6 +844,7 @@ td input, td select { padding:6px 8px; font-size:13px; }
       };
       const res = await fetch(workerBaseUrl() + "/insurance-list", {
         method: "POST",
+        credentials: "include",
         headers: authHeaders(),
         body: JSON.stringify(body),
       });
@@ -471,6 +870,10 @@ td input, td select { padding:6px 8px; font-size:13px; }
   } catch (_) {}
 
   render();
+  MingdanAuth.require(function () {
+    const who = MingdanAuth.currentUser();
+    if (who && els.account && !String(els.account.value || "").trim()) els.account.value = who;
+  });
 })();
 </script>
 </body>

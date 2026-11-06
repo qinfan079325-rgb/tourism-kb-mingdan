@@ -544,8 +544,12 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
 
 <script>
 /* 散客看板：身份/角色/CSRF 以 Worker 为准；浏览器不保存密码或会话令牌。
- * 同源优先 /api（帽子云反代）；GitHub Pages 跳转 mingdanupload 同路径，不跨站 Cookie。 */
+ * 帽子云（及 Worker 自身）同源 /api。GitHub Pages 的相对 /api 会落到静态站并 404，
+ * 改用 localConfig.workerUrl。会话只走服务端 Cookie（credentials），CSRF 只留在内存。 */
 const MingdanAuth = (function () {
+  const localConfig = {
+    workerUrl: "https://tourism-kb-id-ocr.qinfan079325.workers.dev",
+  };
   let session = null;
   let csrf = "";
   let onLogin = null;
@@ -553,13 +557,19 @@ const MingdanAuth = (function () {
   let changePromise = null;
   let passwordGate = null;
 
-  function isGithubPages() {
-    try { return /\.github\.io$/i.test(location.hostname || ""); } catch (_) { return false; }
+  function hostname() {
+    try { return String(location.hostname || ""); } catch (_) { return ""; }
   }
-  /** 同源 /api；GH Pages 无反代时标记不可用（避免跨站 Cookie 泄露会话）。 */
+  /** 同源 /api；公开静态站用 workerUrl + /api。不把会话写入 localStorage。 */
   function base() {
-    if (isGithubPages()) return "__GH_PAGES_NO_API__";
-    return "/api";
+    const host = hostname();
+    if (/(^|\.)maozi\.io$/i.test(host)) return "/api";
+    const w = String(localConfig.workerUrl || "").trim().replace(/\/$/, "");
+    try {
+      if (w && new URL(w).hostname === host) return "/api";
+    } catch (_) {}
+    if (!w) return "/api";
+    return w + "/api";
   }
   function authHeaders() {
     return csrf ? { "X-CSRF-Token": csrf } : {};
@@ -581,14 +591,6 @@ const MingdanAuth = (function () {
   }
   async function request(path, opts) {
     const b = base();
-    if (b === "__GH_PAGES_NO_API__") {
-      return {
-        ok: false,
-        status: 0,
-        headers: new Headers(),
-        json: async () => ({ error: "gh_pages_use_maozi" }),
-      };
-    }
     try {
       return await fetch(b + path, opts);
     } catch (e) {
@@ -700,7 +702,7 @@ const MingdanAuth = (function () {
       }
     } finally {
       loggingIn = false;
-      if (btn && !isGithubPages()) btn.disabled = false;
+      if (btn) btn.disabled = false;
     }
   }
   async function promptPasswordChange() {
@@ -769,13 +771,6 @@ const MingdanAuth = (function () {
     if (form) form.addEventListener("submit", login);
     const btnLogout = document.getElementById("btnLogout");
     if (btnLogout) btnLogout.addEventListener("click", logout);
-    if (isGithubPages()) {
-      // 旧 GH 入口仍可用：跳转国内帽子云同路径（同源 /api），不跨站带 Cookie
-      try {
-        location.replace("https://mingdanupload-10m363dc.maozi.io" + (location.pathname || "/") + (location.search || "") + (location.hash || ""));
-      } catch (_) {}
-      return;
-    }
     api("/me")
       .then(async (d) => {
         const user = d && d.user;
@@ -897,7 +892,7 @@ const MingdanAuth = (function () {
     });
     loadUsers().catch((e) => adminNotice(e.message));
   }
-  return {
+  const client = {
     require,
     logout,
     currentUser: () => (session ? session.username : ""),
@@ -906,6 +901,8 @@ const MingdanAuth = (function () {
     authHeaders,
     promptPasswordChange,
   };
+  try { if (typeof window !== "undefined") window.MingdanAuth = client; } catch (e) {}
+  return client;
 })();
 
 </script>
@@ -1022,9 +1019,13 @@ async function loadBoardData(){
   $("empty").classList.add("hidden");
   try{
     const d=await MingdanAuth.api("/board-kb/upcoming");
-    if(!d || d.data===null || typeof d.data!=="object") throw new Error("名单暂未生成，请联系管理员");
-    if(d.kind!=="upcoming") throw new Error("名单类型不正确");
-    DATA=d.data;
+    const fromBoard=d && d.board && typeof d.board==="object" && !Array.isArray(d.board) ? d.board : null;
+    const fromData=d && d.data && typeof d.data==="object" && !Array.isArray(d.data) ? d.data : null;
+    const board=fromBoard || fromData;
+    if(!d || d.kind!=="upcoming" || !board){
+      throw new Error(!board ? "名单暂未生成，请联系管理员" : "名单类型不正确");
+    }
+    DATA=board;
   }catch(e){
     $("empty").textContent="暂无法读取名单："+(e.message||"请稍后重试");
     $("empty").classList.remove("hidden");
