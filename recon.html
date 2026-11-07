@@ -320,7 +320,7 @@
       var recon = await api("/recon?date_iso=" + encodeURIComponent(iso), "GET");
       if (!roster.data.ok) { toast(errText(roster.data, roster.status), "err"); return; }
       if (!recon.data.ok) { toast(errText(recon.data, recon.status), "err"); return; }
-      suggestion = M.aggregateForRecon(roster.data.batches || []);
+      suggestion = M.aggregateForRecon((roster.data.batches || []).filter(function (b) { return !b.draft; }));
       renderSuggestion();
       if (recon.data.record) {
         fillRecord(recon.data.record);

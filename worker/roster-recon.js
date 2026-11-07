@@ -44,6 +44,12 @@ async function ensureRosterSchema(env) {
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS signed_rosters_date_iso ON signed_rosters(date_iso)").run();
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS signed_rosters_submitted ON signed_rosters(submitted_at)").run();
   await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS roster_guest_keys (" +
+    "dedupe_key TEXT PRIMARY KEY, id_no TEXT NOT NULL, cover_start TEXT NOT NULL DEFAULT '', " +
+    "cover_end TEXT NOT NULL DEFAULT '', date_iso TEXT NOT NULL DEFAULT '', roster_id TEXT NOT NULL, " +
+    "status TEXT NOT NULL, created_at TEXT NOT NULL)"
+  ).run();
+  await env.DB.prepare(
     "CREATE TABLE IF NOT EXISTS recon_days (" +
     "date_iso TEXT PRIMARY KEY, batch_date TEXT NOT NULL, payload_json TEXT NOT NULL, " +
     "total_amount TEXT NOT NULL, refund_amount TEXT NOT NULL, account TEXT NOT NULL, updated_at TEXT NOT NULL)"
@@ -236,6 +242,105 @@ function normalizeRosterGuests(body, perCents) {
   return { guests: guests };
 }
 
+function rosterGuestKey(guest) {
+  const idNo = String(guest && guest.id_no || "").replace(/\s+/g, "").trim().toUpperCase();
+  if (!idNo) return "";
+  const start = String(guest.cover_start || "").slice(0, 10);
+  const end = String(guest.cover_end || "").slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end)) return idNo + "|" + start + "|" + end;
+  return idNo + "|||" + String(guest.date_iso || "").slice(0, 10);
+}
+
+function rosterKeyStatus(record, guest) {
+  const bought = record && (record.purchased === true || record.bought === true || record.insurance_bought === true);
+  const guestBought = guest && (guest.purchased === true || guest.bought === true || guest.insurance_bought === true);
+  if (bought || guestBought) return "purchased";
+  if (record && record.draft === true) return "draft";
+  return "submitted";
+}
+
+function selectRosterGuests(guests, known, mode) {
+  const seen = {};
+  const kept = [];
+  const skipped = [];
+  for (const g of guests || []) {
+    const key = rosterGuestKey(g);
+    const name = String(g.name || "").trim();
+    if (!key) {
+      skipped.push({ name: name, reason: "missing_id" });
+      continue;
+    }
+    if (seen[key]) {
+      skipped.push({ name: name, id_no: g.id_no, reason: "duplicate_in_file" });
+      continue;
+    }
+    seen[key] = true;
+    const status = known[key] || "";
+    if (status === "purchased" || status === "submitted") {
+      skipped.push({ name: name, id_no: g.id_no, reason: status === "purchased" ? "already_purchased" : "already_submitted" });
+      continue;
+    }
+    if (mode === "draft" && status === "draft") {
+      skipped.push({ name: name, id_no: g.id_no, reason: "already_draft" });
+      continue;
+    }
+    kept.push(g);
+  }
+  return { kept: kept, skipped: skipped };
+}
+
+async function loadRosterKeyStatus(env, keys) {
+  const map = {};
+  for (let i = 0; i < keys.length; i += 80) {
+    const slice = keys.slice(i, i + 80).filter(Boolean);
+    if (!slice.length) continue;
+    const listed = await env.DB.prepare(
+      "SELECT dedupe_key, status FROM roster_guest_keys WHERE dedupe_key IN (" + slice.map(() => "?").join(",") + ")"
+    ).bind(...slice).all();
+    for (const row of listed.results || []) map[row.dedupe_key] = row.status;
+  }
+  return map;
+}
+
+async function rememberRosterGuests(env, guests, rosterId, status, now) {
+  const stmts = [];
+  for (const g of guests) {
+    const key = rosterGuestKey(g);
+    if (!key) continue;
+    stmts.push(env.DB.prepare(
+      "INSERT INTO roster_guest_keys (dedupe_key, id_no, cover_start, cover_end, date_iso, roster_id, status, created_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(dedupe_key) DO UPDATE SET " +
+      "status = CASE WHEN roster_guest_keys.status = 'purchased' THEN roster_guest_keys.status " +
+      "WHEN excluded.status = 'submitted' THEN 'submitted' " +
+      "WHEN roster_guest_keys.status = 'submitted' THEN roster_guest_keys.status ELSE excluded.status END, " +
+      "roster_id = CASE WHEN roster_guest_keys.status = 'purchased' THEN roster_guest_keys.roster_id " +
+      "WHEN excluded.status = 'submitted' THEN excluded.roster_id " +
+      "WHEN roster_guest_keys.status = 'submitted' THEN roster_guest_keys.roster_id ELSE excluded.roster_id END"
+    ).bind(key, g.id_no, g.cover_start || "", g.cover_end || "", g.date_iso || "", rosterId, g.key_status || status, now));
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+}
+
+async function backfillRosterGuestKeys(env) {
+  const have = await env.DB.prepare("SELECT COUNT(*) AS n FROM roster_guest_keys").first();
+  if (have && Number(have.n) > 0) return;
+  const listed = await env.DB.prepare("SELECT id, payload_json FROM signed_rosters ORDER BY submitted_at ASC LIMIT 500").all();
+  const rows = listed.results || [];
+  if (!rows.length) return;
+  const now = new Date().toISOString();
+  for (const row of rows) {
+    let record = null;
+    try { record = JSON.parse(row.payload_json); } catch (_) { continue; }
+    const guests = (record.guests || []).map((g) => Object.assign({}, g, {
+      cover_start: g.cover_start || record.cover_start || "",
+      cover_end: g.cover_end || record.cover_end || "",
+      date_iso: g.date_iso || record.date_iso || ""
+    }));
+    const stamped = guests.map((g) => Object.assign({}, g, { key_status: rosterKeyStatus(record, g) }));
+    await rememberRosterGuests(env, stamped, record.id || row.id, "submitted", record.submitted_at || now);
+  }
+}
+
 async function postRoster(request, env, cors) {
   let body;
   try { body = await rosterReadJson(request); }
@@ -247,15 +352,38 @@ async function postRoster(request, env, cors) {
   const batchDate = String(body.date || body.batch_date || "").trim().slice(0, 32) || batchLabel(dateIso);
   if (!dateIso) return json3({ ok: false, error: "date_required" }, 400, cors);
   const route = String(body.route || "").trim().slice(0, 80);
-  if (!route) return json3({ ok: false, error: "route_required" }, 400, cors);
   const perCents = rosterCents(body.per_person);
   if (perCents == null || perCents < 0) return json3({ ok: false, error: "per_person_required" }, 400, cors);
   const normalized = normalizeRosterGuests(body, perCents);
   if (normalized.error) return json3({ ok: false, error: normalized.error }, 400, cors);
-  const guests = normalized.guests;
-  if (!guests.length) return json3({ ok: false, error: "guests_required" }, 400, cors);
+  const incoming = normalized.guests;
+  if (!incoming.length) return json3({ ok: false, error: "guests_required" }, 400, cors);
   const cover = resolveCoverage(body, dateIso);
   if (!cover) return json3({ ok: false, error: "cover_invalid" }, 400, cors);
+  const isDraft = body.draft === true;
+  const stamped = incoming.map((g) => Object.assign({}, g, {
+    cover_start: cover.cover_start,
+    cover_end: cover.cover_end,
+    date_iso: dateIso
+  }));
+  await backfillRosterGuestKeys(env);
+  const known = await loadRosterKeyStatus(env, stamped.map(rosterGuestKey));
+  const picked = selectRosterGuests(stamped, known, isDraft ? "draft" : "submit");
+  const guests = picked.kept.map((g, i) => Object.assign({}, g, { seq: i + 1 }));
+  const skipped = picked.skipped.slice(0, 80).map((g) => ({ name: g.name || "", reason: g.reason }));
+  if (!guests.length) {
+    return json3({
+      ok: true,
+      saved: false,
+      new_count: 0,
+      skipped_count: picked.skipped.length,
+      skipped: skipped,
+      delivered: false,
+      webhook_configured: false,
+      auto_order: false,
+      record: null
+    }, 200, cors);
+  }
   const giftCount = guests.filter((g) => g.is_gift).length;
   const billable = guests.length - giftCount;
   const totalCents = perCents * billable;
@@ -282,24 +410,34 @@ async function postRoster(request, env, cors) {
     guests: guests,
     raw_paste: String(body.raw_paste || "").slice(0, 20000),
     submitted_at: now,
-    source: "roster-upload",
+    source: isDraft ? "roster-draft" : "roster-upload",
+    draft: isDraft,
+    new_count: guests.length,
+    skipped_count: picked.skipped.length,
     delivered: false,
     webhook_configured: false
   };
   await env.DB.prepare(
     "INSERT INTO signed_rosters (id, batch_date, date_iso, route, per_person, guest_count, billable_headcount, gift_headcount, total_amount, account, note, payload_json, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).bind(id, batchDate, dateIso, route, record.per_person, guests.length, billable, giftCount, record.total_amount, record.account, record.note, JSON.stringify(record), now).run();
-  const delivery = await notifyRosterAssistant(env, record);
-  record.delivered = !!delivery.delivered;
-  record.webhook_configured = !!delivery.webhook_configured;
-  record.delivery_status = delivery.status || 0;
-  record.delivery_error = delivery.error || "";
+  await rememberRosterGuests(env, guests, id, isDraft ? "draft" : "submitted", now);
+  if (!record.draft) {
+    const delivery = await notifyRosterAssistant(env, record);
+    record.delivered = !!delivery.delivered;
+    record.webhook_configured = !!delivery.webhook_configured;
+    record.delivery_status = delivery.status || 0;
+    record.delivery_error = delivery.error || "";
+  }
   try {
     await env.DB.prepare("UPDATE signed_rosters SET payload_json = ? WHERE id = ?").bind(JSON.stringify(record), id).run();
   } catch (_) {}
   return json3({
     ok: true,
+    saved: true,
     id: id,
+    new_count: guests.length,
+    skipped_count: picked.skipped.length,
+    skipped: skipped,
     sent_to_assistant: record.delivered,
     delivered: record.delivered,
     webhook_configured: record.webhook_configured,
@@ -320,11 +458,11 @@ function rosterNoticeText(record) {
     "出团=" + record.cover_start,
     "回团=" + record.cover_end,
     "名单日期=" + record.date,
-    "参加线路=" + record.route,
+    "售卖金额=" + record.per_person,
+    "承保起止=" + record.cover_start + " 至 " + record.cover_end,
     "起保日=" + record.cover_start,
     "止保日=" + record.cover_end,
     "承保天数=" + record.cover_days,
-    "人均=" + record.per_person,
     "对账人数=" + record.billable_headcount,
     "对账总金额=" + record.total_amount,
     "队长赠送=" + record.gift_headcount + "（买保险要包含，对账不计）",
@@ -408,12 +546,13 @@ async function getRoster(url, env, cors) {
     const listed = await env.DB.prepare(
       "SELECT payload_json FROM signed_rosters WHERE date_iso = ? ORDER BY submitted_at ASC LIMIT 200"
     ).bind(dateIso).all();
-    return json3({ ok: true, date_iso: dateIso, batches: parsePayloadRows(listed.results) }, 200, cors);
+    const batches = parsePayloadRows(listed.results).filter((rec) => rec.draft !== true);
+    return json3({ ok: true, date_iso: dateIso, batches: batches }, 200, cors);
   }
   const recent = await env.DB.prepare(
     "SELECT payload_json FROM signed_rosters ORDER BY submitted_at DESC LIMIT 20"
   ).all();
-  const batches = parsePayloadRows(recent.results).map((rec) => {
+  const batches = parsePayloadRows(recent.results).filter((rec) => rec.draft !== true).map((rec) => {
     const copy = Object.assign({}, rec);
     delete copy.raw_paste;
     return copy;
