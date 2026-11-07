@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>散客数据看板 · 账号管理</title>
+<style>
+:root{
+  --bg:#0f1419; --card:#1a2332; --line:#2d3a4f;
+  --text:#e8eef7; --muted:#9aabbf; --accent:#3b82f6;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.45}
+a{color:var(--accent);text-decoration:none}
+.wrap{width:100%;max-width:min(1680px,98vw);margin:0 auto;
+  padding:18px clamp(14px,2.2vw,36px) 56px}
+.banner{background:linear-gradient(90deg,#1e293b,#172033);color:#94a3b8;border:1px solid var(--line);
+  border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:12.5px;line-height:1.4}
+.nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
+.nav a{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--muted);text-decoration:none}
+.nav a.active{background:#1e3a5f;border-color:var(--accent);color:#93c5fd;font-weight:650}
+h1{font-size:1.35rem;margin:0 0 4px;font-weight:700}
+.sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.hidden{display:none!important}
+.footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
+body.locked{overflow:hidden}
+body.locked #app{visibility:hidden;pointer-events:none;max-height:0;overflow:hidden;margin:0;padding:0}
+.auth-gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(8,12,18,.92)}
+.auth-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:22px 20px 18px}
+.auth-card h2{margin:0 0 6px;font-size:1.15rem}
+.auth-hint{color:var(--muted);font-size:13px;margin:0 0 16px}
+.auth-card label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+.auth-card input[type=text],.auth-card input[type=password]{
+  width:100%;background:#0f1419;border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:11px 12px;font-size:15px;outline:none;margin-bottom:12px}
+.auth-card input:focus{border-color:var(--accent)}
+.auth-card .auth-submit{width:100%;background:var(--accent);border:none;color:#fff;border-radius:10px;
+  padding:11px 12px;font-size:15px;font-weight:650;cursor:pointer;margin-top:4px}
+.auth-card .auth-submit:disabled{opacity:.6;cursor:wait}
+.auth-err{color:#fecaca;background:#7f1d1d;border:1px solid #b91c1c;border-radius:8px;
+  padding:8px 10px;font-size:13px;margin:0 0 12px}
+.auth-who{color:var(--muted);font-size:12px;margin-left:auto;align-self:center}
+.btn-logout{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;
+  padding:5px 12px;font-size:12px;cursor:pointer}
+</style>
+</head>
+<body class="locked">
+<div id="authGate" class="auth-gate" aria-modal="true" role="dialog" aria-labelledby="authTitle">
+  <div class="auth-card">
+    <h2 id="authTitle">散客数据看板</h2>
+    <p class="auth-hint">导管内部查阅 · 请登录后查看</p>
+    <div id="authErr" class="auth-err hidden"></div>
+    <form id="authForm" autocomplete="on">
+      <label for="authUser">用户名</label>
+      <input type="text" id="authUser" name="username" autocomplete="username" required placeholder="请输入用户名"/>
+      <label for="authPass">密码</label>
+      <input type="password" id="authPass" name="password" autocomplete="current-password" required placeholder="请输入密码"/>
+      <button type="submit" class="auth-submit">登录</button>
+    </form>
+  </div>
+</div>
+<div id="app" class="wrap">
+  <div class="banner">散客数据看板 · 账号管理 · 仅管理员</div>
+  <nav class="nav">
+    <a href="index.html">未出团</a>
+    <a class="admin-only" href="completed.html" hidden>已完团</a>
+    <a href="upload.html">模糊订单</a>
+    <a class="active admin-only" href="accounts.html" hidden>账号管理</a>
+    <span class="auth-who" id="authWho"></span>
+    <button type="button" class="btn-logout" id="btnLogout">退出</button>
+  </nav>
+  <p class="sub" id="adminDenied" hidden>仅管理员可管理账号。</p>
+  <section id="accountAdmin" aria-label="管理员工具" hidden>
+    <h2>管理员工具</h2>
+    <p class="admin-hint">账号管理。仅管理员可见。普通用户可使用未出团、模糊订单，不能查看已完团。不能删除初始管理员秦凡，也不能删除自己。</p>
+    <div class="admin-card">
+      <h3>账号管理</h3>
+      <form id="adminAddUser" class="admin-form" autocomplete="off">
+        <div class="field">
+          <label for="adminNewName">用户名</label>
+          <input id="adminNewName" name="username" type="text" maxlength="80" required placeholder="姓名或账号" />
+        </div>
+        <div class="field">
+          <label for="adminNewPassword">密码</label>
+          <input id="adminNewPassword" name="new-password" type="password" maxlength="128" autocomplete="new-password" required placeholder="初始密码" />
+        </div>
+        <div class="field">
+          <label for="adminNewRole">角色</label>
+          <select id="adminNewRole" name="role">
+            <option value="staff" selected>普通用户</option>
+            <option value="admin">管理员</option>
+          </select>
+        </div>
+        <button class="admin-add-btn" type="submit">添加人员</button>
+      </form>
+      <div id="adminNotice" role="status" aria-live="polite"></div>
+      <div id="adminUsers"></div>
+    </div>
+  </section>
+  <div class="footer">需登录访问 · 账号由管理员在此页添加或删除</div>
+</div>
+<script src="auth.js"></script>
+<script>
+MingdanAuth.require(function () {
+  if (!MingdanAuth.isAdmin()) {
+    var denied = document.getElementById("adminDenied");
+    if (denied) denied.hidden = false;
+  }
+});
+</script>
+</body>
+</html>
