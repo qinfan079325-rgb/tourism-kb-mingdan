@@ -9,7 +9,7 @@
   :root { --bg:#0f1419; --card:#1a2332; --card2:#243044; --line:#2d3a4f; --ink:#e7ecf3; --muted:#9aa4b2; --pri:#3b82f6; --warn:#f59e0b; }
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); }
-  .wrap { max-width:980px; margin:0 auto; padding:20px 16px 64px; }
+  .wrap { max-width:860px; margin:0 auto; padding:20px 16px 64px; }
   h1 { font-size:22px; margin:0 0 8px; }
   h2 { font-size:16px; margin:0 0 8px; }
   a { color:#93c5fd; }
@@ -19,10 +19,14 @@
   .row { display:flex; flex-wrap:wrap; gap:12px; }
   .row > div { flex:1; min-width:140px; }
   input, select, textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; background:var(--card2); color:var(--ink); }
-  textarea { min-height:160px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; line-height:1.45; }
+  textarea { min-height:88px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
   input:focus, select:focus, textarea:focus { outline:none; border-color:var(--pri); }
+  .drop { display:block; border:1px dashed #3b82f6; border-radius:14px; padding:28px 16px; text-align:center; background:#121a24; cursor:pointer; }
+  .drop strong { display:block; font-size:18px; margin-bottom:6px; }
+  .drop input { display:none; }
+  .drop .primary { margin-bottom:8px; }
   .hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.55; }
-  .money { font-size:15px; margin-top:12px; }
+  .money { font-size:15px; }
   .money b { color:#fff; }
   .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center; }
   button { border:1px solid var(--line); border-radius:10px; padding:10px 16px; font-size:14px; background:var(--card2); color:var(--ink); cursor:pointer; }
@@ -37,7 +41,7 @@
   .seq { width:42px; color:var(--muted); text-align:center; }
   tr.captain td { background:#3b3414; color:#fde68a; }
   .subgroup { border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:12px; background:#121a24; }
-  .check { display:flex; align-items:center; gap:6px; min-height:42px; }
+  .check { display:flex; align-items:center; gap:6px; }
   .check input { width:auto; }
   .toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:12px 16px; border-radius:10px; display:none; z-index:50; max-width:360px; }
   .toast.show { display:block; }
@@ -51,53 +55,41 @@
 <div class="wrap">
   <div class="hint"><a href="recon.html">对账</a> 是另一页</div>
   <h1>传名单</h1>
-  <div class="purpose">
-    <b>提交后名单会发给助手用于买保险。</b>
-    助手按这份名单去 chinatourins.com 购买。本页不下单。
-    人均、人数、总金额会一并交上，方便对账。队长赠送仍要买保险，但不算进人数和总金额。
+  <div class="purpose"><b>只把还没买、也没提交过的新人发给助手买保险。</b> 签单表会一直往后加，已经有的人自动跳过。本页不下单。</div>
+
+  <div class="card">
+    <div class="drop" id="drop">
+      <input id="file" type="file" accept=".xlsx,image/*" />
+      <button type="button" class="primary" id="btnUpload">上传文档</button>
+      <span class="hint">签单表 xlsx，或截图。上传后识别姓名、身份证、售卖金额、承包时间。</span>
+    </div>
+    <div class="hint" id="fileStatus"></div>
   </div>
 
   <div class="card">
-    <h2>这一单</h2>
+    <label for="paste">或粘贴国内身份证</label>
+    <textarea id="paste" placeholder="张三 110101199001011234&#10;李四 33010219881212567X"></textarea>
+    <div class="actions">
+      <button type="button" id="btnParse">识别粘贴内容</button>
+      <span class="hint" id="rejectBox" style="margin:0;color:var(--warn)"></span>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="row">
-      <div><label for="dateText">日期</label><input id="dateText" type="text" placeholder="11.6" autocomplete="off" /></div>
-      <div><label for="datePick">日历</label><input id="datePick" type="date" /></div>
-      <div><label for="route">参加线路</label><input id="route" type="text" placeholder="九五6-9" autocomplete="off" /></div>
-      <div><label for="perPerson">人均金额</label><input id="perPerson" type="text" inputmode="decimal" placeholder="80，队长整团填 0" autocomplete="off" /></div>
+      <div><label for="dateText">销售日期</label><input id="dateText" type="text" placeholder="11.6" autocomplete="off" /></div>
+      <div><label for="perPerson">售卖金额（没识别到时填）</label><input id="perPerson" type="text" inputmode="decimal" placeholder="80" autocomplete="off" /></div>
     </div>
     <div class="money" id="tableStats">还没有客人。</div>
-    <div class="row" style="margin-top:14px">
-      <div><label for="coverStart">起保日</label><input id="coverStart" type="date" /></div>
-      <div><label for="coverDays">承保天数</label><input id="coverDays" type="text" inputmode="numeric" value="3" /></div>
-      <div><label for="coverEnd">止保日</label><input id="coverEnd" type="date" /></div>
-    </div>
-    <div class="actions"><button type="button" id="btnCoverDefault">恢复默认：次日起保 3 天</button></div>
-    <div class="hint" id="dateHint"></div>
-    <div class="hint" id="coverHint">默认从名单日期的第二天起保，保 3 天。这一单如果时间不同，改上面三项。和别人承保时间不一样的，请单独再交一单，因为要分开买保险。</div>
-  </div>
-
-  <div class="card">
-    <h2>国内身份证</h2>
-    <label for="paste">复制粘贴，自动识别</label>
-    <textarea id="paste" placeholder="张三 110101199001011234&#10;李四 33010219881212567X"></textarea>
-    <div class="hint">只认大陆 18 位身份证。护照、港澳台、外籍不能粘贴，请用下面的手填行。</div>
-    <div class="hint" id="rejectBox" style="display:none;color:var(--warn)"></div>
-    <div class="actions">
-      <button class="primary" id="btnParse" type="button">识别名单</button>
-      <button id="btnClearPaste" type="button">清空</button>
-      <span class="hint" id="parseStats" style="margin:0"></span>
-    </div>
+    <div class="hint">同一身份证、同一承保起止，已经提交或已买的会跳过。表里没写承包时间时，才再用销售日期区分，并从次日起保 3 天。金额为 0 的是队长赠送，不算进总金额。</div>
     <div id="groups"></div>
   </div>
 
   <div class="card">
     <h2>护照 / 港澳台 / 外籍</h2>
-    <div class="hint" style="margin-top:0">逐项手填，字段和保险站一致。填完点「添加这一行」。</div>
-    <div class="table-wrap" style="margin-top:10px">
+    <div class="table-wrap">
       <table>
-        <thead>
-          <tr><th class="seq">序号</th><th>姓名</th><th>证件类型</th><th>证件号码</th><th>性别</th><th>出生日期</th><th>队长</th><th></th></tr>
-        </thead>
+        <thead><tr><th class="seq">序号</th><th>姓名</th><th>证件类型</th><th>证件号码</th><th>性别</th><th>出生日期</th><th></th></tr></thead>
         <tbody>
           <tr>
             <td class="seq" id="mSeq">1</td>
@@ -106,8 +98,7 @@
             <td><input id="mId" type="text" autocomplete="off" /></td>
             <td><select id="mGender"><option value=""></option><option>男</option><option>女</option></select></td>
             <td><input id="mBirth" type="date" /></td>
-            <td class="check"><input id="mCaptain" type="checkbox" /></td>
-            <td><button type="button" id="btnManual">添加这一行</button></td>
+            <td><button type="button" id="btnManual">添加</button></td>
           </tr>
         </tbody>
       </table>
@@ -115,28 +106,21 @@
     <div id="manuals"></div>
   </div>
 
-  <div class="card">
-    <div class="actions">
-      <button class="primary" id="btnSubmit" type="button">提交给助手</button>
-      <button class="danger" id="btnClearRows" type="button">清空名单</button>
-    </div>
+  <div class="actions">
+    <button class="primary" id="btnSubmit" type="button">提交名单</button>
+    <button type="button" id="btnDraft">保存草稿名单</button>
   </div>
-
   <div class="card hidden" id="success"></div>
-  <div class="build" id="buildLabel"></div>
+  <div class="build">传名单 · 2026-11-07</div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="roster-math.js?v=20261107b"></script>
+<script src="roster-math.js?v=20261107d"></script>
 <script>
 (function () {
   var WORKER = "https://tourism-kb-id-ocr.qinfan079325.workers.dev";
   var M = window.RosterMath;
   var groups = [];
   var manuals = [];
-  var dateIso = "";
-  var coverAuto = { start: "", days: "", end: "" };
-  document.getElementById("buildLabel").textContent = "传名单 · 2026-11-07";
-
   function $(id) { return document.getElementById(id); }
   function toast(msg, kind) {
     var el = $("toast");
@@ -149,134 +133,73 @@
     return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   function workerBase() {
-    try {
-      var h = location.hostname || "";
-      if (h === "maozi.io" || /\.maozi\.io$/i.test(h)) return "";
-    } catch (e) {}
+    try { var h = location.hostname || ""; if (h === "maozi.io" || /\.maozi\.io$/i.test(h)) return ""; } catch (e) {}
     return WORKER;
   }
   var ERRORS = {
-    date_required: "请填写日期",
-    route_required: "请填写参加线路",
-    per_person_required: "请填写人均金额",
+    date_required: "请填写销售日期",
+    per_person_required: "请填写售卖金额",
     guests_required: "没有可提交的客人",
-    cover_invalid: "请核对起保日和承保天数",
+    cover_invalid: "承包时间没识别出来",
     manual_guest_incomplete: "护照等客人要填性别和出生日期",
     origin_not_allowed: "这个网址还不能提交"
   };
-  async function postRoster(body) {
-    var res = await fetch(workerBase() + "/roster", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(body)
-    });
-    var data = await res.json().catch(function () { return { ok: false, error: "bad_response" }; });
-    return { status: res.status, data: data };
+  function defaults() { return { per_person: $("perPerson").value.trim() }; }
+  function effective(group) {
+    var copy = M.withDefaults(group, defaults());
+    copy.cover_label = group.cover_label || "";
+    return copy;
   }
-  function defaults() {
-    return { route: $("route").value.trim(), per_person: $("perPerson").value.trim() };
+  function coverOf(group) {
+    return M.parseCoverSpan(group.cover_label || "", group.batch_date || $("dateText").value, new Date());
   }
-  function syncDateFromText() {
-    var parsed = M.parseBatchDate($("dateText").value, new Date());
-    dateIso = parsed.ok ? parsed.date_iso : "";
-    if (parsed.ok) $("datePick").value = parsed.date_iso;
-    $("dateHint").textContent = parsed.ok ? ("名单日期 " + parsed.batch_date + "（" + parsed.date_iso + "）") : ($("dateText").value.trim() ? "日期写成 11.6 或 2026-11-06" : "");
-    if (parsed.ok) applyDefaultCoverage(false);
-    return parsed;
-  }
-  function coverUntouched() {
-    return !$("coverStart").value || ($("coverStart").value === coverAuto.start && String($("coverDays").value).trim() === coverAuto.days && $("coverEnd").value === coverAuto.end);
-  }
-  function applyDefaultCoverage(force) {
-    if (!dateIso) return;
-    var d = M.defaultCoverage(dateIso);
-    if (!d.ok) return;
-    if (force || coverUntouched()) {
-      $("coverStart").value = d.cover_start;
-      $("coverDays").value = String(d.cover_days);
-      $("coverEnd").value = d.cover_end;
-      coverAuto = { start: d.cover_start, days: String(d.cover_days), end: d.cover_end };
-    }
-    $("coverHint").textContent = "这次：" + $("coverStart").value + " 起保，到 " + $("coverEnd").value + "，共 " + $("coverDays").value + " 天。和别人时间不同的，单独再交一单。";
-  }
-  function readCoverage() {
-    if ($("coverStart").value && $("coverEnd").value) return M.coverageFromStartEnd($("coverStart").value, $("coverEnd").value);
-    if ($("coverStart").value) return M.coverageFromStartDays($("coverStart").value, $("coverDays").value);
-    return dateIso ? M.defaultCoverage(dateIso) : { ok: false };
-  }
-  function allGroups() {
-    var list = groups.map(function (g) { return M.withDefaults(g, defaults()); });
-    if (manuals.length) {
-      list.push(M.withDefaults({ route: "", per_person: "", guests: manuals }, defaults()));
-    }
-    return list;
+  function coverText(group) {
+    var c = coverOf(group);
+    if (!c.ok) return group.cover_label || "按销售日期次日起保 3 天";
+    return (group.cover_label ? group.cover_label + " · " : "") + c.cover_start + " 至 " + c.cover_end;
   }
   function renderStats() {
-    var sums = allGroups().map(M.summarizeGroup);
     var guests = 0, gifts = 0, billable = 0, cents = 0;
-    sums.forEach(function (s) {
-      guests += s.guest_count;
-      gifts += s.gift_headcount;
-      billable += s.billable_headcount;
+    groups.map(effective).concat(manuals.length ? [effective({ per_person: "", guests: manuals, cover_label: groups[0] && groups[0].cover_label })] : []).map(M.summarizeGroup).forEach(function (s) {
+      guests += s.guest_count; gifts += s.gift_headcount; billable += s.billable_headcount;
       if (s.per_person !== "") cents += M.toCents(s.total_amount) || 0;
     });
-    if (!guests) { $("tableStats").textContent = "还没有客人。"; return; }
-    $("tableStats").innerHTML = "发给助手 <b>" + guests + "</b> 人 · 队长赠送 <b>" + gifts + "</b> 人 · 本次人数 <b>" + billable + "</b> · 总金额 <b>" + esc(M.fromCents(cents)) + "</b>";
+    $("tableStats").innerHTML = guests ? ("识别 <b>" + guests + "</b> 人 · 队长 <b>" + gifts + "</b> · 总金额 <b>" + esc(M.fromCents(cents)) + "</b>") : "还没有客人。";
   }
   function renderGroups() {
     var host = $("groups");
     host.innerHTML = "";
     groups.forEach(function (group, gi) {
-      var eff = M.withDefaults(group, defaults());
+      var eff = effective(group);
       var sum = M.summarizeGroup(eff);
-      var locked = M.toCents(eff.per_person) === 0;
       var sec = document.createElement("section");
       sec.className = "subgroup";
       sec.dataset.gi = String(gi);
-      sec.innerHTML = "<div class=\"hint\">" + esc(sum.route || "线路用上面填写的") + " · 人均 " + esc(sum.per_person || "—") + " · " + sum.guest_count + " 人</div>" +
-        '<div class="table-wrap"><table><thead><tr><th class="seq">序号</th><th>姓名</th><th>身份证</th><th>队长赠送</th><th></th></tr></thead><tbody>' +
+      sec.innerHTML = "<div class=\"money\">售卖金额 <b>" + esc(sum.per_person || "—") + "</b> · 承保 " + esc(coverText(eff)) + " · " + sum.guest_count + " 人</div>" +
+        '<div class="table-wrap" style="margin-top:8px"><table><thead><tr><th class="seq">序号</th><th>姓名</th><th>身份证号码</th><th>队长</th><th></th></tr></thead><tbody>' +
         sum.guests.map(function (g, i) {
-          return '<tr class="' + (g.is_gift ? "captain" : "") + '" data-i="' + i + '"><td class="seq">' + (i + 1) + "</td>" +
-            "<td>" + esc(g.name) + "</td><td>" + esc(g.id_no) + "</td>" +
-            '<td class="check"><label><input data-field="captain" type="checkbox" ' + (g.is_gift ? "checked" : "") + (locked ? " disabled" : "") + " /> 队长</label></td>" +
-            '<td><button type="button" data-del="1">删除</button></td></tr>';
+          var locked = M.toCents(eff.per_person) === 0;
+          return '<tr class="' + (g.is_gift ? "captain" : "") + '" data-i="' + i + '"><td class="seq">' + (i + 1) + "</td><td>" + esc(g.name) + "</td><td>" + esc(g.id_no) + '</td><td class="check"><label><input data-field="captain" type="checkbox" ' + (g.is_gift ? "checked " : "") + (locked ? "disabled" : "") + "> 赠送</label></td><td><button type=\"button\" data-del=\"1\">删除</button></td></tr>";
         }).join("") + "</tbody></table></div>";
       host.appendChild(sec);
     });
     renderStats();
   }
-  function typeOptions(selected) {
-    return ["护照", "港澳回乡证", "台胞证", "外国人永久居留证", "其他"].map(function (t) {
-      return '<option' + (t === selected ? " selected" : "") + ">" + t + "</option>";
-    }).join("");
-  }
-  function renderManuals() {
-    $("mSeq").textContent = String(manuals.length + 1);
-    var host = $("manuals");
-    if (!manuals.length) { host.innerHTML = ""; renderStats(); return; }
-    host.innerHTML = '<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th class="seq">序号</th><th>姓名</th><th>证件类型</th><th>证件号码</th><th>性别</th><th>出生日期</th><th>队长</th><th></th></tr></thead><tbody>' +
-      manuals.map(function (g, i) {
-        var locked = M.toCents(defaults().per_person) === 0 || g.is_gift && g.captain_locked;
-        return '<tr class="' + (g.is_gift ? "captain" : "") + '" data-mi="' + i + '">' +
-          '<td class="seq">' + (i + 1) + "</td>" +
-          '<td><input data-field="name" type="text" value="' + esc(g.name) + '" /></td>' +
-          '<td><select data-field="id_type">' + typeOptions(g.id_type) + "</select></td>" +
-          '<td><input data-field="id_no" type="text" value="' + esc(g.id_no) + '" /></td>' +
-          '<td><select data-field="gender"><option value=""></option><option' + (g.gender === "男" ? " selected" : "") + '>男</option><option' + (g.gender === "女" ? " selected" : "") + '>女</option></select></td>' +
-          '<td><input data-field="birth" type="date" value="' + esc(g.birth) + '" /></td>' +
-          '<td class="check"><input data-field="captain" type="checkbox" ' + (g.is_gift ? "checked" : "") + (M.toCents(defaults().per_person) === 0 ? " disabled" : "") + " /></td>" +
-          '<td><button type="button" data-mdel="1">删除</button></td></tr>';
-      }).join("") + "</tbody></table></div>";
-    renderStats();
+  function applyParsed(parsed) {
+    var n = parsed.groups.reduce(function (k, g) { return k + g.guests.length; }, 0);
+    if (!n) { toast("没有识别到姓名和身份证", "err"); return; }
+    if (parsed.dateHint && !$("dateText").value.trim()) $("dateText").value = parsed.dateHint;
+    var priced = parsed.groups.filter(function (g) { return String(g.per_person || "").trim() !== ""; });
+    if (priced.length === 1 && !$("perPerson").value.trim()) $("perPerson").value = priced[0].per_person;
+    groups = parsed.groups;
+    renderGroups();
+    toast("识别到 " + n + " 人", "ok");
   }
   $("groups").addEventListener("change", function (e) {
     if (e.target.getAttribute("data-field") !== "captain") return;
     var tr = e.target.closest("tr");
-    var sec = e.target.closest("[data-gi]");
-    var g = groups[Number(sec.dataset.gi)].guests[Number(tr.dataset.i)];
-    g.captain_manual = true;
-    g.is_captain = !!e.target.checked;
-    g.is_gift = !!e.target.checked;
+    var g = groups[Number(e.target.closest("[data-gi]").dataset.gi)].guests[Number(tr.dataset.i)];
+    g.captain_manual = true; g.is_captain = g.is_gift = !!e.target.checked;
     tr.classList.toggle("captain", g.is_gift);
     renderStats();
   });
@@ -284,25 +207,32 @@
     var btn = e.target.closest("[data-del]");
     if (!btn) return;
     var tr = btn.closest("tr");
-    var sec = btn.closest("[data-gi]");
-    groups[Number(sec.dataset.gi)].guests.splice(Number(tr.dataset.i), 1);
+    groups[Number(btn.closest("[data-gi]").dataset.gi)].guests.splice(Number(tr.dataset.i), 1);
     groups = groups.filter(function (g) { return g.guests.length; });
     renderGroups();
   });
-  $("manuals").addEventListener("input", onManualEdit);
-  $("manuals").addEventListener("change", onManualEdit);
-  function onManualEdit(e) {
-    var tr = e.target.closest("[data-mi]");
-    if (!tr) return;
-    var g = manuals[Number(tr.dataset.mi)];
-    var field = e.target.getAttribute("data-field");
-    if (!g || !field) return;
-    if (field === "captain") {
-      g.captain_manual = true;
-      g.is_captain = !!e.target.checked;
-      g.is_gift = !!e.target.checked;
-      tr.classList.toggle("captain", g.is_gift);
-    } else g[field] = e.target.value;
+  $("btnParse").onclick = function () {
+    var parsed = M.fuzzyRosterText($("paste").value);
+    var box = $("rejectBox");
+    box.textContent = parsed.rejects.length ? (parsed.rejects.length + " 行不是大陆身份证，请用手填。") : "";
+    applyParsed(parsed);
+  };
+  $("dateText").addEventListener("input", renderGroups);
+  $("perPerson").addEventListener("input", renderGroups);
+  function resetForm() {
+    groups = []; manuals = [];
+    $("dateText").value = ""; $("perPerson").value = ""; $("paste").value = "";
+    $("fileStatus").textContent = ""; $("rejectBox").textContent = "";
+    renderGroups(); renderManuals();
+  }
+  function renderManuals() {
+    $("mSeq").textContent = String(manuals.length + 1);
+    var host = $("manuals");
+    if (!manuals.length) { host.innerHTML = ""; renderStats(); return; }
+    host.innerHTML = '<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th class="seq">序号</th><th>姓名</th><th>证件类型</th><th>证件号码</th><th>性别</th><th>出生日期</th><th></th></tr></thead><tbody>' +
+      manuals.map(function (g, i) {
+        return '<tr data-mi="' + i + '"><td class="seq">' + (i + 1) + "</td><td>" + esc(g.name) + "</td><td>" + esc(g.id_type) + "</td><td>" + esc(g.id_no) + "</td><td>" + esc(g.gender) + "</td><td>" + esc(g.birth) + '</td><td><button type="button" data-mdel="1">删除</button></td></tr>';
+      }).join("") + "</tbody></table></div>";
     renderStats();
   }
   $("manuals").addEventListener("click", function (e) {
@@ -311,141 +241,187 @@
     manuals.splice(Number(btn.closest("[data-mi]").dataset.mi), 1);
     renderManuals();
   });
-  $("dateText").addEventListener("input", syncDateFromText);
-  $("datePick").addEventListener("change", function () {
-    var parsed = M.parseBatchDate($("datePick").value, new Date());
-    if (!parsed.ok) return;
-    dateIso = parsed.date_iso;
-    $("dateText").value = parsed.batch_date;
-    $("dateHint").textContent = "名单日期 " + parsed.batch_date + "（" + parsed.date_iso + "）";
-    applyDefaultCoverage(false);
-  });
-  $("coverStart").addEventListener("change", function () {
-    var next = M.coverageFromStartDays($("coverStart").value, $("coverDays").value || "3");
-    if (!next.ok) return;
-    $("coverEnd").value = next.cover_end;
-    $("coverDays").value = String(next.cover_days);
-    $("coverHint").textContent = "这次：" + next.cover_start + " 起保，到 " + next.cover_end + "，共 " + next.cover_days + " 天。和别人时间不同的，单独再交一单。";
-  });
-  $("coverDays").addEventListener("input", function () {
-    var next = M.coverageFromStartDays($("coverStart").value, $("coverDays").value);
-    if (!next.ok) return;
-    $("coverEnd").value = next.cover_end;
-  });
-  $("coverEnd").addEventListener("change", function () {
-    var next = M.coverageFromStartEnd($("coverStart").value, $("coverEnd").value);
-    if (!next.ok) { toast("止保日要在起保日当天或之后", "err"); return; }
-    $("coverDays").value = String(next.cover_days);
-  });
-  $("btnCoverDefault").onclick = function () {
-    if (!dateIso) { toast("请先填日期", "err"); return; }
-    applyDefaultCoverage(true);
-  };
-  $("route").addEventListener("input", function () { renderGroups(); renderManuals(); });
-  $("perPerson").addEventListener("input", function () {
-    var zero = M.toCents($("perPerson").value.trim()) === 0;
-    manuals.forEach(function (g) {
-      if (zero) { g.is_captain = true; g.is_gift = true; g.captain_locked = true; }
-      else if (g.captain_locked && !g.captain_manual) { g.is_captain = false; g.is_gift = false; g.captain_locked = false; }
-    });
-    renderGroups();
-    renderManuals();
-  });
-  $("btnParse").onclick = function () {
-    var parsed = M.parseRosterPaste($("paste").value);
-    var people = parsed.groups.reduce(function (n, g) { return n + g.guests.length; }, 0);
-    var box = $("rejectBox");
-    if (parsed.rejects.length) {
-      box.style.display = "block";
-      box.textContent = parsed.rejects.length + " 行不是大陆身份证，没有导入。护照等请在下面手填。";
-    } else { box.style.display = "none"; box.textContent = ""; }
-    if (!people) { toast("没有识别到姓名和 18 位身份证", "err"); return; }
-    if (parsed.dateHint && !$("dateText").value.trim()) {
-      $("dateText").value = parsed.dateHint;
-      syncDateFromText();
-    }
-    groups = parsed.groups;
-    renderGroups();
-    $("parseStats").textContent = "识别 " + people + " 人";
-    toast("已识别 " + people + " 人", "ok");
-  };
-  $("btnClearPaste").onclick = function () { $("paste").value = ""; };
-  $("btnClearRows").onclick = function () { groups = []; manuals = []; renderGroups(); renderManuals(); $("parseStats").textContent = ""; };
   $("btnManual").onclick = function () {
     var name = $("mName").value.trim();
     var idNo = $("mId").value.replace(/\s+/g, "").trim().toUpperCase();
     var gender = $("mGender").value;
     var birth = $("mBirth").value;
-    if (!name || !idNo || !gender || !birth) { toast("护照等请填姓名、证件号码、性别、出生日期", "err"); return; }
-    if (!/^[0-9A-Za-z]{5,24}$/.test(idNo)) { toast("证件号码只填字母和数字", "err"); return; }
-    var captain = $("mCaptain").checked || M.toCents($("perPerson").value.trim()) === 0;
-    manuals.push({
-      name: name, id_no: idNo, id_type: $("mType").value, gender: gender, birth: birth,
-      is_captain: captain, is_gift: captain, captain_manual: $("mCaptain").checked, captain_locked: M.toCents($("perPerson").value.trim()) === 0, warn: ""
-    });
-    $("mName").value = ""; $("mId").value = ""; $("mGender").value = ""; $("mBirth").value = ""; $("mCaptain").checked = false;
+    if (!name || !idNo || !gender || !birth) { toast("请填姓名、证件号码、性别、出生日期", "err"); return; }
+    manuals.push({ name: name, id_no: idNo, id_type: $("mType").value, gender: gender, birth: birth, is_captain: false, is_gift: false, warn: "" });
+    $("mName").value = ""; $("mId").value = ""; $("mGender").value = ""; $("mBirth").value = "";
     renderManuals();
-    toast("已添加 " + name, "ok");
   };
-  function insuranceLines(rec) {
-    return (rec.guests || []).map(function (g) {
-      return [g.name, g.id_type || "", g.id_no, g.gender || "", g.birth || "", g.is_gift ? "队长赠送" : ""].filter(Boolean).join(" ");
-    }).join("\n");
-  }
-  $("btnSubmit").onclick = async function () {
-    var parsedDate = syncDateFromText();
-    if (!parsedDate.ok) { toast(parsedDate.error === "date_required" ? "请填写日期" : "日期看不懂", "err"); return; }
-    var cover = readCoverage();
-    if (!cover.ok) { toast("请核对起保日、天数和止保日", "err"); return; }
-    var route = $("route").value.trim();
-    var price = $("perPerson").value.trim();
-    var sums = allGroups().map(M.summarizeGroup).filter(function (s) { return s.guest_count; });
-    if (!sums.length) { toast("请先识别国内名单，或手填护照", "err"); return; }
-    for (var i = 0; i < sums.length; i++) {
-      if (!sums[i].route && !route) { toast("请填写参加线路", "err"); return; }
-      if (sums[i].per_person === "" && price === "") { toast("请填写人均金额", "err"); return; }
-      var bad = sums[i].guests.filter(function (g) { return !M.isId18(g.id_no) && (!g.gender || !g.birth); });
-      if (bad.length) { toast(bad[0].name + " 还没填性别或出生日期", "err"); return; }
+
+  async function readZip(buf) {
+    var view = new DataView(buf);
+    var bytes = new Uint8Array(buf);
+    var files = {};
+    var o = 0;
+    while (o + 30 < bytes.length && view.getUint32(o, true) === 0x04034b50) {
+      var method = view.getUint16(o + 8, true);
+      var compSize = view.getUint32(o + 18, true);
+      var nameLen = view.getUint16(o + 26, true);
+      var extraLen = view.getUint16(o + 28, true);
+      var name = new TextDecoder().decode(bytes.subarray(o + 30, o + 30 + nameLen));
+      var start = o + 30 + nameLen + extraLen;
+      var data = bytes.subarray(start, start + compSize);
+      if (method === 8) {
+        var out = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+        files[name] = await new Response(out).text();
+      } else if (method === 0) files[name] = new TextDecoder().decode(data);
+      o = start + compSize;
     }
-    var btn = $("btnSubmit");
-    btn.disabled = true;
-    var saved = [];
-    try {
-      for (var j = 0; j < sums.length; j++) {
-        var s = sums[j];
-        var out = await postRoster({
-          date: parsedDate.batch_date,
-          date_iso: parsedDate.date_iso,
-          cover_start: cover.cover_start,
-          cover_end: cover.cover_end,
-          cover_days: cover.cover_days,
-          route: s.route || route,
-          per_person: s.per_person === "" ? price : s.per_person,
-          guests: s.guests,
-          account: "传名单"
-        });
-        if (!out.data || !out.data.ok || !out.data.record) {
-          toast(ERRORS[out.data && out.data.error] || "没有保存", "err");
-          return;
-        }
-        saved.push(out.data.record);
+    return files;
+  }
+  function xmlText(node) {
+    var out = "";
+    var nodes = node.getElementsByTagName("t");
+    for (var i = 0; i < nodes.length; i++) out += nodes[i].textContent || "";
+    return out;
+  }
+  async function rowsFromXlsx(buf) {
+    var files = await readZip(buf);
+    var doc = new DOMParser();
+    var ss = [];
+    if (files["xl/sharedStrings.xml"]) {
+      var sst = doc.parseFromString(files["xl/sharedStrings.xml"], "text/xml").getElementsByTagName("si");
+      for (var i = 0; i < sst.length; i++) ss.push(xmlText(sst[i]));
+    }
+    var sheetName = Object.keys(files).filter(function (n) { return /^xl\/worksheets\/sheet\d+\.xml$/.test(n); }).sort()[0];
+    var sheet = doc.parseFromString(files[sheetName], "text/xml");
+    var xrows = sheet.getElementsByTagName("row");
+    var rows = [];
+    for (var r = 0; r < xrows.length; r++) {
+      var cells = [];
+      var cs = xrows[r].getElementsByTagName("c");
+      for (var c = 0; c < cs.length; c++) {
+        var ref = cs[c].getAttribute("r") || "";
+        var col = 0;
+        for (var k = 0; k < ref.length && ref.charAt(k) >= "A" && ref.charAt(k) <= "Z"; k++) col = col * 26 + (ref.charCodeAt(k) - 64);
+        var text = "";
+        if (cs[c].getAttribute("t") === "s") text = ss[Number((cs[c].getElementsByTagName("v")[0] || {}).textContent || 0)] || "";
+        else if (cs[c].getElementsByTagName("is")[0]) text = xmlText(cs[c]);
+        else text = (cs[c].getElementsByTagName("v")[0] || {}).textContent || "";
+        cells[col - 1] = text;
       }
-      var notified = saved.filter(function (r) { return r.delivered; }).length;
+      for (var n = 0; n < cells.length; n++) if (cells[n] == null) cells[n] = "";
+      rows.push({ cells: cells });
+    }
+    return rows;
+  }
+  function loadTesseract() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+      s.onload = function () { window.Tesseract ? resolve(window.Tesseract) : reject(new Error("识别组件没载入")); };
+      s.onerror = function () { reject(new Error("识别组件下载失败")); };
+      document.head.appendChild(s);
+    });
+  }
+  $("file").addEventListener("change", async function () {
+    var file = $("file").files && $("file").files[0];
+    if (!file) return;
+    $("fileStatus").textContent = "正在识别 " + file.name + " …";
+    try {
+      if (/\.xlsx$/i.test(file.name)) {
+        var rows = await rowsFromXlsx(await file.arrayBuffer());
+        applyParsed(M.groupsFromCells(rows));
+        $("fileStatus").textContent = "已读取 " + file.name;
+      } else if (/^image\//.test(file.type)) {
+        var Tesseract = await loadTesseract();
+        var result = await Tesseract.recognize(file, "chi_sim+eng");
+        applyParsed(M.fuzzyRosterText((result && result.data && result.data.text) || ""));
+        $("fileStatus").textContent = "已识别截图";
+      } else toast("请上传 xlsx 或图片", "err");
+    } catch (err) {
+      $("fileStatus").textContent = "";
+      toast("没读出来，可以改用粘贴", "err");
+    }
+    $("file").value = "";
+  });
+
+  function skipSentence(reports) {
+    var n = 0;
+    var names = [];
+    var why = {};
+    var label = { already_submitted: "已经提交", already_purchased: "已买", already_draft: "已经存过草稿", duplicate_in_file: "这张表里重复" };
+    reports.forEach(function (d) {
+      n += d.skipped_count || 0;
+      (d.skipped || []).forEach(function (s) {
+        if (s.name && names.length < 8 && names.indexOf(s.name) < 0) names.push(s.name);
+        if (s.reason) why[s.reason] = true;
+      });
+    });
+    if (!n) return "";
+    var bits = Object.keys(label).filter(function (k) { return why[k]; }).map(function (k) { return label[k]; });
+    return "跳过 " + n + " 人（" + (bits.join("、") || "已经有了") + "）" + (names.length ? "：" + names.join("、") : "") + "。";
+  }
+  async function sendLists(asDraft) {
+    var list = groups.map(effective);
+    if (manuals.length) list.push(effective({ per_person: "", guests: manuals, cover_label: (groups[0] && groups[0].cover_label) || "", batch_date: (groups[0] && groups[0].batch_date) || "" }));
+    var sums = list.map(M.summarizeGroup).filter(function (s) { return s.guest_count; });
+    if (!sums.length) { toast("请先上传表格或粘贴名单", "err"); return; }
+    var btn = asDraft ? $("btnDraft") : $("btnSubmit");
+    btn.disabled = true;
+    var reports = [];
+    try {
+      for (var i = 0; i < sums.length; i++) {
+        var src = list[i];
+        var s = sums[i];
+        if (s.per_person === "") { toast("有一组没有售卖金额", "err"); return; }
+        var date = M.parseBatchDate(src.batch_date || $("dateText").value, new Date());
+        if (!date.ok) { toast("请填写销售日期，例如 11.6", "err"); return; }
+        var cover = M.parseCoverSpan(src.cover_label || "", src.batch_date || date.batch_date, new Date());
+        if (!cover.ok) { toast("承包时间没识别出来", "err"); return; }
+        var res = await fetch(workerBase() + "/roster", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            date: date.batch_date, date_iso: date.date_iso,
+            cover_start: cover.cover_start, cover_end: cover.cover_end, cover_days: cover.cover_days,
+            per_person: s.per_person, guests: s.guests, account: "传名单", draft: !!asDraft
+          })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!data.ok) { toast(ERRORS[data.error] || "没有保存", "err"); return; }
+        if (data.new_count == null && data.record) data.new_count = data.record.guest_count;
+        reports.push(data);
+      }
+      var fresh = reports.reduce(function (n, d) { return n + (d.new_count || 0); }, 0);
+      var saved = reports.filter(function (d) { return d.record; }).map(function (d) { return d.record; });
+      var skippedText = skipSentence(reports);
       var box = $("success");
       box.classList.remove("hidden");
-      box.innerHTML = "<h2>已提交给助手</h2><p class=\"hint\">" + (notified === saved.length ? "名单已发给助手，用于买保险。本页没有下单。" : "名单已保存，但通知总助没有成功，请稍后再交一次。") + "</p>" +
+      if (asDraft) {
+        box.innerHTML = "<h2>草稿名单已保存</h2><p class=\"hint\">新保存 " + fresh + " 人。" + esc(skippedText) + "没有发给助手。</p>";
+        toast(fresh ? "草稿已保存 " + fresh + " 人" : "没有新人，草稿没有重复保存", fresh ? "ok" : "");
+        return;
+      }
+      var delivered = saved.filter(function (r) { return r.delivered; }).length;
+      var notice = !fresh ? "没有新人。" : (saved.length && delivered === saved.length ? "新人已发给助手买保险。本页没有下单。" : "新人已保存，但通知没有成功。");
+      box.innerHTML = "<h2>" + (fresh ? "名单已提交" : "没有要提交的新人") + "</h2><p class=\"hint\">新提交 " + fresh + " 人。" + esc(skippedText) + notice + "</p>" +
         saved.map(function (rec) {
-          return "<div class=\"subgroup\"><b>" + esc(rec.date) + " · " + esc(rec.route) + "</b><div class=\"hint\">人均 " + esc(rec.per_person) + " · 发给助手 " + rec.guest_count + " 人 · 队长 " + rec.gift_headcount + " · 本次人数 " + rec.billable_headcount + " · 总金额 " + esc(rec.total_amount) + "<br/>起保 " + esc(rec.cover_start) + " · 止保 " + esc(rec.cover_end) + " · " + esc(rec.cover_days) + " 天</div><pre class=\"hint\">" + esc(insuranceLines(rec)) + "</pre></div>";
+          return "<div class=\"subgroup\"><b>售卖金额 " + esc(rec.per_person) + " · 总金额 " + esc(rec.total_amount) + "</b><div class=\"hint\">承保 " + esc(rec.cover_start) + " 至 " + esc(rec.cover_end) + " · " + rec.guest_count + " 人 · 队长 " + rec.gift_headcount + "</div><pre class=\"hint\">" + esc((rec.guests || []).map(function (g) { return g.name + " " + g.id_no + (g.is_gift ? " 队长赠送" : ""); }).join("\n")) + "</pre></div>";
         }).join("");
-      groups = []; manuals = []; renderGroups(); renderManuals(); $("parseStats").textContent = "";
-      toast(notified ? "已发给助手" : "已保存，通知未成功", notified ? "ok" : "err");
-      box.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (fresh) resetForm();
+      box.classList.remove("hidden");
+      toast(fresh ? (delivered ? "新提交 " + fresh + " 人" : "已保存，通知未成功") : "没有新人", fresh && delivered ? "ok" : (fresh ? "err" : ""));
     } catch (e) {
-      toast("网络异常，请稍后再试", "err");
-    } finally {
-      btn.disabled = false;
-    }
+      toast("网络异常", "err");
+    } finally { btn.disabled = false; }
+  }
+  $("btnUpload").onclick = function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    $("file").click();
   };
+  $("drop").onclick = function (e) {
+    if (e.target.closest("#btnUpload")) return;
+    $("file").click();
+  };
+  $("btnSubmit").onclick = function () { sendLists(false); };
+  $("btnDraft").onclick = function () { sendLists(true); };
   renderStats();
 })();
 </script>

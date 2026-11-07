@@ -154,4 +154,71 @@ const demo = M.deriveFromId("110101199001011234");
 eq(demo.birth, "1990-01-01", "birth from id");
 eq(demo.gender === "男" || demo.gender === "女", true, "gender from id");
 
+const sheet = M.groupsFromCells([
+  { cells: ["日期", "客人名单", "身份证", "总人数", "人均金额", "总金额", "团型"] },
+  { cells: ["11.6", "周永恩", "231011195603290330", "0", "0", "0", "九五6-9"], yellow: true },
+  { cells: ["", "田雪松", "231011195605150323", "", "", "", ""], yellow: true },
+  { cells: ["", "", "", "", "", "", ""] },
+  { cells: ["", "卜秀芳", "440301195504285618", "2", "80", "160", "九五1-4"] },
+  { cells: ["", "林碧芳", "440301195812236965", "", "", "", ""] }
+]);
+eq(sheet.dateHint, "11.6", "sheet date");
+eq(sheet.groups.length, 2, "sheet groups");
+eq(sheet.groups[0].per_person, "0", "gift price");
+eq(M.summarizeGroup(sheet.groups[0]).billable_headcount, 0, "gift not billed");
+eq(sheet.groups[0].route || "", "", "product column ignored");
+eq(M.summarizeGroup(sheet.groups[1]).per_person, "80", "sale amount");
+eq(M.summarizeGroup(sheet.groups[1]).total_amount, "160", "sale total");
+const fuzzy = M.fuzzyRosterText("李四 110101 19900307783X");
+eq(fuzzy.groups[0].guests.length, 1, "fuzzy id with spaces");
+eq(fuzzy.groups[0].guests[0].name, "李四", "fuzzy name");
+const span = M.parseCoverSpan("7号-9号", "11.6", NOW);
+eq(span.cover_start, "2026-11-07", "cover start from 7号");
+eq(span.cover_end, "2026-11-09", "cover end from 9号");
+eq(span.cover_days, 3, "cover days");
+const split = M.groupsFromCells([
+  { cells: ["销售日期", "客人名单", "身份证", "总人数", "人均金额", "总金额", "承包时间"] },
+  { cells: ["11.6", "李洪军", "370123196808012516", "2", "80", "160", "7号-9号"] },
+  { cells: ["", "赵荣金", "370123196206170533", "", "", "", "7号-9号"] },
+  { cells: ["", "", "", "", "", "", "7号-9号"] },
+  { cells: ["", "周永恩", "231011195603290330", "0", "0", "0", "7号-9号"] },
+  { cells: ["", "田雪松", "231011195605150323", "", "", "", "7号-9号"] }
+]);
+eq(split.groups.length, 2, "coverage-only row splits groups");
+eq(M.summarizeGroup(split.groups[0]).billable_headcount, 2, "paying pair");
+eq(M.summarizeGroup(split.groups[0]).total_amount, "160", "paying total");
+eq(M.summarizeGroup(split.groups[1]).total_amount, "0", "captain total");
+eq(split.groups[0].cover_label, "7号-9号", "cover label");
+eq(split.groups[0].batch_date, "11.6", "sales date stays with the group");
+eq(split.groups[1].batch_date, "11.6", "later group keeps the sales date");
+const twoDays = M.groupsFromCells([
+  { cells: ["销售日期", "客人名单", "身份证", "总人数", "人均金额", "总金额", "承包时间"] },
+  { cells: ["11.6", "李洪军", "370123196808012516", "1", "80", "80", "7号-9号"] },
+  { cells: ["11.8", "周永恩", "231011195603290330", "1", "60", "60", "9号-11号"] }
+]);
+eq(twoDays.groups.length, 2, "new sales date starts another group");
+eq(twoDays.groups[1].batch_date, "11.8", "second sales date");
+
+const person = { name: "李洪军", id_no: "370123196808012516", cover_start: "2026-11-07", cover_end: "2026-11-09", date_iso: "2026-11-06" };
+const again = { name: "李洪军", id_no: "370123196808012516", cover_start: "2026-12-07", cover_end: "2026-12-09", date_iso: "2026-12-06" };
+const sameKey = M.guestDedupeKey(person);
+eq(sameKey, M.guestDedupeKey({ name: "李", id_no: "370123196808012516", cover_start: "2026-11-07", cover_end: "2026-11-09", date_iso: "2026-11-01" }), "sales date is not part of the key when coverage exists");
+eq(M.guestDedupeKey(again) === sameKey, false, "another coverage span is another trip");
+eq(M.guestDedupeKey({ name: "李", id_no: "370123196808012516", date_iso: "2026-11-06" }), "370123196808012516|||2026-11-06", "missing coverage uses sales date");
+const known = {};
+known[sameKey] = "submitted";
+const skipped = M.selectNewGuests([person, person, again], known, "submit");
+eq(skipped.kept.length, 1, "new coverage is kept");
+eq(skipped.kept[0].cover_start, "2026-12-07", "kept the later trip");
+eq(skipped.skipped.length, 2, "submitted row and the in-file duplicate are skipped");
+eq(skipped.skipped[0].reason, "already_submitted", "already submitted");
+eq(skipped.skipped[1].reason, "duplicate_in_file", "duplicate inside this upload");
+known[M.guestDedupeKey(again)] = "draft";
+const fromDraft = M.selectNewGuests([again], known, "submit");
+eq(fromDraft.kept.length, 1, "a draft has not been submitted yet");
+const redraft = M.selectNewGuests([again], known, "draft");
+eq(redraft.skipped[0].reason, "already_draft", "draft save does not store the same person again");
+known[sameKey] = "purchased";
+eq(M.selectNewGuests([person], known, "submit").skipped[0].reason, "already_purchased", "purchased marker skips");
+
 console.log("roster-math tests ok");

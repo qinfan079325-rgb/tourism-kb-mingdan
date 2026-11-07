@@ -152,6 +152,40 @@
     return { ok: true, cover_start: start.date_iso, cover_days: n, cover_end: addIsoDays(start.date_iso, n - 1) };
   }
 
+  function parseCoverSpan(label, rosterDateText, now) {
+    var roster = parseBatchDate(rosterDateText, now);
+    var raw = String(label || "").replace(/\s/g, "");
+    if (!raw) {
+      if (!roster.ok) return { ok: false, error: "cover_invalid" };
+      var fallback = defaultCoverage(roster.date_iso);
+      fallback.cover_label = "";
+      return fallback;
+    }
+    var days = raw.match(/(\d{1,2})号?(?:[-~到至]|—)(\d{1,2})号?/);
+    if (days && roster.ok) {
+      var month = Number(roster.date_iso.slice(5, 7));
+      var d1 = Number(days[1]);
+      var d2 = Number(days[2]);
+      var endMonth = month;
+      var endYear = roster.year;
+      if (d2 < d1) {
+        endMonth += 1;
+        if (endMonth > 12) { endMonth = 1; endYear += 1; }
+      }
+      var start = isoFromParts(roster.year, month, d1);
+      var end = isoFromParts(endYear, endMonth, d2);
+      var n = start && end ? inclusiveDays(start, end) : 0;
+      if (!start || !end || n < 1) return { ok: false, error: "cover_invalid", cover_label: raw };
+      return { ok: true, cover_start: start, cover_end: end, cover_days: n, cover_label: raw };
+    }
+    if (roster.ok) {
+      var guessed = defaultCoverage(roster.date_iso);
+      guessed.cover_label = raw;
+      return guessed;
+    }
+    return { ok: false, error: "cover_invalid", cover_label: raw };
+  }
+
   function coverageFromStartEnd(startIso, endIso) {
     var start = parseBatchDate(startIso);
     var end = parseBatchDate(endIso);
@@ -297,11 +331,139 @@
     return { groups: groups, rejects: rejects, dateHint: dateHint };
   }
 
+  function normalizeFuzzyText(text) {
+    return String(text || "")
+      .replace(/[０-９]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xfee0); })
+      .replace(/[ｘＸx]/g, "X")
+      .replace(/(\d)\s+(?=\d)/g, "$1");
+  }
+
+  function fuzzyRosterText(text) {
+    var norm = normalizeFuzzyText(text);
+    var parsed = parseRosterPaste(norm);
+    var found = parsed.groups.reduce(function (n, g) { return n + g.guests.length; }, 0);
+    if (found) return parsed;
+    var groups = [blankGroup()];
+    var seen = {};
+    var re = /([\u4e00-\u9fff·]{2,8})\s*([0-9]{17}[0-9X])/g;
+    var match;
+    while ((match = re.exec(norm))) {
+      var idNo = match[2];
+      if (seen[idNo]) continue;
+      seen[idNo] = true;
+      groups[0].guests.push({
+        name: match[1].replace(/·/g, ""),
+        id_no: idNo,
+        id_type: "身份证",
+        is_captain: false,
+        is_gift: false,
+        captain_manual: false,
+        captain_locked: false,
+        warn: id18ChecksumOk(idNo) ? "" : "校验位不符，请核对"
+      });
+    }
+    if (!groups[0].guests.length) groups = [];
+    return { groups: groups, rejects: parsed.rejects, dateHint: parsed.dateHint };
+  }
+
+  function groupsFromCells(rows) {
+    var list = rows || [];
+    var headerIdx = -1;
+    var i;
+    for (i = 0; i < list.length && i < 8; i++) {
+      if (/身份证|客人名单|姓名/.test((list[i].cells || []).join(""))) {
+        headerIdx = i;
+        break;
+      }
+    }
+    var col = { date: 0, name: 1, id: 2, per: 4, cover: 6 };
+    if (headerIdx >= 0) {
+      col = { date: -1, name: -1, id: -1, per: -1, cover: -1 };
+      (list[headerIdx].cells || []).forEach(function (h, idx) {
+        var name = String(h || "").replace(/\s/g, "");
+        if (/日期/.test(name) && col.date < 0) col.date = idx;
+        else if (/客人|姓名/.test(name) && col.name < 0) col.name = idx;
+        else if (/身份证|证件号/.test(name) && col.id < 0) col.id = idx;
+        else if (/人均|售卖/.test(name) && col.per < 0) col.per = idx;
+        else if (/承包|承保/.test(name) && col.cover < 0) col.cover = idx;
+      });
+    }
+    var groups = [];
+    var current = null;
+    var dateHint = "";
+    var carriedDate = "";
+    function flush() {
+      if (current && current.guests.length) groups.push(current);
+      current = null;
+    }
+    for (i = (headerIdx >= 0 ? headerIdx + 1 : 0); i < list.length; i++) {
+      var row = list[i] || {};
+      var cells = row.cells || [];
+      if (!cells.join("").trim()) {
+        flush();
+        continue;
+      }
+      var dateCell = col.date >= 0 ? String(cells[col.date] || "").trim() : "";
+      if (/^\d{5}$/.test(dateCell)) {
+        var serial = new Date(Date.UTC(1899, 11, 30) + Number(dateCell) * 86400000);
+        dateCell = (serial.getUTCMonth() + 1) + "." + serial.getUTCDate();
+      }
+      if (looksLikeDateToken(dateCell)) {
+        if (carriedDate && dateCell !== carriedDate && current && current.guests.length) flush();
+        carriedDate = dateCell;
+        dateHint = dateHint || dateCell;
+      }
+      var idNo = "";
+      var idAt = col.id;
+      if (idAt >= 0 && isId18(String(cells[idAt] || "").replace(/\s+/g, ""))) {
+        idNo = String(cells[idAt]).replace(/\s+/g, "").toUpperCase();
+      } else {
+        for (var c = 0; c < cells.length; c++) {
+          var cand = String(cells[c] || "").replace(/\s+/g, "");
+          if (isId18(cand)) { idNo = cand.toUpperCase(); idAt = c; break; }
+        }
+      }
+      var coverCell = col.cover >= 0 ? String(cells[col.cover] || "").trim() : "";
+      if (!idNo) {
+        flush();
+        continue;
+      }
+      var name = "";
+      if (col.name >= 0 && cells[col.name]) name = String(cells[col.name]).trim();
+      if (!name && idAt > 0) name = String(cells[idAt - 1] || "").trim();
+      var per = col.per >= 0 ? String(cells[col.per] || "").trim() : "";
+      if (per && current && current.guests.length && current.hasMeta) flush();
+      if (!current) current = blankGroup();
+      if (carriedDate && !current.batch_date) current.batch_date = carriedDate;
+      if (per) {
+        current.per_person = per;
+        current.hasMeta = true;
+      }
+      if (coverCell) current.cover_label = current.cover_label || coverCell;
+      var gift = !!row.yellow;
+      current.guests.push({
+        name: name,
+        id_no: idNo,
+        id_type: "身份证",
+        is_captain: gift,
+        is_gift: gift,
+        captain_manual: gift,
+        captain_locked: false,
+        warn: id18ChecksumOk(idNo) ? "" : "校验位不符，请核对"
+      });
+    }
+    flush();
+    groups.forEach(markZeroRate);
+    return { groups: groups, rejects: [], dateHint: dateHint };
+  }
+
   function withDefaults(group, defaults) {
     var src = defaults || {};
     var copy = {
       route: group.route || "",
       per_person: group.per_person === 0 || group.per_person ? String(group.per_person) : "",
+      cover_label: group.cover_label || "",
+      batch_date: group.batch_date || "",
       hasMeta: !!group.hasMeta,
       guests: (group.guests || []).map(function (g) {
         return {
@@ -323,6 +485,49 @@
       copy.per_person = String(src.per_person).trim();
     }
     return markZeroRate(copy);
+  }
+
+  /* 同一人、同一承保起止视为同一次购买。没有起止日期时才加上销售日期。 */
+  function guestDedupeKey(guest) {
+    var idNo = String(guest && guest.id_no || "").replace(/\s+/g, "").trim().toUpperCase();
+    if (!idNo) return "";
+    var start = String(guest.cover_start || "").slice(0, 10);
+    var end = String(guest.cover_end || "").slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end)) {
+      return idNo + "|" + start + "|" + end;
+    }
+    return idNo + "|||" + String(guest.date_iso || "").slice(0, 10);
+  }
+
+  function selectNewGuests(guests, known, mode) {
+    var seen = {};
+    var kept = [];
+    var skipped = [];
+    var table = known || {};
+    (guests || []).forEach(function (g) {
+      var key = guestDedupeKey(g);
+      var name = String(g.name || "").trim();
+      if (!key) {
+        skipped.push({ name: name, reason: "missing_id" });
+        return;
+      }
+      if (seen[key]) {
+        skipped.push({ name: name, id_no: g.id_no, reason: "duplicate_in_file" });
+        return;
+      }
+      seen[key] = true;
+      var status = table[key] || "";
+      if (status === "purchased" || status === "submitted") {
+        skipped.push({ name: name, id_no: g.id_no, reason: status === "purchased" ? "already_purchased" : "already_submitted" });
+        return;
+      }
+      if (mode === "draft" && status === "draft") {
+        skipped.push({ name: name, id_no: g.id_no, reason: "already_draft" });
+        return;
+      }
+      kept.push(g);
+    });
+    return { kept: kept, skipped: skipped };
   }
 
   function summarizeGroup(group) {
@@ -472,12 +677,17 @@
     shortDate: shortDate,
     addIsoDays: addIsoDays,
     defaultCoverage: defaultCoverage,
+    parseCoverSpan: parseCoverSpan,
     coverageFromStartDays: coverageFromStartDays,
     coverageFromStartEnd: coverageFromStartEnd,
     deriveFromId: deriveFromId,
     parseRosterPaste: parseRosterPaste,
+    fuzzyRosterText: fuzzyRosterText,
+    groupsFromCells: groupsFromCells,
     withDefaults: withDefaults,
     summarizeGroup: summarizeGroup,
+    guestDedupeKey: guestDedupeKey,
+    selectNewGuests: selectNewGuests,
     markZeroRate: markZeroRate,
     aggregateForRecon: aggregateForRecon,
     computeRecon: computeRecon
