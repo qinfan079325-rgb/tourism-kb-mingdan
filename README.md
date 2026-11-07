@@ -25,10 +25,57 @@
 | GitHub Pages 已完团（仅管理员） | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html |
 | GitHub Pages 模糊订单 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/upload.html |
 | GitHub Pages 账号管理（仅管理员） | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/accounts.html |
+| GitHub Pages 传名单 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/roster.html |
+| GitHub Pages 对账 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/recon.html |
 | 帽子云上传 | https://mingdanupload-10m363dc.maozi.io/upload |
 | 仓库 | https://github.com/qinfan079325-rgb/tourism-kb-mingdan |
 
 所有日期默认折叠，点天头展开。页顶可互相切换。
+
+## 传名单 / 对账
+
+这两页不进散客看板，也不进 `upload.html` 导航。传名单是签单同事把名单交给总助买保险；对账是按清算表单独算钱。
+
+| 页 | 地址 |
+|---|---|
+| 传名单 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/roster.html |
+| 对账 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/recon.html |
+
+页面合并进 `main` 后才会出现在 GitHub Pages。帽子云目前只反代 `/drafts` 和 `/ocr`，这两页请走上面的 Pages 地址。
+
+### 怎么试传名单
+
+传名单页不用登录，也没有团号。
+
+1. 打开传名单页。日期填 `11.6`。起保日会变成第二天，承保天数默认 3，止保日含起保当天。这三项都能改。承保时间不同的人要单独再交一单，因为保险分开买。
+2. 国内身份证整段粘贴后点「识别名单」。护照、港澳台、外籍在下面逐行填姓名、证件类型、证件号码、性别、出生日期。
+3. 填参加线路和人均。队长整团把人均填 `0`，或勾选「队长」。总金额按不含队长的人数计算。
+4. 点「提交给助手」。成功时列出线路、人数、队长、总金额、起保日、止保日、天数。
+
+提交之后的实际路径：
+
+1. 浏览器直接 `POST /roster` 到 `https://tourism-kb-id-ocr.qinfan079325.workers.dev/roster`。这一页不登录。对账页的读取仍要看板登录。
+2. Worker 把这一组写入 D1 表 `signed_rosters`。队长记 `is_captain` / `is_gift`。人均为 0 的整组都算赠送。总金额只算不赠送的人。
+3. Worker 再调用已经在用的保险名单通知：`INSURANCE_ROUTINE_WEBHOOK_URL`，事件 `insurance_list_submitted`，`via=roster`，`auto_order=false`。正文是 `[保险名单通知]`，里面有起保日、止保日、承保天数、线路和客人。队长仍在名单里，并单独标出。
+4. 总助的「保险名单通知」例程收到后，就可以按这份名单去 chinatourins.com 买保险。这个网站不会自己下单。
+
+通知失败时名单仍然留在库里，页面会写明没通知到。本页「助手已收到的名单」可读最近 20 条。
+
+### 怎么试对账
+
+打开对账页，选日期，点「读取这一天」。人数按传名单分成三档，队长不在任何一档里。也可以手工改人数。公式和清算表一致：
+
+- 80总额 = 80人数 × 80
+- 少总额 = 少人头 × 60
+- 外籍总额 = 外籍人数 × 160
+- 合计金额 = 上面三项相加
+- 系统当日金额 = 系统当日总额 − 系统前日总额（前日空按 0）
+- 差额 = 系统当日金额 − 合计金额 + 手续费
+- 返款 = 80人数×35 + 少人头×20 + 外籍人数×85 + 差异金额
+
+差额是算出来的，差异金额要手填，返款加的是差异金额。清算表前半段少人头返款是 25、外籍返款是 0，页面上可以切到「早期系数」。保存走 `POST /recon`，按日期写 D1 表 `recon_days`。
+
+`node roster-math.test.js` 用清算表里的几天对过这些公式。
 
 ## 未出团字段
 

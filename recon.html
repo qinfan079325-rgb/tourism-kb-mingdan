@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex,nofollow" />
+<title>对账</title>
+<style>
+  :root {
+    --bg:#0f1419; --card:#1a2332; --card2:#243044; --line:#2d3a4f;
+    --ink:#e7ecf3; --muted:#9aa4b2; --pri:#3b82f6; --ok:#10b981; --warn:#f59e0b;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:1280px; margin:0 auto; padding:20px 16px 64px; }
+  h1 { font-size:22px; margin:0 0 6px; color:#fff; }
+  h2 { font-size:16px; margin:0 0 8px; }
+  .sub, .hint { color:var(--muted); font-size:13px; line-height:1.6; }
+  .purpose { background:#142033; border:1px solid #245; border-radius:14px; padding:14px 16px; margin-bottom:14px; line-height:1.65; font-size:14px; }
+  .purpose b { color:#fff; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+  .row > div { flex:1; min-width:140px; }
+  input[type=text], input[type=date], input[type=number] {
+    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:10px; font-size:14px;
+    background:var(--card2); color:var(--ink);
+  }
+  input:focus { outline:none; border-color:var(--pri); }
+  button { border:1px solid var(--line); border-radius:10px; padding:10px 16px; font-size:14px; cursor:pointer; background:var(--card2); color:var(--ink); }
+  button.primary { background:var(--pri); border-color:var(--pri); color:#fff; }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center; }
+  .sheet-wrap { overflow:auto; border:1px solid var(--line); border-radius:10px; }
+  table.sheet { border-collapse:collapse; font-size:12px; min-width:1180px; }
+  table.sheet th, table.sheet td { border:1px solid var(--line); padding:6px; text-align:left; vertical-align:top; }
+  table.sheet th { color:var(--muted); font-weight:600; background:#121a24; white-space:nowrap; }
+  table.sheet input { min-width:68px; }
+  table.sheet input.wide { min-width:108px; }
+  .calc { font-weight:700; color:#fff; padding-top:8px; display:block; }
+  .calc.big { color:var(--warn); }
+  .gift { color:#fde68a; }
+  .toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:12px 16px; border-radius:10px; font-size:13px; max-width:380px; display:none; z-index:50; border:1px solid var(--line); }
+  .toast.show { display:block; }
+  .toast.ok { background:#065f46; border-color:#047857; }
+  .toast.err { background:#7f1d1d; border-color:#991b1b; }
+  .build { font-size:11px; color:#6b7280; margin-top:18px; }
+  .hidden { display:none !important; }
+  body.locked { overflow:hidden; }
+  body.locked #app { visibility:hidden; pointer-events:none; max-height:0; overflow:hidden; margin:0; padding:0; }
+  .auth-gate { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(8,12,18,.92); }
+  .auth-card { width:100%; max-width:360px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px 20px 18px; }
+  .auth-card h2 { margin:0 0 6px; font-size:1.15rem; color:#fff; }
+  .auth-hint { color:var(--muted); font-size:13px; margin:0 0 16px; }
+  .auth-card input[type=text], .auth-card input[type=password] {
+    width:100%; background:var(--card2); border:1px solid var(--line); color:var(--ink);
+    border-radius:10px; padding:11px 12px; font-size:15px; outline:none; margin-bottom:12px;
+  }
+  .auth-card .auth-submit { width:100%; background:var(--pri); border:1px solid var(--pri); color:#fff; border-radius:10px; padding:11px 12px; font-size:15px; cursor:pointer; }
+  .auth-err { color:#fecaca; background:#7f1d1d; border:1px solid #991b1b; border-radius:8px; padding:8px 10px; font-size:13px; margin:0 0 12px; }
+  .days button { padding:6px 10px; font-size:12px; }
+</style>
+</head>
+<body class="locked">
+<div id="authGate" class="auth-gate" aria-modal="true" role="dialog" aria-labelledby="authTitle">
+  <div class="auth-card">
+    <h2 id="authTitle">对账</h2>
+    <p class="auth-hint">按清算表对一天的钱。与传名单分开。</p>
+    <div id="authErr" class="auth-err hidden"></div>
+    <form id="authForm" autocomplete="on">
+      <label for="authUser">用户名</label>
+      <input type="text" id="authUser" name="username" autocomplete="username" required placeholder="请输入用户名" />
+      <label for="authPass">密码</label>
+      <input type="password" id="authPass" name="password" autocomplete="current-password" required placeholder="请输入密码" />
+      <button type="submit" class="auth-submit">登录</button>
+    </form>
+  </div>
+</div>
+<div id="app" class="wrap">
+  <nav class="nav">
+    <a href="roster.html">传名单</a>
+    <a class="active" href="recon.html">对账</a>
+    <span class="auth-who" id="authWho"></span>
+    <button type="button" class="btn-logout" id="btnLogout">退出</button>
+  </nav>
+  <h1>对账</h1>
+  <div class="purpose">
+    这一页只做清算，不买保险，也不进散客看板。人数从<b>传名单</b>来，也可以改。
+    <b>队长/赠送（金额 0）不进 80 人数、少人头、外籍，也不进合计和返款。</b>
+    他们仍留在传名单里，助手买保险时要包含。
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="reconDate">日期</label>
+        <input id="reconDate" type="date" />
+      </div>
+      <div class="actions" style="margin:0">
+        <button class="primary" id="btnLoad" type="button">读取这一天</button>
+        <button id="btnFill" type="button">用传名单人数</button>
+      </div>
+    </div>
+    <div class="hint" id="suggest">选择日期后，这里会列出当天传名单里的线路、队长赠送和三个档的人数。</div>
+  </div>
+
+  <div class="card">
+    <h2>单价和返款系数</h2>
+    <div class="row">
+      <div><label for="rate80">80 元档单价</label><input id="rate80" type="text" inputmode="decimal" value="80" /></div>
+      <div><label for="rateReduced">人头标准（少人头）</label><input id="rateReduced" type="text" inputmode="decimal" value="60" /></div>
+      <div><label for="rateForeign">外籍标准</label><input id="rateForeign" type="text" inputmode="decimal" value="160" /></div>
+      <div><label for="rebate80">80 人档返款</label><input id="rebate80" type="text" inputmode="decimal" value="35" /></div>
+      <div><label for="rebateReduced">少人头返款</label><input id="rebateReduced" type="text" inputmode="decimal" value="20" /></div>
+      <div><label for="rebateForeign">外籍返款</label><input id="rebateForeign" type="text" inputmode="decimal" value="85" /></div>
+    </div>
+    <div class="actions">
+      <button type="button" id="btnCurrent">现行系数 35 / 20 / 85</button>
+      <button type="button" id="btnEarly">早期系数 35 / 25 / 0</button>
+    </div>
+    <div class="hint">清算表后期返款是 80人数×35 + 少人头×20 + 外籍人数×85 + 差异金额。前半段少人头系数是 25，外籍还没单列返款。外籍标准若不是 160（表里出现过 40），请自己改外籍返款。</div>
+  </div>
+
+  <div class="card">
+    <div class="sheet-wrap">
+      <table class="sheet">
+        <thead>
+          <tr>
+            <th>日期</th><th>80人数</th><th>80总额</th><th>少人头</th><th>人头标准</th><th>少总额</th>
+            <th>外籍160</th><th>外籍标准</th><th>外籍总额</th><th>合计金额</th>
+            <th>系统当日总额</th><th>系统前日总额</th><th>系统当日金额</th><th>手续费</th>
+            <th>差额</th><th>差额说明</th><th>差异金额</th><th>返款</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td id="cellDate">—</td>
+            <td><input id="count80" type="text" inputmode="numeric" value="0" /></td>
+            <td><span class="calc" id="amount80">0</span></td>
+            <td><input id="countReduced" type="text" inputmode="numeric" value="0" /></td>
+            <td><span class="calc" id="showReduced">60</span></td>
+            <td><span class="calc" id="amountReduced">0</span></td>
+            <td><input id="countForeign" type="text" inputmode="numeric" value="0" /></td>
+            <td><span class="calc" id="showForeign">160</span></td>
+            <td><span class="calc" id="amountForeign">0</span></td>
+            <td><span class="calc" id="totalAmount">0</span></td>
+            <td><input class="wide" id="systemTotal" type="text" inputmode="decimal" placeholder="0" /></td>
+            <td><input class="wide" id="systemPrev" type="text" inputmode="decimal" placeholder="空=0" /></td>
+            <td><span class="calc" id="systemDay">0</span></td>
+            <td><input id="fee" type="text" inputmode="decimal" placeholder="0" /></td>
+            <td><span class="calc" id="rawDiff">0</span></td>
+            <td><input class="wide" id="diffNote" type="text" placeholder="差240 / 多80" /></td>
+            <td><input id="diffAmount" type="text" inputmode="decimal" placeholder="0" /></td>
+            <td><span class="calc" id="refundAmount">0</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint" id="formula"></p>
+    <p class="hint">差额 = 系统当日金额 − 合计金额 + 手续费，只展示，不自动写进返款。差异金额要手填（表里大额差才记，几块钱的手续费零头通常记 0），返款才加上这一格。新的一天如果系统总额从头计，把系统前日总额留空。</p>
+    <div class="actions">
+      <button class="primary" id="btnSave" type="button">保存这一天</button>
+      <span class="hint" id="saveState" style="margin:0"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>已保存的日期</h2>
+    <div class="days" id="days">登录后显示。</div>
+  </div>
+  <div class="build" id="buildLabel"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="auth.js"></script>
+<script src="roster-math.js?v=20261107"></script>
+<script>
+(function () {
+  var BUILD = "2026-11-07";
+  var WORKER = "https://tourism-kb-id-ocr.qinfan079325.workers.dev";
+  var M = window.RosterMath;
+  var suggestion = null;
+  document.getElementById("buildLabel").textContent = "对账 · build " + BUILD;
+  function $(id) { return document.getElementById(id); }
+  function toast(msg, kind) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.className = "toast show" + (kind ? " " + kind : "");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { el.className = "toast"; }, 4800);
+  }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function workerBase() {
+    try {
+      var h = location.hostname || "";
+      if (h === "maozi.io" || h.endsWith(".maozi.io")) return "";
+    } catch (e) {}
+    return WORKER;
+  }
+  function headers() {
+    var h = { Accept: "application/json" };
+    var extra = (window.MingdanAuth && MingdanAuth.authHeaders && MingdanAuth.authHeaders()) || {};
+    Object.keys(extra).forEach(function (k) { h[k] = extra[k]; });
+    return h;
+  }
+  var ERRORS = {
+    date_required: "请选择日期",
+    unauthorized: "请重新登录",
+    csrf_invalid: "登录已过期，请刷新后再保存",
+    origin_not_allowed: "这个网址还不能保存",
+    d1_not_configured: "保存服务没接上"
+  };
+  function errText(data, status) {
+    return ERRORS[data && data.error] || (data && data.error) || ("请求失败（" + status + "）");
+  }
+  async function api(path, method, body) {
+    var opts = { method: method, credentials: "include", headers: headers() };
+    if (body) {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    var res = await fetch(workerBase() + path, opts);
+    var data = await res.json().catch(function () { return { ok: false, error: "bad_response" }; });
+    return { status: res.status, data: data };
+  }
+  function readInputs() {
+    return {
+      count_80: $("count80").value,
+      count_reduced: $("countReduced").value,
+      count_foreign: $("countForeign").value,
+      rate_80: $("rate80").value,
+      rate_reduced: $("rateReduced").value,
+      rate_foreign: $("rateForeign").value,
+      rebate_80: $("rebate80").value,
+      rebate_reduced: $("rebateReduced").value,
+      rebate_foreign: $("rebateForeign").value,
+      system_total: $("systemTotal").value,
+      system_prev: $("systemPrev").value,
+      fee: $("fee").value,
+      diff_amount: $("diffAmount").value,
+      diff_note: $("diffNote").value
+    };
+  }
+  function applyPreset(name) {
+    var p = M.PRESETS[name];
+    $("rebate80").value = p.rebate_80;
+    $("rebateReduced").value = p.rebate_reduced;
+    $("rebateForeign").value = p.rebate_foreign;
+    recompute();
+  }
+  function recompute() {
+    var rec = M.computeRecon(readInputs());
+    $("amount80").textContent = rec.amount_80;
+    $("amountReduced").textContent = rec.amount_reduced;
+    $("amountForeign").textContent = rec.amount_foreign;
+    $("totalAmount").textContent = rec.total_amount;
+    $("systemDay").textContent = rec.system_day;
+    $("rawDiff").textContent = rec.raw_diff;
+    $("refundAmount").textContent = rec.refund_amount;
+    $("showReduced").textContent = rec.rate_reduced;
+    $("showForeign").textContent = rec.rate_foreign;
+    var gap = Math.abs(M.toCents(rec.raw_diff) || 0);
+    $("rawDiff").classList.toggle("big", gap >= 1500);
+    $("formula").textContent =
+      "80总额 = 80人数 × " + rec.rate_80 +
+      "；少总额 = 少人头 × " + rec.rate_reduced +
+      "；外籍总额 = 外籍人数 × " + rec.rate_foreign +
+      "；合计金额 = " + rec.amount_80 + " + " + rec.amount_reduced + " + " + rec.amount_foreign + " = " + rec.total_amount +
+      "；系统当日金额 = " + rec.system_total + " − " + rec.system_prev + " = " + rec.system_day +
+      "；差额 = " + rec.system_day + " − " + rec.total_amount + " + " + rec.fee + " = " + rec.raw_diff +
+      "；返款 = " + rec.count_80 + "×" + rec.rebate_80 + " + " + rec.count_reduced + "×" + rec.rebate_reduced + " + " + rec.count_foreign + "×" + rec.rebate_foreign + " + " + rec.diff_amount + " = " + rec.refund_amount;
+    var iso = $("reconDate").value;
+    $("cellDate").textContent = iso ? (M.shortDate(iso) + " / " + iso) : "—";
+    return rec;
+  }
+  function renderSuggestion() {
+    var el = $("suggest");
+    var agg = suggestion;
+    if (!agg || !agg.insurance_count) {
+      el.textContent = "这一天还没有传名单。人数可以手工填。队长不要算进任何一档。";
+      return;
+    }
+    var giftNames = agg.gifts.slice(0, 12).map(function (g) { return g.name; }).join("、");
+    var other = agg.other.length ? ("另有 " + agg.other.length + " 人单价不是 80 / 60 / 160，没有自动进合计。") : "";
+    el.innerHTML = "传名单 " + agg.insurance_count + " 人，线路 " + esc(agg.routes.join("、") || "—") +
+      "。可入账：80 人数 <b>" + agg.count_80 + "</b>，少人头 <b>" + agg.count_reduced + "</b>，外籍 <b>" + agg.count_foreign + "</b>。" +
+      " <span class=\"gift\">队长赠送 " + agg.gift_count + " 人不对账" + (giftNames ? "：" + esc(giftNames) : "") + (agg.gifts.length > 12 ? " 等" : "") + "。</span> " + esc(other);
+  }
+  function applyCounts() {
+    if (!suggestion) return;
+    $("count80").value = String(suggestion.count_80);
+    $("countReduced").value = String(suggestion.count_reduced);
+    $("countForeign").value = String(suggestion.count_foreign);
+    recompute();
+  }
+  function fillRecord(rec) {
+    $("count80").value = rec.count_80;
+    $("countReduced").value = rec.count_reduced;
+    $("countForeign").value = rec.count_foreign;
+    $("rate80").value = rec.rate_80;
+    $("rateReduced").value = rec.rate_reduced;
+    $("rateForeign").value = rec.rate_foreign;
+    $("rebate80").value = rec.rebate_80;
+    $("rebateReduced").value = rec.rebate_reduced;
+    $("rebateForeign").value = rec.rebate_foreign;
+    $("systemTotal").value = rec.system_total;
+    $("systemPrev").value = rec.system_prev;
+    $("fee").value = rec.fee;
+    $("diffAmount").value = rec.diff_amount;
+    $("diffNote").value = rec.diff_note || "";
+    recompute();
+  }
+  async function loadDay() {
+    var iso = $("reconDate").value;
+    if (!iso) { toast("请选择日期", "err"); return; }
+    $("saveState").textContent = "读取中…";
+    try {
+      var roster = await api("/roster?date_iso=" + encodeURIComponent(iso), "GET");
+      var recon = await api("/recon?date_iso=" + encodeURIComponent(iso), "GET");
+      if (!roster.data.ok) { toast(errText(roster.data, roster.status), "err"); return; }
+      if (!recon.data.ok) { toast(errText(recon.data, recon.status), "err"); return; }
+      suggestion = M.aggregateForRecon(roster.data.batches || []);
+      renderSuggestion();
+      if (recon.data.record) {
+        fillRecord(recon.data.record);
+        $("saveState").textContent = "这天已保存过，改完可以再存。";
+      } else {
+        applyCounts();
+        if (!$("systemPrev").value && recon.data.previous && recon.data.previous.system_total) {
+          $("systemPrev").value = recon.data.previous.system_total;
+        }
+        recompute();
+        $("saveState").textContent = recon.data.previous ? ("系统前日总额先填了 " + recon.data.previous.date_iso + " 的系统当日总额，新周期请清空。") : "这天还没保存。";
+      }
+    } catch (e) {
+      toast("网络异常", "err");
+      $("saveState").textContent = "";
+    }
+  }
+  async function loadDays() {
+    try {
+      var out = await api("/recon", "GET");
+      var host = $("days");
+      var days = (out.data && out.data.days) || [];
+      if (!out.data.ok) { host.textContent = errText(out.data, out.status); return; }
+      if (!days.length) { host.textContent = "还没有保存过对账。"; return; }
+      host.innerHTML = "";
+      days.forEach(function (d) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = (d.batch_date || d.date_iso) + " 合计" + d.total_amount + " 返款" + d.refund_amount;
+        btn.onclick = function () {
+          $("reconDate").value = d.date_iso;
+          loadDay();
+        };
+        host.appendChild(btn);
+      });
+    } catch (e) {
+      $("days").textContent = "日期列表没有载入。";
+    }
+  }
+  ["count80", "countReduced", "countForeign", "rate80", "rateReduced", "rateForeign", "rebate80", "rebateReduced", "rebateForeign", "systemTotal", "systemPrev", "fee", "diffAmount", "diffNote"].forEach(function (id) {
+    $(id).addEventListener("input", recompute);
+  });
+  $("reconDate").addEventListener("change", function () { recompute(); });
+  $("btnLoad").onclick = loadDay;
+  $("btnFill").onclick = function () {
+    if (!suggestion || !suggestion.insurance_count) { toast("这一天没有传名单可填", "err"); return; }
+    applyCounts();
+    toast("已按传名单填人数，队长没有算进去", "ok");
+  };
+  $("btnCurrent").onclick = function () { applyPreset("current"); };
+  $("btnEarly").onclick = function () { applyPreset("early"); };
+  $("btnSave").onclick = async function () {
+    var iso = $("reconDate").value;
+    if (!iso) { toast("请选择日期", "err"); return; }
+    var btn = $("btnSave");
+    btn.disabled = true;
+    try {
+      var body = readInputs();
+      body.date_iso = iso;
+      body.date = M.shortDate(iso);
+      body.account = (window.MingdanAuth && MingdanAuth.currentUser && MingdanAuth.currentUser()) || "";
+      body.gift_count = suggestion ? suggestion.gift_count : 0;
+      body.insurance_count = suggestion ? suggestion.insurance_count : 0;
+      body.other_count = suggestion ? suggestion.other.length : 0;
+      body.routes = suggestion ? suggestion.routes : [];
+      var out = await api("/recon", "POST", body);
+      if (!out.data.ok || !out.data.record) { toast(errText(out.data, out.status), "err"); return; }
+      var rec = out.data.record;
+      fillRecord(rec);
+      $("saveState").textContent = "已保存。合计 " + rec.total_amount + "，差额 " + rec.raw_diff + "，返款 " + rec.refund_amount + "。队长 " + (rec.gift_count || 0) + " 人未计入。";
+      toast("这一天已保存", "ok");
+      loadDays();
+    } catch (e) {
+      toast("网络异常", "err");
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  recompute();
+  MingdanAuth.require(function () { loadDays(); });
+})();
+</script>
+</body>
+</html>
