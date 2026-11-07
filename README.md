@@ -4,21 +4,23 @@
 
 | 页 | 说明 |
 |---|---|
-| [未出团](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/) | 出团日期 ≥ 今天；按出团日折叠 |
-| [已完团](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html) | 公开页已撤下名单（说明页）。员工不可看已完团数据 |
+| [未出团](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/) | 登录后读取 `GET /api/board-kb/upcoming`；按出团日折叠 |
+| [已完团](https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html) | 仅管理员。登录后读取 `GET /api/board-kb/completed`；页面不嵌名单 |
 
 对外名称：**散客数据看板**。与公开收客看板 `tourism-kb-shouke` **完全分离**（独立仓库），不写入 shouke 首页。URL 路径仍为 `tourism-kb-mingdan`。
 
 ## 访问（需登录）
 
-打开页面需输入**用户名 + 密码**。登录打到 Worker 最小账号（`/api/login`、`/api/me`），会话是服务端 Cookie，CSRF 只留在页面内存，不写入 `localStorage`。未出团名单不在本仓库 HTML 里，登录后由同源会话读取 `GET /api/board-kb/upcoming`（`{ok:true,kind:"upcoming",board:...}`）。帽子云走同源 `/api`；GitHub Pages 的相对 `/api` 会落到静态站 404，因此改用 `workerUrl`：`https://tourism-kb-id-ocr.qinfan079325.workers.dev`。
+打开页面需输入**用户名 + 密码**。登录打到 Worker（`POST /api/login`、`GET /api/me`、`POST /api/logout`），会话是服务端 Cookie，CSRF 只留在页面内存，不写入 `localStorage`。未出团 / 已完团名单不在本仓库 HTML 里，登录后读取 `GET /api/board-kb/upcoming` 与（仅管理员）`GET /api/board-kb/completed`，响应形如 `{ok:true,kind:"upcoming",board:...}`。帽子云走同源 `/api`；GitHub Pages 改打 `https://tourism-kb-id-ocr.qinfan079325.workers.dev/api`。
 
-员工可看未出团、模糊订单、保险名单上传。已完团入口只给管理员；公开 `completed.html` 仍是撤下名单的说明页，没有客人数据。初始管理员只有秦凡（在 Worker 上，不在本静态站初始化）。
+管理员登录后，各页有「管理员工具 / 账号管理」：用户名、密码、角色（普通用户 / 管理员）和「添加人员」，以及账号表上的删除。普通用户提交为 Worker 角色 `staff`。创建时密码只要非空。不能删除初始管理员秦凡，也不能删除自己。初始管理员只有秦凡（Worker `POST /api/setup` 创建，静态页不初始化）。
+
+普通用户可看未出团、模糊订单、保险名单。导航不显示「已完团」；直接打开 `completed.html` 只看到「仅管理员可查看已完团」，不会请求已完团数据。
 
 | 项 | 值 |
 |---|---|
 | GitHub Pages 未出团 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/ |
-| GitHub Pages 已完团（已关闭） | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html |
+| GitHub Pages 已完团（仅管理员） | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/completed.html |
 | GitHub Pages 模糊订单 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/upload.html |
 | GitHub Pages 保险名单 | https://qinfan079325-rgb.github.io/tourism-kb-mingdan/insurance.html |
 | 帽子云上传 | https://mingdanupload-10m363dc.maozi.io/upload |

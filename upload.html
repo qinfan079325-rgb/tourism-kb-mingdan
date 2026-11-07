@@ -513,8 +513,9 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
   <div class="banner">模糊订单 · 待办跟账号 · 销售确认后全员可见 · 录易途 · 未出团以钉钉为准</div>
   <nav class="nav">
     <a href="index.html">未出团</a>
-    <a href="completed.html">已完团</a>
+    <a class="admin-only" href="completed.html" hidden>已完团</a>
     <a class="active" href="upload.html">模糊订单</a>
+    <a href="insurance.html">保险名单</a>
     <span class="auth-who" id="authWho"></span>
     <button type="button" class="btn-logout" id="btnLogout">退出</button>
   </nav>
@@ -661,145 +662,38 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
       客服对接
     </button>
   </div>
-  <div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-05 23:15 Asia/Shanghai</div>
+    <section id="accountAdmin" aria-label="管理员工具" hidden>
+    <h2>管理员工具</h2>
+    <p class="admin-hint">账号管理。仅管理员可见。普通用户可使用未出团、模糊订单、保险名单，不能查看已完团。不能删除初始管理员秦凡，也不能删除自己。</p>
+    <div class="admin-card">
+      <h3>账号管理</h3>
+      <form id="adminAddUser" class="admin-form" autocomplete="off">
+        <div class="field">
+          <label for="adminNewName">用户名</label>
+          <input id="adminNewName" name="username" type="text" maxlength="80" required placeholder="姓名或账号" />
+        </div>
+        <div class="field">
+          <label for="adminNewPassword">密码</label>
+          <input id="adminNewPassword" name="new-password" type="password" maxlength="128" autocomplete="new-password" required placeholder="初始密码" />
+        </div>
+        <div class="field">
+          <label for="adminNewRole">角色</label>
+          <select id="adminNewRole" name="role">
+            <option value="staff" selected>普通用户</option>
+            <option value="admin">管理员</option>
+          </select>
+        </div>
+        <button class="admin-add-btn" type="submit">添加人员</button>
+      </form>
+      <div id="adminNotice" role="status" aria-live="polite"></div>
+      <div id="adminUsers"></div>
+    </div>
+  </section>
+
+<div class="footer">登录 · 待办跟账号 · 确认后全员 · build 2026-11-05 23:15 Asia/Shanghai</div>
 </div>
 
-<script>
-/* 散客看板前端门禁：SHA-256(盐|用户名|密码) 与内置哈希比对；非后端鉴权。 */
-const MingdanAuth = (function () {
-  const SALT = "mingdan-hpy";
-  const STORE_KEY = "mingdan_auth_v1";
-  // 用户名 → SHA-256 hex；密码不明文入库
-  const HASHES = {
-    "刘波": "cbd34ff9d84bf2616e4be21a9857ec4a488a56ee7fb6736805e21089f00432f6",
-    "彭程": "4f127fd6fd0c931574d0b4e930d2cc0ebb2cd2a283e34bbec0b5a861ee1cfd4b",
-    "秦凡": "05be8c1ec619aabdb50dfde3c2fa8a49b4008e75b1bb0df57c68bb9f49d75ae3",
-    "张浩": "d77c36e31a33c47a72bad84260c1e7108ea4d6bcae62e390b10fdf89b76b3370",
-    "江海兰": "b893f5d93cf5834ef048033d23315ce654135ef2a985bbab2807563b3cbe08dc",
-  };
-
-  function currentUser() {
-    try {
-      return sessionStorage.getItem(STORE_KEY) || "";
-    } catch (e) {
-      return "";
-    }
-  }
-
-  function setUser(name) {
-    try {
-      sessionStorage.setItem(STORE_KEY, name);
-    } catch (e) {}
-  }
-
-  function clearUser() {
-    try {
-      sessionStorage.removeItem(STORE_KEY);
-    } catch (e) {}
-  }
-
-  async function sha256Hex(text) {
-    const buf = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(text)
-    );
-    return Array.from(new Uint8Array(buf))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-
-  async function verify(user, pass) {
-    const name = String(user || "").trim();
-    if (!name || !HASHES[name]) return false;
-    const hex = await sha256Hex(SALT + "|" + name + "|" + String(pass || ""));
-    return hex === HASHES[name];
-  }
-
-  function unlockUI(name) {
-    document.body.classList.remove("locked");
-    const gate = document.getElementById("authGate");
-    if (gate) gate.classList.add("hidden");
-    const who = document.getElementById("authWho");
-    if (who) who.textContent = name ? "已登录：" + name : "";
-  }
-
-  function lockUI() {
-    document.body.classList.add("locked");
-    const gate = document.getElementById("authGate");
-    if (gate) gate.classList.remove("hidden");
-  }
-
-  function logout() {
-    clearUser();
-    location.reload();
-  }
-
-  function bindForm(onOk) {
-    const form = document.getElementById("authForm");
-    const err = document.getElementById("authErr");
-    const userEl = document.getElementById("authUser");
-    const passEl = document.getElementById("authPass");
-    if (!form) return;
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      if (err) {
-        err.textContent = "";
-        err.classList.add("hidden");
-      }
-      const btn = form.querySelector('button[type="submit"]');
-      if (btn) btn.disabled = true;
-      try {
-        const user = (userEl && userEl.value) || "";
-        const pass = (passEl && passEl.value) || "";
-        const ok = await verify(user, pass);
-        if (!ok) {
-          if (err) {
-            err.textContent = "用户名或密码不正确";
-            err.classList.remove("hidden");
-          }
-          if (passEl) {
-            passEl.value = "";
-            passEl.focus();
-          }
-          return;
-        }
-        const name = String(user).trim();
-        setUser(name);
-        unlockUI(name);
-        if (typeof onOk === "function") onOk(name);
-      } catch (ex) {
-        if (err) {
-          err.textContent = "当前浏览器不支持安全校验，请换新版 Chrome / Safari";
-          err.classList.remove("hidden");
-        }
-      } finally {
-        if (btn) btn.disabled = false;
-      }
-    });
-  }
-
-  function require(onOk) {
-    const name = currentUser();
-    const logoutBtn = document.getElementById("btnLogout");
-    if (logoutBtn) logoutBtn.addEventListener("click", logout);
-    if (name && HASHES[name]) {
-      unlockUI(name);
-      if (typeof onOk === "function") onOk(name);
-      return;
-    }
-    if (name) clearUser();
-    lockUI();
-    bindForm(onOk);
-    const userEl = document.getElementById("authUser");
-    if (userEl) userEl.focus();
-  }
-
-  const api = { require, logout, currentUser };
-  try { if (typeof window !== "undefined") window.MingdanAuth = api; } catch (e) {}
-  return api;
-})();
-
-</script>
+<script src="auth.js"></script>
 <script>
 
 /* 模糊订单上传：独立页 upload.html。仅为草稿·待办跟登录账号（Cloudflare KV）；销售确认后进全员共享 drafts:v1:shared_confirmed；改单流程见 STATUS。不写入未出团 DATA。 */
