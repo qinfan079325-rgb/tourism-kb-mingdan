@@ -31,7 +31,7 @@ const MingdanAuth = (function () {
     const byCode = {
       username_or_password_incorrect: "用户名或密码不正确",
       invalid_credentials: "用户名或密码不正确",
-      must_change_password: "服务端仍标记必须先改密码。页面不再提供改密步骤；初始化时不要打开该标记，用原密码登录。",
+      must_change_password: "服务端仍要求先改密码，因此业务接口会拒绝。静态页不再提供改密步骤。",
       completed_admin_only: "仅管理员可查看已完团",
       csrf_invalid: "会话校验已失效，请刷新后重试",
       rate_limited: "尝试次数太多，请稍后再试",
