@@ -194,7 +194,7 @@ function deriveRosterId(idNo) {
   return { gender: Number(s.charAt(16)) % 2 === 0 ? "女" : "男", birth: y + "-" + m + "-" + d };
 }
 
-async function readJson(request) {
+async function rosterReadJson(request) {
   const len = Number(request.headers.get("Content-Length") || 0);
   if (len > 700000) {
     const err = new Error("body_too_large");
@@ -231,7 +231,7 @@ function normalizeRosterGuests(body, perCents) {
 
 async function postRoster(request, env, cors) {
   let body;
-  try { body = await readJson(request); }
+  try { body = await rosterReadJson(request); }
   catch (err) {
     const code = err && err.code === "body_too_large" ? "body_too_large" : "invalid_json";
     return json3({ ok: false, error: code }, 400, cors);
@@ -414,7 +414,7 @@ async function getRoster(url, env, cors) {
 
 async function postRecon(request, env, cors) {
   let body;
-  try { body = await readJson(request); }
+  try { body = await rosterReadJson(request); }
   catch (err) {
     const code = err && err.code === "body_too_large" ? "body_too_large" : "invalid_json";
     return json3({ ok: false, error: code }, 400, cors);
