@@ -539,7 +539,8 @@ let DATA = {days:[], total_groups:0, total_people:0, total_kb:0};
 async function loadUpcomingBoard(){
   try {
     const payload = await MingdanAuth.api("/board-kb/upcoming");
-    const board = payload && payload.board && typeof payload.board === "object" ? payload.board : payload;
+    const nested = payload && (payload.data || payload.board);
+    const board = nested && typeof nested === "object" ? nested : payload;
     DATA = board || {days:[]};
     render();
   } catch (e) {
