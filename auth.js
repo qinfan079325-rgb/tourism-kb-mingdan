@@ -2,7 +2,8 @@
  * 帽子云同源 /api（网关反代）。GitHub Pages 及其它静态域名改打
  * https://tourism-kb-id-ocr.qinfan079325.workers.dev/api （credentials + CSRF）。
  * 账号管理对齐导游报账：用户名 / 密码 / 角色（普通用户|管理员）/ 添加人员，表格删除。
- * 不移植导游名单。普通用户对应 Worker role=staff。创建账号不强制 12 位。 */
+ * 不移植导游名单。普通用户对应 Worker role=staff。创建账号不强制 12 位。
+ * 登录成功即进入。不因 must_change_password 再拦改密，静态页也不提供开户。 */
 const MingdanAuth = (function () {
   const WORKER_ORIGIN = "https://tourism-kb-id-ocr.qinfan079325.workers.dev";
   const BOOTSTRAP_ADMIN = "秦凡";
@@ -11,7 +12,6 @@ const MingdanAuth = (function () {
   let csrf = "";
   let onLogin = null;
   let loggingIn = false;
-  let changePromise = null;
 
   function hostname() {
     try { return String(location.hostname || ""); } catch (_) { return ""; }
@@ -31,7 +31,7 @@ const MingdanAuth = (function () {
     const byCode = {
       username_or_password_incorrect: "用户名或密码不正确",
       invalid_credentials: "用户名或密码不正确",
-      must_change_password: "请先修改初始密码",
+      must_change_password: "服务端仍要求先改密码，因此业务接口会拒绝。静态页不再提供改密步骤。",
       completed_admin_only: "仅管理员可查看已完团",
       csrf_invalid: "会话校验已失效，请刷新后重试",
       rate_limited: "尝试次数太多，请稍后再试",
@@ -80,10 +80,6 @@ const MingdanAuth = (function () {
       lockUI();
       if (had) showGateError("登录已失效，请重新登录");
       throw new Error("登录已失效，请重新登录");
-    }
-    if (res.status === 403 && (d.must_change_password || d.error === "must_change_password") && !opts.skipPasswordGate) {
-      await promptPasswordChange();
-      return api(path, opts);
     }
     if (!res.ok || d.ok === false) throw new Error(message(d, res.status));
     return d;
@@ -181,7 +177,6 @@ const MingdanAuth = (function () {
       const pass = document.getElementById("authPass");
       if (pass) pass.value = "";
       session = d.user;
-      if (d.user.must_change_password) await promptPasswordChange();
       try {
         const me = await api("/me");
         if (me && me.user) session = me.user;
@@ -197,64 +192,6 @@ const MingdanAuth = (function () {
       loggingIn = false;
       if (btn) btn.disabled = false;
     }
-  }
-  async function promptPasswordChange() {
-    if (changePromise) return changePromise;
-    changePromise = new Promise((resolve) => {
-      const passwordGate = document.createElement("div");
-      passwordGate.className = "auth-gate";
-      passwordGate.setAttribute("role", "dialog");
-      passwordGate.setAttribute("aria-modal", "true");
-      passwordGate.setAttribute("aria-labelledby", "passwordTitle");
-      passwordGate.innerHTML =
-        '<div class="auth-card"><h2 id="passwordTitle">请先修改初始密码</h2><p class="auth-hint">至少12位，包含字母和数字；不能与当前密码相同。不要把密码发在聊天中。</p><div id="passwordErr" class="auth-err hidden" role="alert"></div><form id="passwordForm"><label for="oldPassword">当前密码</label><input id="oldPassword" name="current-password" type="password" maxlength="128" autocomplete="current-password" required><label for="newPassword">新密码</label><input id="newPassword" name="new-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required><label for="confirmPassword">再输入新密码</label><input id="confirmPassword" name="new-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required><button class="auth-submit" type="submit">保存新密码</button></form></div>';
-      document.body.appendChild(passwordGate);
-      const form = passwordGate.querySelector("form");
-      form.addEventListener("submit", async (ev) => {
-        ev.preventDefault();
-        const submitBtn = form.querySelector("button");
-        const err = passwordGate.querySelector("#passwordErr");
-        err.classList.add("hidden");
-        const current = document.getElementById("oldPassword").value;
-        const next = document.getElementById("newPassword").value;
-        if (next !== document.getElementById("confirmPassword").value) {
-          err.textContent = "两次输入的新密码不一致";
-          err.classList.remove("hidden");
-          return;
-        }
-        if (next === current) {
-          err.textContent = "新密码不能和当前密码相同";
-          err.classList.remove("hidden");
-          return;
-        }
-        if (next.length < 12 || !/[A-Za-z]/.test(next) || !/\d/.test(next)) {
-          err.textContent = "新密码至少12位，需含字母和数字";
-          err.classList.remove("hidden");
-          return;
-        }
-        submitBtn.disabled = true;
-        try {
-          const d = await api("/change-password", {
-            method: "POST",
-            body: { current_password: current, new_password: next },
-            skipPasswordGate: true,
-          });
-          captureCsrf(null, d);
-          if (d.user) session = Object.assign({}, session || {}, d.user, { must_change_password: false });
-          passwordGate.remove();
-          resolve(d);
-        } catch (e) {
-          err.textContent = e.message || "修改失败，请重试";
-          err.classList.remove("hidden");
-          submitBtn.disabled = false;
-        }
-      });
-      const oldEl = passwordGate.querySelector("#oldPassword");
-      if (oldEl) oldEl.focus();
-    });
-    return changePromise.finally(() => {
-      changePromise = null;
-    });
   }
   function require(callback) {
     injectStyles();
@@ -275,7 +212,6 @@ const MingdanAuth = (function () {
         if (!user) throw new Error("当前没有登录会话");
         captureCsrf(null, d);
         session = user;
-        if (user.must_change_password) await promptPasswordChange();
         unlockUI(session);
         if (onLogin) onLogin(session);
       })
@@ -421,7 +357,6 @@ const MingdanAuth = (function () {
     isAdmin: () => !!(session && session.role === "admin"),
     api,
     authHeaders,
-    promptPasswordChange,
   };
   try { if (typeof window !== "undefined") window.MingdanAuth = client; } catch (e) {}
   return client;

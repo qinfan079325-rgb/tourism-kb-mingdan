@@ -13,7 +13,9 @@
 
 打开页面需输入**用户名 + 密码**。登录打到 Worker（`POST /api/login`、`GET /api/me`、`POST /api/logout`），会话是服务端 Cookie，CSRF 只留在页面内存，不写入 `localStorage`。未出团 / 已完团名单不在本仓库 HTML 里，登录后读取 `GET /api/board-kb/upcoming` 与（仅管理员）`GET /api/board-kb/completed`，响应形如 `{ok:true,kind:"upcoming",board:...}`。帽子云走同源 `/api`；GitHub Pages 改打 `https://tourism-kb-id-ocr.qinfan079325.workers.dev/api`。
 
-管理员登录后，各页有「管理员工具 / 账号管理」：用户名、密码、角色（普通用户 / 管理员）和「添加人员」，以及账号表上的删除。普通用户提交为 Worker 角色 `staff`。创建时密码只要非空。不能删除初始管理员秦凡，也不能删除自己。初始管理员只有秦凡（Worker `POST /api/setup` 创建，静态页不初始化）。
+管理员登录后，各页有「管理员工具 / 账号管理」：用户名、密码、角色（普通用户 / 管理员）和「添加人员」，以及账号表上的删除。普通用户提交为 Worker 角色 `staff`。创建时密码只要非空。不能删除初始管理员秦凡，也不能删除自己。登录成功直接进入，不再强制修改初始密码。
+
+秦凡这一行账号不在静态页里。旧页面只在浏览器用哈希对口令，通过后 `sessionStorage` 只存用户名，没有可导入的服务端账户（线上 D1 `users=0`）。公开哈希不能当成密码。本仓库没有 Worker 源码，不能改 `doSetup`。线上脚本若在初始化时把 `must_change_password` 写成 1，只改静态页去弹窗并不能让登录后的业务通过。静态页不提供开户。
 
 普通用户可看未出团、模糊订单、保险名单。导航不显示「已完团」；直接打开 `completed.html` 只看到「仅管理员可查看已完团」，不会请求已完团数据。
 
