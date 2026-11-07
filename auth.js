@@ -35,7 +35,7 @@ const MingdanAuth = (function () {
       completed_admin_only: "仅管理员可查看已完团",
       csrf_invalid: "会话校验已失效，请刷新后重试",
       rate_limited: "尝试次数太多，请稍后再试",
-      password_too_weak: "新密码至少12位，需含字母和数字",
+      password_too_weak: "密码至少6位",
       forbidden: "没有权限执行这个操作",
       proxy_missing: "登录服务尚未接通，请联系管理员",
       network_error: "网络异常，请稍后重试",
