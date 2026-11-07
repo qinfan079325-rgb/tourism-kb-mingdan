@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex,nofollow" />
+<title>传名单给你</title>
+<style>
+  :root {
+    --bg:#0f1419; --card:#1a2332; --card2:#243044; --line:#2d3a4f;
+    --ink:#e7ecf3; --muted:#9aa4b2; --pri:#3b82f6; --ok:#10b981; --warn:#f59e0b; --danger:#ef4444;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:1100px; margin:0 auto; padding:20px 16px 64px; }
+  h1 { font-size:22px; margin:0 0 6px; color:#fff; }
+  h2 { font-size:16px; margin:0 0 8px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 14px; line-height:1.6; }
+  .purpose { background:#142033; border:1px solid #245; border-radius:14px; padding:14px 16px; margin-bottom:14px; line-height:1.65; font-size:14px; }
+  .purpose b { color:#fff; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; }
+  .row > div { flex:1; min-width:140px; }
+  input[type=text], input[type=date], input[type=number], textarea {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px;
+    background:var(--card2); color:var(--ink);
+  }
+  input:focus, textarea:focus { outline:none; border-color:var(--pri); }
+  textarea { min-height:180px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; line-height:1.45; resize:vertical; }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.55; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center; }
+  button {
+    border:1px solid var(--line); border-radius:10px; padding:10px 16px; font-size:14px; cursor:pointer;
+    background:var(--card2); color:var(--ink);
+  }
+  button.primary { background:var(--pri); border-color:var(--pri); color:#fff; }
+  button.danger { background:#3f1d1d; border-color:#7f1d1d; color:#fecaca; }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  .toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:12px 16px; border-radius:10px; font-size:13px; max-width:380px; display:none; z-index:50; border:1px solid var(--line); }
+  .toast.show { display:block; }
+  .toast.ok { background:#065f46; border-color:#047857; }
+  .toast.err { background:#7f1d1d; border-color:#991b1b; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { border-bottom:1px solid var(--line); padding:8px 6px; text-align:left; vertical-align:middle; }
+  th { color:var(--muted); font-weight:600; }
+  .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:10px; }
+  td input[type=text] { padding:6px 8px; font-size:13px; }
+  .seq { width:42px; color:var(--muted); text-align:center; }
+  .subgroup { border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:12px; background:#121a24; }
+  .subgroup h3 { margin:0 0 8px; font-size:14px; }
+  tr.captain td { background:#3b3414; color:#fde68a; }
+  .stats b { color:#fff; }
+  .okbox { border-color:#047857; }
+  .person-gift { color:#fde68a; }
+  .build { font-size:11px; color:#6b7280; margin-top:18px; }
+  .hidden { display:none !important; }
+  body.locked { overflow:hidden; }
+  body.locked #app { visibility:hidden; pointer-events:none; max-height:0; overflow:hidden; margin:0; padding:0; }
+  .auth-gate { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(8,12,18,.92); }
+  .auth-card { width:100%; max-width:360px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px 20px 18px; }
+  .auth-card h2 { margin:0 0 6px; font-size:1.15rem; color:#fff; }
+  .auth-hint { color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.5; }
+  .auth-card input[type=text], .auth-card input[type=password] {
+    width:100%; background:var(--card2); border:1px solid var(--line); color:var(--ink);
+    border-radius:10px; padding:11px 12px; font-size:15px; outline:none; margin-bottom:12px;
+  }
+  .auth-card .auth-submit { width:100%; background:var(--pri); border:1px solid var(--pri); color:#fff; border-radius:10px; padding:11px 12px; font-size:15px; cursor:pointer; }
+  .auth-err { color:#fecaca; background:#7f1d1d; border:1px solid #991b1b; border-radius:8px; padding:8px 10px; font-size:13px; margin:0 0 12px; }
+</style>
+</head>
+<body class="locked">
+<div id="authGate" class="auth-gate" aria-modal="true" role="dialog" aria-labelledby="authTitle">
+  <div class="auth-card">
+    <h2 id="authTitle">传名单给你</h2>
+    <p class="auth-hint">签单同事登录后，把名单提交给助手买保险。</p>
+    <div id="authErr" class="auth-err hidden"></div>
+    <form id="authForm" autocomplete="on">
+      <label for="authUser">用户名</label>
+      <input type="text" id="authUser" name="username" autocomplete="username" required placeholder="请输入用户名" />
+      <label for="authPass">密码</label>
+      <input type="password" id="authPass" name="password" autocomplete="current-password" required placeholder="请输入密码" />
+      <button type="submit" class="auth-submit">登录</button>
+    </form>
+  </div>
+</div>
+<div id="app" class="wrap">
+  <nav class="nav">
+    <a class="active" href="roster.html">传名单</a>
+    <a href="recon.html">对账</a>
+    <span class="auth-who" id="authWho"></span>
+    <button type="button" class="btn-logout" id="btnLogout">退出</button>
+  </nav>
+  <h1>传名单给你</h1>
+  <div class="purpose">
+    <b>提交后名单会发给助手用于买保险。</b>
+    助手凭这份名单到 chinatourins.com 购买保险。这不是散客看板，也不是同事之间互传名单。本页不会登录保险站，也不会自动下单。
+    <br />黄底、金额为 0 的<b>队长/赠送</b>仍发给助手（赠送保险要买），但本次人数和总金额不含他们，对账也不算他们。
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="dateText">日期</label>
+        <input id="dateText" type="text" placeholder="11.6" autocomplete="off" />
+      </div>
+      <div>
+        <label for="datePick">日历</label>
+        <input id="datePick" type="date" />
+      </div>
+      <div>
+        <label for="route">默认参加线路</label>
+        <input id="route" type="text" placeholder="如 九五6-9、纯享1-4" autocomplete="off" />
+      </div>
+      <div>
+        <label for="perPerson">默认人均金额</label>
+        <input id="perPerson" type="text" inputmode="decimal" placeholder="80；队长整团填 0" autocomplete="off" />
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label for="note">备注（选填，给助手看）</label>
+      <input id="note" type="text" placeholder="补充说明" autocomplete="off" />
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div>
+        <label for="coverStart">起保日</label>
+        <input id="coverStart" type="date" />
+      </div>
+      <div>
+        <label for="coverDays">承保天数</label>
+        <input id="coverDays" type="text" inputmode="numeric" value="3" />
+      </div>
+      <div>
+        <label for="coverEnd">止保日</label>
+        <input id="coverEnd" type="date" />
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" id="btnCoverDefault">恢复默认（次日起保 3 天）</button>
+    </div>
+    <div class="hint" id="dateHint"></div>
+    <div class="hint" id="coverHint">默认从名单日期的第二天起保，七宝常规保 3 天。个别名单可以改起保日、天数或止保日。</div>
+    <div class="hint">只粘姓名和身份证时，用上面的默认线路和人均。从签单表连单价、线路一起复制时，以每一组自己的为准。队长整组人均填 0。</div>
+  </div>
+
+  <div class="card">
+    <label for="paste">客人名单</label>
+    <textarea id="paste" placeholder="张三 110101199001011234&#10;李四 33010219881212567X&#10;&#10;或从签单表复制整行：姓名、身份证、人数、人均、总金额、线路"></textarea>
+    <div class="hint">大陆 18 位身份证可以整段粘贴。护照、港澳台请用下面的「手动添加」。空行会分成另一组。</div>
+    <div class="hint" id="rejectBox" style="display:none;color:var(--warn)"></div>
+    <div class="actions">
+      <button class="primary" id="btnParse" type="button">解析名单</button>
+      <button id="btnClearPaste" type="button">清空粘贴区</button>
+      <span class="stats" id="parseStats"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>手动添加（护照 / 港澳台 / 没能解析的一行）</label>
+    <div class="row">
+      <div><label for="mName">姓名</label><input id="mName" type="text" autocomplete="off" /></div>
+      <div><label for="mId">证件号码</label><input id="mId" type="text" autocomplete="off" /></div>
+      <div style="max-width:160px"><label for="mCaptain">队长/赠送</label><input id="mCaptain" type="checkbox" style="width:auto" /></div>
+    </div>
+    <div class="actions">
+      <button id="btnManual" type="button">添加到名单</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stats" id="tableStats">核对区还是空的。</div>
+    <div id="groups"></div>
+    <div class="actions">
+      <button class="primary" id="btnSubmit" type="button">提交给助手</button>
+      <button class="danger" id="btnClearRows" type="button">清空名单</button>
+    </div>
+  </div>
+
+  <div class="card okbox hidden" id="success"></div>
+
+  <div class="card">
+    <h2>助手已收到的名单</h2>
+    <div class="sub" style="margin:0">登录后可查看，复制姓名和身份证去 chinatourins.com 购买。队长赠送也在里面，买保险要包含，对账不要算。</div>
+    <div id="recent">登录后显示。</div>
+  </div>
+  <div class="build" id="buildLabel"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="auth.js"></script>
+<script src="roster-math.js?v=20261107"></script>
+<script>
+(function () {
+  var BUILD = "2026-11-07";
+  var WORKER = "https://tourism-kb-id-ocr.qinfan079325.workers.dev";
+  var M = window.RosterMath;
+  var groups = [];
+  var dateIso = "";
+  var coverAuto = { start: "", days: "", end: "" };
+  document.getElementById("buildLabel").textContent = "传名单给你 · build " + BUILD;
+
+  function $(id) { return document.getElementById(id); }
+  function toast(msg, kind) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.className = "toast show" + (kind ? " " + kind : "");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { el.className = "toast"; }, 5200);
+  }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function workerBase() {
+    try {
+      var h = location.hostname || "";
+      if (h === "maozi.io" || h.endsWith(".maozi.io")) return "";
+    } catch (e) {}
+    return WORKER;
+  }
+  function headers() {
+    var h = { Accept: "application/json" };
+    var extra = (window.MingdanAuth && MingdanAuth.authHeaders && MingdanAuth.authHeaders()) || {};
+    Object.keys(extra).forEach(function (k) { h[k] = extra[k]; });
+    return h;
+  }
+  var ERRORS = {
+    date_required: "请填写日期",
+    route_required: "请填写参加线路",
+    per_person_required: "请填写人均金额",
+    cover_invalid: "请核对起保日和承保天数",
+    guests_required: "没有可提交的客人",
+    unauthorized: "请重新登录后再提交",
+    csrf_invalid: "登录已过期，请刷新后再提交",
+    origin_not_allowed: "这个网址还不能提交",
+    d1_not_configured: "保存服务没接上",
+    must_change_password: "服务端仍要求先改密码"
+  };
+  function errText(data, status) {
+    return ERRORS[data && data.error] || (data && data.error) || ("提交失败（" + status + "）");
+  }
+  async function api(path, method, body) {
+    var opts = { method: method, credentials: "include", headers: headers() };
+    if (body) {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    var res = await fetch(workerBase() + path, opts);
+    var data = await res.json().catch(function () { return { ok: false, error: "bad_response" }; });
+    return { status: res.status, data: data };
+  }
+  function defaults() {
+    return { route: $("route").value.trim(), per_person: $("perPerson").value.trim() };
+  }
+  function effective(group) { return M.withDefaults(group, defaults()); }
+  function summaries() { return groups.map(effective).map(M.summarizeGroup); }
+  function syncDateFromText() {
+    var parsed = M.parseBatchDate($("dateText").value, new Date());
+    dateIso = parsed.ok ? parsed.date_iso : "";
+    if (parsed.ok) $("datePick").value = parsed.date_iso;
+    $("dateHint").textContent = parsed.ok ? ("名单日期 " + parsed.date_iso + "（" + parsed.batch_date + "）") : ($("dateText").value.trim() ? "日期看不懂，写成 11.6 或 2026-11-06" : "");
+    if (parsed.ok) applyDefaultCoverage(false);
+    return parsed;
+  }
+  function coverUntouched() {
+    return !$("coverStart").value || ($("coverStart").value === coverAuto.start && String($("coverDays").value).trim() === coverAuto.days && $("coverEnd").value === coverAuto.end);
+  }
+  function applyDefaultCoverage(force) {
+    if (!dateIso) return;
+    var d = M.defaultCoverage(dateIso);
+    if (!d.ok) return;
+    if (force || coverUntouched()) {
+      $("coverStart").value = d.cover_start;
+      $("coverDays").value = String(d.cover_days);
+      $("coverEnd").value = d.cover_end;
+      coverAuto = { start: d.cover_start, days: String(d.cover_days), end: d.cover_end };
+    }
+    updateCoverHint();
+  }
+  function updateCoverHint() {
+    var start = $("coverStart").value;
+    var end = $("coverEnd").value;
+    var days = String($("coverDays").value || "").trim();
+    $("coverHint").textContent = start && end ? ("这次生效：起保 " + start + "，止保 " + end + "，共 " + days + " 天。提交给助手的就是这三样。") : "默认从名单日期的第二天起保，七宝常规保 3 天。个别名单可以改起保日、天数或止保日。";
+  }
+  function readCoverage() {
+    var start = $("coverStart").value;
+    var end = $("coverEnd").value;
+    if (start && end) return M.coverageFromStartEnd(start, end);
+    if (start) return M.coverageFromStartDays(start, $("coverDays").value);
+    if (dateIso) return M.defaultCoverage(dateIso);
+    return { ok: false, error: "cover_invalid" };
+  }
+  function renderStats() {
+    var sums = summaries();
+    var guests = 0, gifts = 0, billable = 0, cents = 0, incomplete = 0;
+    sums.forEach(function (s) {
+      guests += s.guest_count;
+      gifts += s.gift_headcount;
+      billable += s.billable_headcount;
+      if (!s.route || s.per_person === "") incomplete += 1;
+      else cents += M.toCents(s.total_amount) || 0;
+    });
+    if (!guests) {
+      $("tableStats").textContent = "核对区还是空的。";
+      return;
+    }
+    $("tableStats").innerHTML = "发给助手 <b>" + guests + "</b> 人（含队长 " + gifts + "） · 本次人数 <b>" + billable + "</b>（对账，不含队长） · 总金额 <b>" + esc(M.fromCents(cents)) + "</b>" + (incomplete ? " · 还有组没填线路或人均" : "");
+  }
+  function renderGroups() {
+    var host = $("groups");
+    host.innerHTML = "";
+    if (!groups.length) { renderStats(); return; }
+    groups.forEach(function (group, gi) {
+      var eff = effective(group);
+      var sum = M.summarizeGroup(eff);
+      var locked = M.toCents(eff.per_person) === 0;
+      var sec = document.createElement("section");
+      sec.className = "subgroup";
+      sec.innerHTML =
+        "<h3>第 " + (gi + 1) + " 组</h3>" +
+        '<div class="row">' +
+          '<div><label>参加线路</label><input data-field="route" type="text" value="' + esc(eff.route) + '" /></div>' +
+          '<div><label>人均金额</label><input data-field="per_person" type="text" inputmode="decimal" value="' + esc(eff.per_person) + '" /></div>' +
+          '<div><label>这一组</label><div class="hint" data-sum="1" style="margin:0;padding-top:10px">名单 ' + sum.guest_count + " · 队长 " + sum.gift_headcount + " · 对账人数 " + sum.billable_headcount + " · 总金额 " + esc(sum.total_amount || "—") + "</div></div>" +
+        "</div>" +
+        '<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th class="seq">序号</th><th>客人名单</th><th>身份证</th><th>队长/赠送</th><th></th><th></th></tr></thead><tbody>' +
+        sum.guests.map(function (g, i) {
+          var src = eff.guests[i] || {};
+          var on = !!g.is_gift;
+          return '<tr class="' + (on ? "captain" : "") + '" data-i="' + i + '">' +
+            '<td class="seq">' + (i + 1) + "</td>" +
+            '<td><input data-field="name" type="text" value="' + esc(g.name) + '" /></td>' +
+            '<td><input data-field="id_no" type="text" value="' + esc(g.id_no) + '" /></td>' +
+            '<td><label><input data-field="captain" type="checkbox" ' + (on ? "checked" : "") + (locked ? " disabled" : "") + " /> 队长</label></td>" +
+            '<td class="hint" data-warn="1" style="color:' + (src.warn || g.warn ? "var(--warn)" : "var(--muted)") + '">' + esc(src.warn || g.warn || (on ? "赠送，对账不计" : "")) + "</td>" +
+            '<td><button type="button" data-del="1">删除</button></td></tr>';
+        }).join("") +
+        "</tbody></table></div>";
+      sec.dataset.gi = String(gi);
+      host.appendChild(sec);
+    });
+    renderStats();
+  }
+  function guestAt(el) {
+    var sec = el.closest("[data-gi]");
+    var tr = el.closest("tr");
+    if (!sec || !tr) return null;
+    return { group: groups[Number(sec.dataset.gi)], index: Number(tr.dataset.i), sec: sec, tr: tr };
+  }
+  $("groups").addEventListener("input", function (e) {
+    var hit = guestAt(e.target);
+    if (!hit || !hit.group) return;
+    var field = e.target.getAttribute("data-field");
+    if (field === "route" || field === "per_person") {
+      hit.group[field] = e.target.value;
+      hit.group.hasMeta = true;
+      M.markZeroRate(hit.group);
+      renderGroups();
+      return;
+    }
+    if (field === "name" || field === "id_no") {
+      var g = hit.group.guests[hit.index];
+      if (!g) return;
+      g[field] = e.target.value;
+      if (field === "id_no") {
+        g.id_no = String(g.id_no || "").replace(/\s+/g, "").toUpperCase();
+        g.id_type = M.isId18(g.id_no) ? "身份证" : "其他";
+        g.warn = M.isId18(g.id_no) && !M.id18ChecksumOk(g.id_no) ? "校验位不符，请核对" : "";
+        var warn = hit.tr.querySelector("[data-warn]");
+        if (warn) warn.textContent = g.warn;
+      }
+    }
+  });
+  $("groups").addEventListener("change", function (e) {
+    if (e.target.getAttribute("data-field") !== "captain") return;
+    var hit = guestAt(e.target);
+    if (!hit) return;
+    var g = hit.group.guests[hit.index];
+    g.captain_manual = true;
+    g.is_captain = !!e.target.checked;
+    g.is_gift = !!e.target.checked;
+    hit.tr.classList.toggle("captain", g.is_gift);
+    renderStats();
+    var sum = hit.sec.querySelector("[data-sum]");
+    var s = M.summarizeGroup(effective(hit.group));
+    if (sum) sum.textContent = "名单 " + s.guest_count + " · 队长 " + s.gift_headcount + " · 对账人数 " + s.billable_headcount + " · 总金额 " + (s.total_amount || "—");
+  });
+  $("groups").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-del]");
+    if (!btn) return;
+    var hit = guestAt(btn);
+    if (!hit) return;
+    hit.group.guests.splice(hit.index, 1);
+    if (!hit.group.guests.length) groups.splice(Number(hit.sec.dataset.gi), 1);
+    renderGroups();
+  });
+  $("dateText").addEventListener("input", syncDateFromText);
+  $("datePick").addEventListener("change", function () {
+    var parsed = M.parseBatchDate($("datePick").value, new Date());
+    if (!parsed.ok) return;
+    dateIso = parsed.date_iso;
+    $("dateText").value = parsed.batch_date;
+    $("dateHint").textContent = "名单日期 " + parsed.date_iso + "（" + parsed.batch_date + "）";
+    applyDefaultCoverage(false);
+  });
+  $("coverStart").addEventListener("change", function () {
+    var next = M.coverageFromStartDays($("coverStart").value, $("coverDays").value || "3");
+    if (!next.ok) { updateCoverHint(); return; }
+    $("coverEnd").value = next.cover_end;
+    $("coverDays").value = String(next.cover_days);
+    updateCoverHint();
+  });
+  $("coverDays").addEventListener("input", function () {
+    var next = M.coverageFromStartDays($("coverStart").value, $("coverDays").value);
+    if (!next.ok) { updateCoverHint(); return; }
+    $("coverEnd").value = next.cover_end;
+    updateCoverHint();
+  });
+  $("coverEnd").addEventListener("change", function () {
+    var next = M.coverageFromStartEnd($("coverStart").value, $("coverEnd").value);
+    if (!next.ok) { toast("止保日要在起保日当天或之后，且不超过 60 天", "err"); return; }
+    $("coverDays").value = String(next.cover_days);
+    updateCoverHint();
+  });
+  $("btnCoverDefault").onclick = function () {
+    if (!dateIso) { toast("请先填名单日期", "err"); return; }
+    applyDefaultCoverage(true);
+  };
+  $("route").addEventListener("input", renderGroups);
+  $("perPerson").addEventListener("input", renderGroups);
+  $("btnParse").onclick = function () {
+    var parsed = M.parseRosterPaste($("paste").value);
+    var people = parsed.groups.reduce(function (n, g) { return n + g.guests.length; }, 0);
+    var box = $("rejectBox");
+    if (parsed.rejects.length) {
+      box.style.display = "block";
+      box.innerHTML = "这 " + parsed.rejects.length + " 行不是大陆 18 位身份证，没有导入。护照和港澳台请手动添加：<br/>" + parsed.rejects.slice(0, 20).map(esc).join("<br/>");
+    } else { box.style.display = "none"; box.innerHTML = ""; }
+    if (!people) { toast("没有解析到姓名 + 18 位身份证", "err"); return; }
+    if (parsed.dateHint && !$("dateText").value.trim()) {
+      $("dateText").value = parsed.dateHint;
+      syncDateFromText();
+    }
+    groups = parsed.groups;
+    renderGroups();
+    $("parseStats").textContent = "解析出 " + parsed.groups.length + " 组、" + people + " 人";
+    toast("已解析 " + people + " 人，核对队长和金额后再提交", "ok");
+  };
+  $("btnClearPaste").onclick = function () { $("paste").value = ""; };
+  $("btnClearRows").onclick = function () { groups = []; renderGroups(); $("parseStats").textContent = ""; };
+  $("btnManual").onclick = function () {
+    var name = $("mName").value.trim();
+    var idNo = $("mId").value.replace(/\s+/g, "").trim().toUpperCase();
+    if (!name || !idNo) { toast("手动添加要填姓名和证件号码", "err"); return; }
+    if (!/^[0-9A-Za-z]{5,24}$/.test(idNo)) { toast("证件号码只接受字母和数字", "err"); return; }
+    if (!groups.length) groups.push({ route: "", per_person: "", hasMeta: false, guests: [] });
+    var captain = $("mCaptain").checked;
+    groups[groups.length - 1].guests.push({
+      name: name, id_no: idNo, id_type: M.isId18(idNo) ? "身份证" : "其他",
+      is_captain: captain, is_gift: captain, captain_manual: captain, captain_locked: false,
+      warn: M.isId18(idNo) && !M.id18ChecksumOk(idNo) ? "校验位不符，请核对" : ""
+    });
+    $("mName").value = ""; $("mId").value = ""; $("mCaptain").checked = false;
+    renderGroups();
+    toast("已添加 " + name, "ok");
+  };
+  function insuranceLines(rec) {
+    return (rec.guests || []).map(function (g) {
+      return g.name + " " + g.id_no + (g.is_gift ? " （队长赠送）" : "");
+    }).join("\n");
+  }
+  function recordCard(rec) {
+    var rows = (rec.guests || []).map(function (g, i) {
+      return "<tr class=\"" + (g.is_gift ? "captain" : "") + "\"><td class=\"seq\">" + (i + 1) + "</td><td>" + esc(g.name) + "</td><td>" + esc(g.id_no) + "</td><td>" + (g.is_gift ? "队长赠送" : "") + "</td></tr>";
+    }).join("");
+    return '<article class="subgroup" data-id="' + esc(rec.id) + '">' +
+      "<h3>" + esc(rec.date) + " · " + esc(rec.route) + "</h3>" +
+      "<div class=\"hint\">人均 " + esc(rec.per_person) + " · 发给助手 " + rec.guest_count + " 人 · 队长 " + rec.gift_headcount + " · 本次人数 " + rec.billable_headcount + " · 总金额 " + esc(rec.total_amount) +
+      "<br/>起保 " + esc(rec.cover_start || "—") + " · 止保 " + esc(rec.cover_end || "—") + " · " + esc(rec.cover_days || "—") + " 天" +
+      "<br/>编号 " + esc(rec.id) + " · " + esc(rec.submitted_at || "") + (rec.delivered ? " · 已通知总助" : (rec.webhook_configured === false ? " · 通知还没接上" : "")) + "</div>" +
+      '<div class="actions"><button type="button" data-copy="1">复制姓名和身份证</button></div>' +
+      '<div class="table-wrap"><table><thead><tr><th class="seq">序号</th><th>客人名单</th><th>身份证</th><th>队长</th></tr></thead><tbody>' + rows + "</tbody></table></div></article>";
+  }
+  function showSuccess(records) {
+    var box = $("success");
+    box.classList.remove("hidden");
+    var notified = records.filter(function (r) { return r.delivered; }).length;
+    var notice = notified === records.length
+      ? "提交后名单会发给助手用于买保险。总助通知已发出。本页没有自动下单。"
+      : "名单已保存。有 " + (records.length - notified) + " 组没能通知到总助，请稍后重试，或先复制名单。本页没有自动下单。";
+    box.innerHTML = "<h2>已提交给助手</h2><p class=\"sub\">" + notice + " 下面是刚保存的内容，含起保日、止保日和天数。队长赠送已标出，总金额不含他们。</p>" +
+      records.map(recordCard).join("");
+    box.querySelectorAll("[data-copy]").forEach(function (btn, i) {
+      btn.onclick = function () {
+        var text = insuranceLines(records[i]);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { toast("已复制，可粘到保险站", "ok"); }, function () { toast("复制失败，请手动选择", "err"); });
+        } else toast("这个浏览器不能自动复制", "err");
+      };
+    });
+    box.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function renderRecent(batches) {
+    var host = $("recent");
+    if (!batches || !batches.length) { host.textContent = "还没有提交过名单。"; return; }
+    host.innerHTML = batches.map(recordCard).join("");
+    host.querySelectorAll("[data-copy]").forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.closest("[data-id]").getAttribute("data-id");
+        var rec = batches.filter(function (b) { return b.id === id; })[0];
+        var text = insuranceLines(rec);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { toast("已复制", "ok"); }, function () { toast("复制失败", "err"); });
+        }
+      };
+    });
+  }
+  async function loadRecent() {
+    try {
+      var out = await api("/roster", "GET");
+      if (!out.data || !out.data.ok) { $("recent").textContent = errText(out.data, out.status); return; }
+      renderRecent(out.data.batches || []);
+    } catch (e) {
+      $("recent").textContent = "名单列表没有载入。";
+    }
+  }
+  $("btnSubmit").onclick = async function () {
+    var parsedDate = syncDateFromText();
+    if (!parsedDate.ok) { toast(parsedDate.error === "date_required" ? "请填写日期" : "日期看不懂", "err"); return; }
+    var cover = readCoverage();
+    if (!cover.ok) { toast("请核对起保日、承保天数和止保日", "err"); return; }
+    var sums = summaries();
+    var people = sums.reduce(function (n, s) { return n + s.guest_count; }, 0);
+    if (!people) { toast("请先解析或添加客人", "err"); return; }
+    for (var i = 0; i < sums.length; i++) {
+      if (!sums[i].route) { toast("第 " + (i + 1) + " 组还没填参加线路", "err"); return; }
+      if (sums[i].per_person === "") { toast("第 " + (i + 1) + " 组还没填人均金额", "err"); return; }
+      if (sums[i].guests.some(function (g) { return !g.name || !g.id_no; })) { toast("有客人缺姓名或证件号", "err"); return; }
+    }
+    var btn = $("btnSubmit");
+    btn.disabled = true;
+    var saved = [];
+    try {
+      for (var j = 0; j < sums.length; j++) {
+        var s = sums[j];
+        var out = await api("/roster", "POST", {
+          date: parsedDate.batch_date,
+          date_iso: parsedDate.date_iso,
+          cover_start: cover.cover_start,
+          cover_end: cover.cover_end,
+          cover_days: cover.cover_days,
+          route: s.route,
+          per_person: s.per_person,
+          guests: s.guests,
+          note: $("note").value.trim(),
+          account: (window.MingdanAuth && MingdanAuth.currentUser && MingdanAuth.currentUser()) || "",
+          raw_paste: String($("paste").value || "").slice(0, 20000)
+        });
+        if (!out.data || !out.data.ok || !out.data.record) {
+          toast("第 " + (j + 1) + " 组没保存：" + errText(out.data, out.status), "err");
+          if (saved.length) showSuccess(saved);
+          return;
+        }
+        saved.push(out.data.record);
+      }
+      showSuccess(saved);
+      groups = [];
+      renderGroups();
+      $("parseStats").textContent = "";
+      toast("已提交 " + saved.length + " 组给助手", "ok");
+      loadRecent();
+    } catch (e) {
+      toast("网络异常，请稍后再试", "err");
+      if (saved.length) showSuccess(saved);
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  renderGroups();
+  MingdanAuth.require(function () { loadRecent(); });
+})();
+</script>
+</body>
+</html>
