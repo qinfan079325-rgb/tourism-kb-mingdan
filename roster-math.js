@@ -308,6 +308,8 @@
           name: g.name || "",
           id_no: g.id_no || "",
           id_type: g.id_type || "身份证",
+          gender: g.gender || "",
+          birth: g.birth || "",
           is_captain: !!g.is_captain,
           is_gift: !!g.is_gift,
           captain_manual: !!g.captain_manual,
@@ -327,10 +329,14 @@
     var per = toCents(group.per_person);
     var guests = (group.guests || []).map(function (g) {
       var gift = per === 0 || !!(g.is_captain || g.is_gift);
+      var idNo = String(g.id_no || "").replace(/\s+/g, "").trim().toUpperCase();
+      var derived = deriveFromId(idNo);
       return {
         name: String(g.name || "").trim(),
-        id_no: String(g.id_no || "").replace(/\s+/g, "").trim().toUpperCase(),
-        id_type: String(g.id_type || "身份证").trim() || "身份证",
+        id_no: idNo,
+        id_type: String(g.id_type || (isId18(idNo) ? "身份证" : "护照")).trim() || "护照",
+        gender: derived.gender || String(g.gender || "").trim(),
+        birth: derived.birth || String(g.birth || "").trim(),
         is_captain: gift,
         is_gift: gift,
         warn: g.warn || ""

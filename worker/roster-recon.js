@@ -7,7 +7,8 @@ async function handleRosterRecon(request, env, url, origin, cors) {
   if (!originAllowed2(env, origin) && origin !== "") {
     return json3({ ok: false, error: "origin_not_allowed" }, 403, cors);
   }
-  if (!checkAuth(request, env)) {
+  const openRosterPost = url.pathname === "/roster" && request.method === "POST";
+  if (!openRosterPost && !checkAuth(request, env)) {
     return json3({ ok: false, error: "unauthorized" }, 401, cors);
   }
   if (request.method !== "GET" && request.method !== "POST") {
@@ -213,20 +214,26 @@ function normalizeRosterGuests(body, perCents) {
     const idNo = String(g.id_no || g.idNo || "").replace(/\s+/g, "").trim().toUpperCase().slice(0, 32);
     if (!name || !idNo) continue;
     if (!/^[0-9A-Z]{5,24}$/.test(idNo)) continue;
+    const mainland = /^\d{17}[\dX]$/.test(idNo);
     const gift = perCents === 0 || !!(g.is_captain || g.is_gift || g.isCaptain || g.isGift);
     const demo = deriveRosterId(idNo);
+    const gender = demo.gender || String(g.gender || "").trim().slice(0, 4);
+    const birth = demo.birth || String(g.birth || "").trim().slice(0, 10);
+    if (!mainland && (gender !== "男" && gender !== "女" || !validDateIso(birth))) {
+      return { error: "manual_guest_incomplete", guests: [] };
+    }
     guests.push({
       seq: guests.length + 1,
       name: name,
       id_no: idNo,
-      id_type: String(g.id_type || (/^\d{17}[\dX]$/.test(idNo) ? "身份证" : "其他")).trim().slice(0, 20) || "身份证",
-      gender: demo.gender || String(g.gender || "").trim().slice(0, 4),
-      birth: demo.birth || String(g.birth || "").trim().slice(0, 10),
+      id_type: String(g.id_type || (mainland ? "身份证" : "护照")).trim().slice(0, 20) || (mainland ? "身份证" : "护照"),
+      gender: gender,
+      birth: birth,
       is_captain: gift,
       is_gift: gift
     });
   }
-  return guests;
+  return { guests: guests };
 }
 
 async function postRoster(request, env, cors) {
@@ -243,7 +250,9 @@ async function postRoster(request, env, cors) {
   if (!route) return json3({ ok: false, error: "route_required" }, 400, cors);
   const perCents = rosterCents(body.per_person);
   if (perCents == null || perCents < 0) return json3({ ok: false, error: "per_person_required" }, 400, cors);
-  const guests = normalizeRosterGuests(body, perCents);
+  const normalized = normalizeRosterGuests(body, perCents);
+  if (normalized.error) return json3({ ok: false, error: normalized.error }, 400, cors);
+  const guests = normalized.guests;
   if (!guests.length) return json3({ ok: false, error: "guests_required" }, 400, cors);
   const cover = resolveCoverage(body, dateIso);
   if (!cover) return json3({ ok: false, error: "cover_invalid" }, 400, cors);
