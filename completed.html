@@ -514,7 +514,7 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
     <a href="index.html">未出团</a>
     <a class="active admin-only" href="completed.html" hidden>已完团</a>
     <a href="upload.html">模糊订单</a>
-    <a href="insurance.html">保险名单</a>
+    <a class="admin-only" href="accounts.html" hidden>账号管理</a>
     <span class="auth-who" id="authWho"></span>
     <button type="button" class="btn-logout" id="btnLogout">退出</button>
   </nav>
@@ -528,34 +528,6 @@ h1{font-size:1.45rem;margin:0 0 2px;font-weight:750;letter-spacing:.01em}
   </div>
   <div id="days"></div>
   <div class="empty hidden" id="empty">没有匹配的组</div>
-    <section id="accountAdmin" aria-label="管理员工具" hidden>
-    <h2>管理员工具</h2>
-    <p class="admin-hint">账号管理。仅管理员可见。普通用户可使用未出团、模糊订单、保险名单，不能查看已完团。不能删除初始管理员秦凡，也不能删除自己。</p>
-    <div class="admin-card">
-      <h3>账号管理</h3>
-      <form id="adminAddUser" class="admin-form" autocomplete="off">
-        <div class="field">
-          <label for="adminNewName">用户名</label>
-          <input id="adminNewName" name="username" type="text" maxlength="80" required placeholder="姓名或账号" />
-        </div>
-        <div class="field">
-          <label for="adminNewPassword">密码</label>
-          <input id="adminNewPassword" name="new-password" type="password" maxlength="128" autocomplete="new-password" required placeholder="初始密码" />
-        </div>
-        <div class="field">
-          <label for="adminNewRole">角色</label>
-          <select id="adminNewRole" name="role">
-            <option value="staff" selected>普通用户</option>
-            <option value="admin">管理员</option>
-          </select>
-        </div>
-        <button class="admin-add-btn" type="submit">添加人员</button>
-      </form>
-      <div id="adminNotice" role="status" aria-live="polite"></div>
-      <div id="adminUsers"></div>
-    </div>
-  </section>
-
 <div class="footer">需登录访问 · 数据由钉钉导出每日重建 · 不展示完整身份证/电话</div>
 </div>
 
